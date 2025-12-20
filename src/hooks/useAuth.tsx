@@ -42,37 +42,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchProfile = async (userId: string) => {
     try {
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .maybeSingle();
+      console.log("[Auth] Fetching profile for user:", userId);
+      
+      // Fetch profile and role in parallel for faster loading
+      const [profileResult, roleResult] = await Promise.all([
+        supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", userId)
+          .maybeSingle(),
+        supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", userId)
+          .maybeSingle()
+      ]);
 
-      if (profileError) {
-        console.error("Error fetching profile:", profileError);
-        return;
+      if (profileResult.error) {
+        console.error("[Auth] Error fetching profile:", profileResult.error);
+      } else if (profileResult.data) {
+        console.log("[Auth] Profile loaded:", profileResult.data.email);
+        setProfile(profileResult.data as Profile);
       }
 
-      if (profileData) {
-        setProfile(profileData as Profile);
-      }
-
-      const { data: roleData, error: roleError } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (roleError) {
-        console.error("Error fetching role:", roleError);
-        return;
-      }
-
-      if (roleData) {
-        setRole(roleData.role as AppRole);
+      if (roleResult.error) {
+        console.error("[Auth] Error fetching role:", roleResult.error);
+      } else if (roleResult.data) {
+        console.log("[Auth] Role loaded:", roleResult.data.role);
+        setRole(roleResult.data.role as AppRole);
+      } else {
+        console.log("[Auth] No role found for user, defaulting to null");
       }
     } catch (error) {
-      console.error("Error in fetchProfile:", error);
+      console.error("[Auth] Error in fetchProfile:", error);
     }
   };
 

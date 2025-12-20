@@ -4,7 +4,7 @@ import { useAllSubmissions, useUpdateSubmission } from "@/hooks/useSubmissions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ExternalLink, CheckCircle, XCircle, Eye, DollarSign, RefreshCw, Smartphone, Camera, Play } from "lucide-react";
+import { ExternalLink, CheckCircle, XCircle, Eye, DollarSign, RefreshCw, Smartphone, Camera, Play, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { mapErrorToUserMessage, logError } from "@/lib/errorMapping";
@@ -22,6 +22,10 @@ const AdminSubmissions = () => {
   const [viewInputs, setViewInputs] = useState<Record<string, string>>({});
   const [processing, setProcessing] = useState<string | null>(null);
   const [fetching, setFetching] = useState<string | null>(null);
+  const [fetchingAll, setFetchingAll] = useState(false);
+
+  const pendingSubs = submissions?.filter((s) => s.status === "pending") || [];
+  const processedSubs = submissions?.filter((s) => s.status !== "pending") || [];
 
   const handleFetchViews = async (id: string, clipUrl: string, platform: string) => {
     if (platform !== "tiktok") {
@@ -60,6 +64,47 @@ const AdminSubmissions = () => {
     } finally {
       setFetching(null);
     }
+  };
+
+  const handleFetchAllViews = async () => {
+    const tiktokPending = pendingSubs.filter((s) => s.platform === "tiktok");
+    
+    if (tiktokPending.length === 0) {
+      toast({
+        title: "No TikTok submissions",
+        description: "There are no pending TikTok submissions to fetch views for",
+      });
+      return;
+    }
+
+    setFetchingAll(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const sub of tiktokPending) {
+      try {
+        const { data, error } = await supabase.functions.invoke("fetch-tiktok-views", {
+          body: { video_url: sub.clip_url },
+        });
+
+        if (error) throw error;
+
+        if (data?.play_count) {
+          setViewInputs((prev) => ({ ...prev, [sub.id]: data.play_count.toString() }));
+          successCount++;
+        } else {
+          errorCount++;
+        }
+      } catch {
+        errorCount++;
+      }
+    }
+
+    setFetchingAll(false);
+    toast({
+      title: "Bulk fetch complete",
+      description: `Fetched ${successCount} of ${tiktokPending.length} videos. ${errorCount} failed.`,
+    });
   };
 
   const handleApprove = async (id: string) => {
@@ -115,14 +160,26 @@ const AdminSubmissions = () => {
     }
   };
 
-  const pendingSubs = submissions?.filter((s) => s.status === "pending") || [];
-  const processedSubs = submissions?.filter((s) => s.status !== "pending") || [];
+  const tiktokPendingCount = pendingSubs.filter((s) => s.platform === "tiktok").length;
 
   return (
     <AppLayout title="Manage Submissions">
       {/* Pending Submissions */}
       <div className="mb-8">
-        <h2 className="text-lg font-semibold mb-4">Pending Review ({pendingSubs.length})</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Pending Review ({pendingSubs.length})</h2>
+          {tiktokPendingCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleFetchAllViews}
+              disabled={fetchingAll}
+            >
+              <Zap className={`h-4 w-4 mr-2 ${fetchingAll ? "animate-pulse" : ""}`} />
+              {fetchingAll ? "Fetching..." : `Fetch All TikTok Views (${tiktokPendingCount})`}
+            </Button>
+          )}
+        </div>
         {isLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => <Skeleton key={i} className="h-32 rounded-xl" />)}

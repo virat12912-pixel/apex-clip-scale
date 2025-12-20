@@ -15,14 +15,18 @@ import {
   AlertCircle,
   Smartphone,
   Camera,
-  Play
+  Play,
+  ImageIcon
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import { Link } from "react-router-dom";
-import { useCampaigns } from "@/hooks/useCampaigns";
+import { useCampaigns, CampaignStatus } from "@/hooks/useCampaigns";
+import { useAuth } from "@/hooks/useAuth";
 import { CampaignFiltersModal, FilterValues } from "@/components/campaigns/CampaignFiltersModal";
 
 const categories = [
@@ -41,8 +45,12 @@ const platformIcons: Record<string, React.ReactNode> = {
 };
 
 const Campaigns = () => {
+  const { role } = useAuth();
+  const isAdmin = role === "admin";
+  
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<CampaignStatus | "all">("active");
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState<FilterValues>({
     platforms: [],
@@ -51,8 +59,11 @@ const Campaigns = () => {
     minViews: 0,
   });
 
+  // For non-admins, always show active only
+  const effectiveStatus = isAdmin ? statusFilter : "active";
+
   const { data: campaigns, isLoading } = useCampaigns({
-    status: "active",
+    status: effectiveStatus,
     niche: selectedCategory === "all" ? undefined : selectedCategory,
     search: searchQuery || undefined,
   });
@@ -68,7 +79,7 @@ const Campaigns = () => {
     if (campaign.rate_value < filters.minRate || campaign.rate_value > filters.maxRate) {
       return false;
     }
-    if (campaign.min_views < filters.minViews) {
+    if (filters.minViews > 0 && campaign.min_views > filters.minViews) {
       return false;
     }
     return true;
@@ -80,10 +91,40 @@ const Campaigns = () => {
     return num.toString();
   };
 
+  const getStatusColor = (status: CampaignStatus) => {
+    switch (status) {
+      case "active":
+        return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+      case "paused":
+        return "bg-yellow-500/10 text-yellow-400 border-yellow-500/20";
+      case "completed":
+        return "bg-gray-500/10 text-gray-400 border-gray-500/20";
+      case "private":
+        return "bg-purple-500/10 text-purple-400 border-purple-500/20";
+      default:
+        return "bg-primary/10 text-primary border-primary/20";
+    }
+  };
+
   const hasActiveFilters = filters.platforms.length > 0 || filters.minRate > 0 || filters.maxRate < 500 || filters.minViews > 0;
 
   return (
     <AppLayout title="Browse Campaigns">
+      {/* Status Tabs - Admin Only */}
+      {isAdmin && (
+        <div className="mb-6">
+          <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as CampaignStatus | "all")}>
+            <TabsList>
+              <TabsTrigger value="active">Active</TabsTrigger>
+              <TabsTrigger value="paused">Paused</TabsTrigger>
+              <TabsTrigger value="completed">Completed</TabsTrigger>
+              <TabsTrigger value="private">Private</TabsTrigger>
+              <TabsTrigger value="all">All</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      )}
+
       {/* Search and filters */}
       <div className="mb-6 flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
@@ -152,77 +193,101 @@ const Campaigns = () => {
           {filteredCampaigns?.map((campaign) => (
             <div
               key={campaign.id}
-              className="group p-6 rounded-2xl bg-card border border-border hover:border-primary/30 transition-all duration-300"
+              className="group rounded-2xl bg-card border border-border hover:border-primary/30 transition-all duration-300 overflow-hidden"
             >
-              {/* Campaign Image */}
-              {campaign.image_url && (
-                <div className="w-full h-32 rounded-lg overflow-hidden mb-4 -mt-2 -mx-2" style={{ width: "calc(100% + 16px)" }}>
-                  <img src={campaign.image_url} alt={campaign.name} className="w-full h-full object-cover" />
+              {/* Campaign Image - Always shown as hero */}
+              <div className="relative w-full h-40 bg-secondary/50">
+                {campaign.image_url ? (
+                  <img 
+                    src={campaign.image_url} 
+                    alt={campaign.name} 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
+                    <ImageIcon className="h-12 w-12 text-muted-foreground/50" />
+                  </div>
+                )}
+                
+                {/* Status Badge */}
+                <div className="absolute top-3 left-3">
+                  <Badge className={`${getStatusColor(campaign.status)} flex items-center gap-1`}>
+                    <Sparkles className="h-3 w-3" />
+                    {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1)}
+                  </Badge>
                 </div>
-              )}
 
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center text-sm font-semibold text-primary-foreground overflow-hidden">
-                    {campaign.creator_profile?.avatar_url ? (
-                      <img src={campaign.creator_profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      campaign.creator_profile?.full_name?.charAt(0) || "C"
-                    )}
+                {/* Platform Icons */}
+                {campaign.platforms && campaign.platforms.length > 0 && (
+                  <div className="absolute top-3 right-3 flex gap-1">
+                    {campaign.platforms.map((platform) => (
+                      <div
+                        key={platform}
+                        className="w-7 h-7 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center"
+                      >
+                        {platformIcons[platform]}
+                      </div>
+                    ))}
                   </div>
-                  <div>
-                    <div className="font-medium">{campaign.creator_profile?.full_name || "Creator"}</div>
-                    <div className="text-xs text-muted-foreground">Campaign Creator</div>
-                  </div>
-                </div>
-                <Badge variant="secondary" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20 flex items-center gap-1">
-                  <Sparkles className="h-3 w-3" /> Active
-                </Badge>
+                )}
               </div>
 
-              <h3 className="font-semibold text-lg mb-2">{campaign.name}</h3>
-              <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-                {campaign.description || "No description provided"}
-              </p>
-
-              {campaign.platforms && campaign.platforms.length > 0 && (
-                <div className="flex gap-2 mb-4">
-                  {campaign.platforms.map((platform) => (
-                    <span key={platform} className="px-2 py-1 rounded bg-secondary text-xs capitalize flex items-center gap-1">
-                      {platformIcons[platform]} {platform}
-                    </span>
-                  ))}
+              <div className="p-6">
+                {/* Campaign Name as Primary Title */}
+                <div className="mb-3">
+                  <h3 className="font-semibold text-lg group-hover:text-primary transition-colors line-clamp-1">
+                    {campaign.name}
+                  </h3>
+                  {campaign.niche && (
+                    <Badge variant="secondary" className="mt-1 text-xs capitalize">
+                      {campaign.niche}
+                    </Badge>
+                  )}
                 </div>
-              )}
 
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="p-3 rounded-lg bg-secondary/50">
-                  <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
-                    <DollarSign className="w-3 h-3" />Rate
+                <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                  {campaign.description || "No description provided"}
+                </p>
+
+                {/* Stats */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="p-3 rounded-lg bg-secondary/50">
+                    <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
+                      <DollarSign className="w-3 h-3" />Rate
+                    </div>
+                    <div className="font-semibold text-primary">${campaign.rate_value}/{formatNumber(campaign.rate_unit)} views</div>
                   </div>
-                  <div className="font-semibold text-primary">${campaign.rate_value}/{formatNumber(campaign.rate_unit)} views</div>
-                </div>
-                <div className="p-3 rounded-lg bg-secondary/50">
-                  <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
-                    <Eye className="w-3 h-3" />Min Views
+                  <div className="p-3 rounded-lg bg-secondary/50">
+                    <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
+                      <Eye className="w-3 h-3" />Min Views
+                    </div>
+                    <div className="font-semibold">{formatNumber(campaign.min_views)}</div>
                   </div>
-                  <div className="font-semibold">{formatNumber(campaign.min_views)}</div>
                 </div>
-              </div>
 
-              <div className="mb-4">
-                <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                  <span>Budget Used</span>
-                  <span>${Number(campaign.spent_budget).toFixed(0)} / ${Number(campaign.total_budget).toFixed(0)}</span>
+                {/* Budget Progress */}
+                <div className="mb-4">
+                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                    <span>Budget Used</span>
+                    <span>${Number(campaign.spent_budget).toFixed(0)} / ${Number(campaign.total_budget).toFixed(0)}</span>
+                  </div>
+                  <Progress 
+                    value={Math.min((Number(campaign.spent_budget) / Number(campaign.total_budget)) * 100, 100)} 
+                    className="h-2"
+                  />
                 </div>
-                <div className="h-2 bg-background rounded-full overflow-hidden">
-                  <div className="h-full bg-gradient-primary rounded-full" style={{ width: `${Math.min((Number(campaign.spent_budget) / Number(campaign.total_budget)) * 100, 100)}%` }} />
-                </div>
-              </div>
 
-              <Button asChild className="w-full bg-gradient-primary hover:opacity-90 glow-primary">
-                <Link to={`/campaigns/${campaign.id}`}>View Campaign<ArrowRight className="ml-2 h-4 w-4" /></Link>
-              </Button>
+                {/* Max Earnings */}
+                {campaign.max_earnings_per_post && (
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Max ${campaign.max_earnings_per_post} per post
+                  </p>
+                )}
+
+                <Button asChild className="w-full bg-gradient-primary hover:opacity-90 glow-primary">
+                  <Link to={`/campaigns/${campaign.id}`}>View Campaign<ArrowRight className="ml-2 h-4 w-4" /></Link>
+                </Button>
+              </div>
             </div>
           ))}
         </div>

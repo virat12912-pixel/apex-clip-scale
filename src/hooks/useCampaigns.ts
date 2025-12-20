@@ -3,8 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { Database } from "@/integrations/supabase/types";
 
-type CampaignStatus = Database["public"]["Enums"]["campaign_status"];
-type PlatformType = Database["public"]["Enums"]["platform_type"];
+export type CampaignStatus = Database["public"]["Enums"]["campaign_status"];
+export type PlatformType = Database["public"]["Enums"]["platform_type"];
 
 export interface Campaign {
   id: string;
