@@ -57,6 +57,10 @@ export const campaignSchema = z.object({
     .positive("Budget must be greater than 0")
     .min(1, "Budget must be at least $1")
     .max(100000000, "Budget cannot exceed $100,000,000"),
+  image_url: z
+    .string()
+    .url("Invalid image URL")
+    .optional(),
 });
 
 export type CampaignInput = z.infer<typeof campaignSchema>;
@@ -73,6 +77,7 @@ export interface ValidatedCampaignData {
   min_views: number;
   max_earnings_per_post?: number;
   total_budget: number;
+  image_url?: string;
 }
 
 /**
@@ -89,6 +94,7 @@ export function validateCampaignInput(input: {
   min_views?: number;
   max_earnings_per_post?: number;
   total_budget: number;
+  image_url?: string;
 }): { success: true; data: ValidatedCampaignData } | { success: false; error: string } {
   const result = campaignSchema.safeParse(input);
   
