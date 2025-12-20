@@ -1,4 +1,4 @@
-import { Users, Eye, CheckCircle, Film } from "lucide-react";
+import { Users, Eye, CheckCircle, Film, TrendingUp } from "lucide-react";
 
 const metrics = [
   {
@@ -34,6 +34,19 @@ const MetricsSection = () => {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
       
       <div className="container">
+        {/* Live community indicator */}
+        <div className="flex justify-center mb-8">
+          <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-card border border-border">
+            <div className="relative flex items-center justify-center">
+              <span className="absolute w-3 h-3 rounded-full bg-emerald-500 animate-ping opacity-75" />
+              <span className="relative w-3 h-3 rounded-full bg-emerald-500" />
+            </div>
+            <span className="text-sm text-muted-foreground">
+              <span className="font-semibold text-foreground">+25,767</span> active creators in the community
+            </span>
+          </div>
+        </div>
+
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">
             Built for <span className="text-gradient">Scale</span>

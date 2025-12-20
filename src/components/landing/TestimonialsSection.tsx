@@ -1,4 +1,4 @@
-import { Star } from "lucide-react";
+import { Star, DollarSign } from "lucide-react";
 
 const testimonials = [
   {
@@ -8,6 +8,7 @@ const testimonials = [
     avatar: "MC",
     content: "Apex completely changed how I approach short-form content. I went from 2 clips a week to 20, and my reach tripled in the first month.",
     rating: 5,
+    earnings: null,
   },
   {
     type: "Clipper",
@@ -16,6 +17,7 @@ const testimonials = [
     avatar: "SW",
     content: "I've tried other platforms, but Apex pays better and faster. The dashboard makes it easy to find campaigns that match my style.",
     rating: 5,
+    earnings: "$12,400",
   },
   {
     type: "Brand",
@@ -24,6 +26,7 @@ const testimonials = [
     avatar: "DP",
     content: "We needed to scale our social presence fast. Apex delivered 150+ clips in our first campaign with measurable ROI. Game changer for brands.",
     rating: 5,
+    earnings: null,
   },
 ];
 
@@ -52,10 +55,20 @@ const TestimonialsSection = () => {
               key={testimonial.name}
               className="group relative p-6 sm:p-8 rounded-2xl bg-card border border-border hover:border-primary/30 transition-all duration-300"
             >
-              {/* Type badge */}
-              <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary mb-4">
-                {testimonial.type}
-              </span>
+              {/* Type badge and earnings */}
+              <div className="flex items-center justify-between mb-4">
+                <span className="inline-block px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                  {testimonial.type}
+                </span>
+                {testimonial.earnings && (
+                  <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                    <DollarSign className="w-3 h-3 text-emerald-400" />
+                    <span className="text-xs font-semibold text-emerald-400">
+                      {testimonial.earnings} earned
+                    </span>
+                  </div>
+                )}
+              </div>
 
               {/* Rating */}
               <div className="flex gap-1 mb-4">
