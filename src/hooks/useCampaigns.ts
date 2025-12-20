@@ -98,6 +98,7 @@ export function useCreateCampaign() {
       min_views?: number;
       max_earnings_per_post?: number;
       total_budget: number;
+      image_url?: string;
     }) => {
       if (!user) throw new Error("Not authenticated");
 
@@ -114,6 +115,7 @@ export function useCreateCampaign() {
           min_views: campaign.min_views,
           max_earnings_per_post: campaign.max_earnings_per_post,
           total_budget: campaign.total_budget,
+          image_url: campaign.image_url,
           created_by: user.id,
         })
         .select()
