@@ -12,7 +12,10 @@ import {
   Music,
   Utensils,
   Sparkles,
-  AlertCircle
+  AlertCircle,
+  Smartphone,
+  Camera,
+  Play
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,10 +34,10 @@ const categories = [
   { id: "food", label: "Food", icon: Utensils },
 ];
 
-const platformIcons: Record<string, string> = {
-  tiktok: "📱",
-  instagram: "📸",
-  youtube: "▶️",
+const platformIcons: Record<string, React.ReactNode> = {
+  tiktok: <Smartphone className="h-3 w-3" />,
+  instagram: <Camera className="h-3 w-3" />,
+  youtube: <Play className="h-3 w-3" />,
 };
 
 const Campaigns = () => {
@@ -151,18 +154,29 @@ const Campaigns = () => {
               key={campaign.id}
               className="group p-6 rounded-2xl bg-card border border-border hover:border-primary/30 transition-all duration-300"
             >
+              {/* Campaign Image */}
+              {campaign.image_url && (
+                <div className="w-full h-32 rounded-lg overflow-hidden mb-4 -mt-2 -mx-2" style={{ width: "calc(100% + 16px)" }}>
+                  <img src={campaign.image_url} alt={campaign.name} className="w-full h-full object-cover" />
+                </div>
+              )}
+
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center text-sm font-semibold text-primary-foreground">
-                    {campaign.creator_profile?.full_name?.charAt(0) || "C"}
+                  <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center text-sm font-semibold text-primary-foreground overflow-hidden">
+                    {campaign.creator_profile?.avatar_url ? (
+                      <img src={campaign.creator_profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      campaign.creator_profile?.full_name?.charAt(0) || "C"
+                    )}
                   </div>
                   <div>
                     <div className="font-medium">{campaign.creator_profile?.full_name || "Creator"}</div>
                     <div className="text-xs text-muted-foreground">Campaign Creator</div>
                   </div>
                 </div>
-                <Badge variant="secondary" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
-                  ✨ Active
+                <Badge variant="secondary" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20 flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" /> Active
                 </Badge>
               </div>
 
@@ -174,7 +188,7 @@ const Campaigns = () => {
               {campaign.platforms && campaign.platforms.length > 0 && (
                 <div className="flex gap-2 mb-4">
                   {campaign.platforms.map((platform) => (
-                    <span key={platform} className="px-2 py-1 rounded bg-secondary text-xs capitalize">
+                    <span key={platform} className="px-2 py-1 rounded bg-secondary text-xs capitalize flex items-center gap-1">
                       {platformIcons[platform]} {platform}
                     </span>
                   ))}

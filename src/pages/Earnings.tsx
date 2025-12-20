@@ -1,26 +1,51 @@
 import { AppLayout } from "@/components/app/AppLayout";
-import { DollarSign, TrendingUp, ArrowUpRight, Clock, Eye, Download, Filter } from "lucide-react";
+import { DollarSign, TrendingUp, Clock, Eye, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWallet, usePayouts, useRequestPayout } from "@/hooks/useWallet";
 import { useMySubmissions } from "@/hooks/useSubmissions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { Link } from "react-router-dom";
 
 const Earnings = () => {
   const { data: wallet, isLoading: walletLoading } = useWallet();
   const { data: payouts, isLoading: payoutsLoading } = usePayouts();
   const { data: submissions, isLoading: submissionsLoading } = useMySubmissions();
+  const { profile } = useAuth();
   const requestPayout = useRequestPayout();
   const { toast } = useToast();
 
   const totalEarnings = submissions?.reduce((sum, s) => sum + Number(s.earnings || 0), 0) || 0;
   const paidSubmissions = submissions?.filter(s => s.status === "paid" || s.status === "approved") || [];
 
+  // Check if payment details are complete
+  const hasPaymentDetails = () => {
+    if (!profile) return false;
+    if (profile.payout_method === "paypal") {
+      return !!profile.payout_email;
+    }
+    if (profile.payout_method === "usdc_solana") {
+      return !!profile.solana_wallet_address;
+    }
+    return false;
+  };
+
   const handleRequestPayout = async () => {
     if (!wallet || wallet.pending_balance < 50) {
       toast({ title: "Minimum $50 required", variant: "destructive" });
       return;
     }
+
+    if (!hasPaymentDetails()) {
+      toast({ 
+        title: "Payment details required", 
+        description: "Please add your payment details in your profile before requesting a payout",
+        variant: "destructive" 
+      });
+      return;
+    }
+
     try {
       await requestPayout.mutateAsync(wallet.pending_balance);
       toast({ title: "Payout requested" });
@@ -87,7 +112,45 @@ const Earnings = () => {
               <div className="text-sm text-muted-foreground">Available</div>
               <div className="text-2xl font-bold text-primary">${(wallet?.pending_balance || 0).toFixed(2)}</div>
             </div>
-            <Button onClick={handleRequestPayout} disabled={requestPayout.isPending || (wallet?.pending_balance || 0) < 50} className="w-full bg-gradient-primary">
+
+            {/* Payment Details Warning */}
+            {!hasPaymentDetails() && (
+              <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-yellow-500">Payment details required</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Add your payment details before requesting a payout.
+                    </p>
+                    <Button asChild size="sm" variant="outline" className="mt-2">
+                      <Link to="/profile">Update Profile</Link>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Current Payment Method */}
+            {hasPaymentDetails() && (
+              <div className="p-3 rounded-lg bg-secondary/50">
+                <div className="text-xs text-muted-foreground">Payment Method</div>
+                <div className="font-medium capitalize">
+                  {profile?.payout_method === "usdc_solana" ? "USDC (Solana)" : "PayPal"}
+                </div>
+                <div className="text-xs text-muted-foreground font-mono truncate mt-1">
+                  {profile?.payout_method === "usdc_solana" 
+                    ? profile?.solana_wallet_address 
+                    : profile?.payout_email}
+                </div>
+              </div>
+            )}
+
+            <Button 
+              onClick={handleRequestPayout} 
+              disabled={requestPayout.isPending || (wallet?.pending_balance || 0) < 50 || !hasPaymentDetails()} 
+              className="w-full bg-gradient-primary"
+            >
               Request Payout
             </Button>
             <p className="text-xs text-muted-foreground text-center">Minimum $50 required</p>
