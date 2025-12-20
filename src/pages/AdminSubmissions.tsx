@@ -28,18 +28,21 @@ const AdminSubmissions = () => {
   const processedSubs = submissions?.filter((s) => s.status !== "pending") || [];
 
   const handleFetchViews = async (id: string, clipUrl: string, platform: string) => {
-    if (platform !== "tiktok") {
+    if (platform !== "tiktok" && platform !== "instagram") {
       toast({
         title: "Not supported",
-        description: "Auto-fetch is only available for TikTok videos",
+        description: "Auto-fetch is only available for TikTok and Instagram videos",
         variant: "destructive",
       });
       return;
     }
 
     setFetching(id);
+    const functionName = platform === "instagram" ? "fetch-instagram-views" : "fetch-tiktok-views";
+    const platformLabel = platform === "instagram" ? "Instagram" : "TikTok";
+    
     try {
-      const { data, error } = await supabase.functions.invoke("fetch-tiktok-views", {
+      const { data, error } = await supabase.functions.invoke(functionName, {
         body: { video_url: clipUrl },
       });
 
@@ -51,7 +54,7 @@ const AdminSubmissions = () => {
 
         if (code === "not_subscribed") {
           toast({
-            title: "TikTok API not subscribed",
+            title: `${platformLabel} API not subscribed`,
             description: "Auto-fetch is unavailable. Please enter views manually (or renew the API subscription).",
             variant: "destructive",
           });
@@ -59,6 +62,12 @@ const AdminSubmissions = () => {
           toast({
             title: "Rate limited",
             description: "Too many requests. Please wait a moment or enter views manually.",
+            variant: "destructive",
+          });
+        } else if (code === "invalid_url") {
+          toast({
+            title: "Invalid URL",
+            description: "Could not extract video ID from the URL. Please enter views manually.",
             variant: "destructive",
           });
         } else {
@@ -95,7 +104,7 @@ const AdminSubmissions = () => {
       if (errorMsg.includes("403") || errorMsg.includes("not subscribed")) {
         toast({ 
           title: "API subscription expired", 
-          description: "Please enter views manually. The TikTok API subscription needs renewal.",
+          description: `Please enter views manually. The ${platformLabel} API subscription needs renewal.`,
           variant: "destructive" 
         });
       } else if (errorMsg.includes("429") || errorMsg.includes("Too many")) {
@@ -117,12 +126,12 @@ const AdminSubmissions = () => {
   };
 
   const handleFetchAllViews = async () => {
-    const tiktokPending = pendingSubs.filter((s) => s.platform === "tiktok");
+    const fetchablePending = pendingSubs.filter((s) => s.platform === "tiktok" || s.platform === "instagram");
     
-    if (tiktokPending.length === 0) {
+    if (fetchablePending.length === 0) {
       toast({
-        title: "No TikTok submissions",
-        description: "There are no pending TikTok submissions to fetch views for",
+        title: "No fetchable submissions",
+        description: "There are no pending TikTok or Instagram submissions to fetch views for",
       });
       return;
     }
@@ -131,15 +140,16 @@ const AdminSubmissions = () => {
     let successCount = 0;
     let errorCount = 0;
 
-    for (const sub of tiktokPending) {
+    for (const sub of fetchablePending) {
       try {
-        const { data, error } = await supabase.functions.invoke("fetch-tiktok-views", {
+        const functionName = sub.platform === "instagram" ? "fetch-instagram-views" : "fetch-tiktok-views";
+        const { data, error } = await supabase.functions.invoke(functionName, {
           body: { video_url: sub.clip_url },
         });
 
         if (error) throw error;
 
-        if (data?.play_count) {
+        if (data?.success !== false && data?.play_count) {
           setViewInputs((prev) => ({ ...prev, [sub.id]: data.play_count.toString() }));
           successCount++;
         } else {
@@ -148,12 +158,14 @@ const AdminSubmissions = () => {
       } catch {
         errorCount++;
       }
+      // Small delay to avoid rate limiting
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
 
     setFetchingAll(false);
     toast({
       title: "Bulk fetch complete",
-      description: `Fetched ${successCount} of ${tiktokPending.length} videos. ${errorCount} failed.`,
+      description: `Fetched ${successCount} of ${fetchablePending.length} videos. ${errorCount} failed.`,
     });
   };
 
@@ -210,7 +222,7 @@ const AdminSubmissions = () => {
     }
   };
 
-  const tiktokPendingCount = pendingSubs.filter((s) => s.platform === "tiktok").length;
+  const fetchablePendingCount = pendingSubs.filter((s) => s.platform === "tiktok" || s.platform === "instagram").length;
 
   return (
     <AppLayout title="Manage Submissions">
@@ -218,7 +230,7 @@ const AdminSubmissions = () => {
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Pending Review ({pendingSubs.length})</h2>
-          {tiktokPendingCount > 0 && (
+          {fetchablePendingCount > 0 && (
             <Button
               variant="outline"
               size="sm"
@@ -226,7 +238,7 @@ const AdminSubmissions = () => {
               disabled={fetchingAll}
             >
               <Zap className={`h-4 w-4 mr-2 ${fetchingAll ? "animate-pulse" : ""}`} />
-              {fetchingAll ? "Fetching..." : `Fetch All TikTok Views (${tiktokPendingCount})`}
+              {fetchingAll ? "Fetching..." : `Fetch All Views (${fetchablePendingCount})`}
             </Button>
           )}
         </div>
@@ -279,7 +291,7 @@ const AdminSubmissions = () => {
                         onChange={(e) => setViewInputs({ ...viewInputs, [sub.id]: e.target.value })}
                         className="bg-secondary"
                       />
-                      {sub.platform === "tiktok" && (
+                      {(sub.platform === "tiktok" || sub.platform === "instagram") && (
                         <Button
                           size="icon"
                           variant="outline"
