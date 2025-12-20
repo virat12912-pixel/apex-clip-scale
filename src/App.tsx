@@ -56,7 +56,7 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/launch" element={
-              <ProtectedRoute allowedRoles={["brand", "admin"]}>
+              <ProtectedRoute allowedRoles={["admin"]}>
                 <Launch />
               </ProtectedRoute>
             } />
