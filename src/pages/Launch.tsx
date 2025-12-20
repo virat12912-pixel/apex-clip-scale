@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { AppLayout } from "@/components/app/AppLayout";
 import { 
   DollarSign, 
   Target, 
-  Calendar,
   Info,
   ArrowRight,
-  ArrowLeft
+  ArrowLeft,
+  Upload,
+  X,
+  Smartphone,
+  Camera,
+  Play
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +22,8 @@ import { useCreateCampaign } from "@/hooks/useCampaigns";
 import { Database } from "@/integrations/supabase/types";
 import { validateCampaignInput } from "@/lib/validation";
 import { mapErrorToUserMessage, logError } from "@/lib/errorMapping";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 type PlatformType = Database["public"]["Enums"]["platform_type"];
 
@@ -32,14 +38,18 @@ const categories = [
   "entertainment",
 ];
 
-const platforms: { id: PlatformType; label: string; icon: string }[] = [
-  { id: "tiktok", label: "TikTok", icon: "📱" },
-  { id: "instagram", label: "Instagram", icon: "📸" },
-  { id: "youtube", label: "YouTube", icon: "▶️" },
+const platforms: { id: PlatformType; label: string; icon: React.ReactNode }[] = [
+  { id: "tiktok", label: "TikTok", icon: <Smartphone className="h-4 w-4" /> },
+  { id: "instagram", label: "Instagram", icon: <Camera className="h-4 w-4" /> },
+  { id: "youtube", label: "YouTube", icon: <Play className="h-4 w-4" /> },
 ];
 
 const Launch = () => {
   const [step, setStep] = useState(1);
+  const [uploading, setUploading] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -69,6 +79,49 @@ const Launch = () => {
     }
   };
 
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Invalid file", description: "Please upload an image file", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Maximum file size is 5MB", variant: "destructive" });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const filePath = `${user.id}/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("campaign-images")
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("campaign-images")
+        .getPublicUrl(filePath);
+
+      setImageUrl(publicUrl);
+      toast({ title: "Image uploaded!" });
+    } catch (error: unknown) {
+      logError("Launch:handleImageUpload", error);
+      toast({ title: "Upload failed", description: mapErrorToUserMessage(error), variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeImage = () => {
+    setImageUrl(null);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -81,7 +134,6 @@ const Launch = () => {
       return;
     }
 
-    // Validate input with Zod schema
     const validationResult = validateCampaignInput({
       name: formData.name,
       description: formData.description || undefined,
@@ -95,6 +147,7 @@ const Launch = () => {
         ? parseFloat(formData.max_earnings_per_post) 
         : undefined,
       total_budget: parseFloat(formData.total_budget) || 0,
+      image_url: imageUrl || undefined,
     });
 
     if (validationResult.success === false) {
@@ -171,6 +224,47 @@ const Launch = () => {
               </div>
 
               <div className="space-y-4">
+                {/* Campaign Image */}
+                <div className="space-y-2">
+                  <Label>Campaign Image</Label>
+                  {imageUrl ? (
+                    <div className="relative w-full h-48 rounded-lg overflow-hidden border border-border">
+                      <img src={imageUrl} alt="Campaign" className="w-full h-full object-cover" />
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="destructive"
+                        className="absolute top-2 right-2"
+                        onClick={removeImage}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full h-48 rounded-lg border-2 border-dashed border-border bg-secondary/30 flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 transition-colors"
+                    >
+                      {uploading ? (
+                        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                          <p className="text-sm text-muted-foreground">Click to upload campaign image</p>
+                          <p className="text-xs text-muted-foreground mt-1">Max 5MB</p>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="name">Campaign Name *</Label>
                   <Input
@@ -398,6 +492,12 @@ const Launch = () => {
               </div>
 
               <div className="space-y-4">
+                {imageUrl && (
+                  <div className="w-full h-48 rounded-lg overflow-hidden">
+                    <img src={imageUrl} alt="Campaign" className="w-full h-full object-cover" />
+                  </div>
+                )}
+
                 <div className="p-4 rounded-lg bg-secondary/50">
                   <div className="text-sm text-muted-foreground mb-1">Campaign Name</div>
                   <div className="font-medium">{formData.name || "Not set"}</div>
@@ -405,7 +505,14 @@ const Launch = () => {
 
                 <div className="p-4 rounded-lg bg-secondary/50">
                   <div className="text-sm text-muted-foreground mb-1">Platforms</div>
-                  <div className="font-medium capitalize">{formData.platforms.join(", ") || "Not set"}</div>
+                  <div className="flex gap-2">
+                    {formData.platforms.map((p) => (
+                      <span key={p} className="px-2 py-1 rounded bg-primary/10 text-primary text-sm capitalize flex items-center gap-1">
+                        {platforms.find(pl => pl.id === p)?.icon}
+                        {p}
+                      </span>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="p-4 rounded-lg bg-secondary/50">
@@ -433,11 +540,15 @@ const Launch = () => {
                   </div>
                   <div className="p-4 rounded-lg bg-secondary/50">
                     <div className="text-sm text-muted-foreground mb-1">Rate</div>
-                    <div className="font-medium">${formData.rate_value || "75"} / {parseInt(formData.rate_unit || "100000").toLocaleString()} views</div>
+                    <div className="font-medium">
+                      ${formData.rate_value || "75"} / {parseInt(formData.rate_unit || "100000").toLocaleString()} views
+                    </div>
                   </div>
                   <div className="p-4 rounded-lg bg-secondary/50">
                     <div className="text-sm text-muted-foreground mb-1">Max Per Post</div>
-                    <div className="font-medium">{formData.max_earnings_per_post ? `$${formData.max_earnings_per_post}` : "No limit"}</div>
+                    <div className="font-medium">
+                      {formData.max_earnings_per_post ? `$${formData.max_earnings_per_post}` : "No limit"}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -454,10 +565,9 @@ const Launch = () => {
                 <Button
                   type="submit"
                   disabled={createCampaign.isPending}
-                  className="bg-gradient-primary hover:opacity-90 glow-primary"
+                  className="bg-gradient-primary hover:opacity-90"
                 >
                   {createCampaign.isPending ? "Creating..." : "Launch Campaign"}
-                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
             </div>

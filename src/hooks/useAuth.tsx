@@ -14,6 +14,8 @@ interface Profile {
   referral_code: string | null;
   payout_method: string | null;
   payout_email: string | null;
+  solana_wallet_address: string | null;
+  is_banned: boolean;
   created_at: string;
 }
 
