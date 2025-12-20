@@ -16,6 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useCreateCampaign } from "@/hooks/useCampaigns";
 import { Database } from "@/integrations/supabase/types";
+import { validateCampaignInput } from "@/lib/validation";
+import { mapErrorToUserMessage, logError } from "@/lib/errorMapping";
 
 type PlatformType = Database["public"]["Enums"]["platform_type"];
 
@@ -79,31 +81,44 @@ const Launch = () => {
       return;
     }
 
-    try {
-      await createCampaign.mutateAsync({
-        name: formData.name,
-        description: formData.description,
-        requirements: formData.requirements,
-        niche: formData.niche,
-        platforms: formData.platforms,
-        rate_value: parseFloat(formData.rate_value) || 75,
-        rate_unit: parseInt(formData.rate_unit) || 100000,
-        min_views: parseInt(formData.min_views) || 1000,
-        max_earnings_per_post: formData.max_earnings_per_post 
-          ? parseFloat(formData.max_earnings_per_post) 
-          : undefined,
-        total_budget: parseFloat(formData.total_budget) || 1000,
+    // Validate input with Zod schema
+    const validationResult = validateCampaignInput({
+      name: formData.name,
+      description: formData.description || undefined,
+      requirements: formData.requirements || undefined,
+      niche: formData.niche || undefined,
+      platforms: formData.platforms,
+      rate_value: parseFloat(formData.rate_value) || 75,
+      rate_unit: parseInt(formData.rate_unit) || 100000,
+      min_views: parseInt(formData.min_views) || 1000,
+      max_earnings_per_post: formData.max_earnings_per_post 
+        ? parseFloat(formData.max_earnings_per_post) 
+        : undefined,
+      total_budget: parseFloat(formData.total_budget) || 0,
+    });
+
+    if (validationResult.success === false) {
+      toast({
+        title: "Validation Error",
+        description: validationResult.error,
+        variant: "destructive",
       });
+      return;
+    }
+
+    try {
+      await createCampaign.mutateAsync(validationResult.data);
 
       toast({
         title: "Campaign created!",
         description: "Your campaign is now live and visible to clippers.",
       });
       navigate("/campaigns");
-    } catch (error: any) {
+    } catch (error: unknown) {
+      logError("Launch:handleSubmit", error);
       toast({
         title: "Error creating campaign",
-        description: error.message,
+        description: mapErrorToUserMessage(error),
         variant: "destructive",
       });
     }

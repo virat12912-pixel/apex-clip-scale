@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
+import { mapErrorToUserMessage, logError } from "@/lib/errorMapping";
 
 export interface Wallet {
   id: string;
@@ -67,9 +68,16 @@ export function usePayouts() {
 }
 
 export function useAllPayouts() {
+  const { role } = useAuth();
+  
   return useQuery({
     queryKey: ["payouts", "all"],
     queryFn: async () => {
+      // Client-side role check before API call
+      if (role !== "admin") {
+        throw new Error("Unauthorized");
+      }
+
       const { data, error } = await supabase
         .from("payouts")
         .select(`
@@ -78,9 +86,13 @@ export function useAllPayouts() {
         `)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        logError("useAllPayouts", error);
+        throw new Error(mapErrorToUserMessage(error));
+      }
       return data;
     },
+    enabled: role === "admin",
   });
 }
 

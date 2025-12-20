@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
+import { mapErrorToUserMessage, logError } from "@/lib/errorMapping";
 
 export interface Submission {
   id: string;
@@ -72,9 +73,16 @@ export function useCampaignSubmissions(campaignId: string) {
 }
 
 export function useAllSubmissions() {
+  const { role } = useAuth();
+  
   return useQuery({
     queryKey: ["submissions", "all"],
     queryFn: async () => {
+      // Client-side role check before API call
+      if (role !== "admin") {
+        throw new Error("Unauthorized");
+      }
+
       const { data, error } = await supabase
         .from("submissions")
         .select(`
@@ -84,9 +92,13 @@ export function useAllSubmissions() {
         `)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        logError("useAllSubmissions", error);
+        throw new Error(mapErrorToUserMessage(error));
+      }
       return data as Submission[];
     },
+    enabled: role === "admin",
   });
 }
 

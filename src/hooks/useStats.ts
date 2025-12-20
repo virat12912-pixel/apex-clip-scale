@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
+import { mapErrorToUserMessage, logError } from "@/lib/errorMapping";
 
 export function useCreatorStats() {
   const { user } = useAuth();
@@ -16,7 +17,10 @@ export function useCreatorStats() {
         .select("views, earnings, status")
         .eq("creator_id", user.id);
 
-      if (submissionsError) throw submissionsError;
+      if (submissionsError) {
+        logError("useCreatorStats:submissions", submissionsError);
+        throw new Error(mapErrorToUserMessage(submissionsError));
+      }
 
       // Get wallet
       const { data: wallet, error: walletError } = await supabase
@@ -25,7 +29,10 @@ export function useCreatorStats() {
         .eq("user_id", user.id)
         .maybeSingle();
 
-      if (walletError) throw walletError;
+      if (walletError) {
+        logError("useCreatorStats:wallet", walletError);
+        throw new Error(mapErrorToUserMessage(walletError));
+      }
 
       const totalViews = submissions?.reduce((sum, s) => sum + (s.views || 0), 0) || 0;
       const totalEarnings = submissions?.reduce((sum, s) => sum + Number(s.earnings || 0), 0) || 0;
@@ -60,7 +67,10 @@ export function useBrandStats() {
         .select("id, total_budget, spent_budget, status")
         .eq("created_by", user.id);
 
-      if (campaignsError) throw campaignsError;
+      if (campaignsError) {
+        logError("useBrandStats:campaigns", campaignsError);
+        throw new Error(mapErrorToUserMessage(campaignsError));
+      }
 
       const campaignIds = campaigns?.map(c => c.id) || [];
 
@@ -70,7 +80,10 @@ export function useBrandStats() {
         .select("views, status")
         .in("campaign_id", campaignIds.length > 0 ? campaignIds : ["none"]);
 
-      if (submissionsError) throw submissionsError;
+      if (submissionsError) {
+        logError("useBrandStats:submissions", submissionsError);
+        throw new Error(mapErrorToUserMessage(submissionsError));
+      }
 
       const activeCampaigns = campaigns?.filter(c => c.status === "active").length || 0;
       const totalBudget = campaigns?.reduce((sum, c) => sum + Number(c.total_budget || 0), 0) || 0;
@@ -92,22 +105,36 @@ export function useBrandStats() {
 }
 
 export function useAdminStats() {
+  const { role } = useAuth();
+  
   return useQuery({
     queryKey: ["stats", "admin"],
     queryFn: async () => {
+      // Server-side role check is done via RLS, but we also check client-side
+      // to provide better UX and avoid unnecessary API calls
+      if (role !== "admin") {
+        throw new Error("Unauthorized");
+      }
+
       // Get all campaigns
       const { data: campaigns, error: campaignsError } = await supabase
         .from("campaigns")
         .select("total_budget, spent_budget, status");
 
-      if (campaignsError) throw campaignsError;
+      if (campaignsError) {
+        logError("useAdminStats:campaigns", campaignsError);
+        throw new Error(mapErrorToUserMessage(campaignsError));
+      }
 
       // Get all submissions
       const { data: submissions, error: submissionsError } = await supabase
         .from("submissions")
         .select("views, earnings, status");
 
-      if (submissionsError) throw submissionsError;
+      if (submissionsError) {
+        logError("useAdminStats:submissions", submissionsError);
+        throw new Error(mapErrorToUserMessage(submissionsError));
+      }
 
       // Get pending payouts
       const { data: payouts, error: payoutsError } = await supabase
@@ -115,7 +142,10 @@ export function useAdminStats() {
         .select("amount, status")
         .eq("status", "pending");
 
-      if (payoutsError) throw payoutsError;
+      if (payoutsError) {
+        logError("useAdminStats:payouts", payoutsError);
+        throw new Error(mapErrorToUserMessage(payoutsError));
+      }
 
       const activeCampaigns = campaigns?.filter(c => c.status === "active").length || 0;
       const totalPlatformSpend = campaigns?.reduce((sum, c) => sum + Number(c.spent_budget || 0), 0) || 0;
@@ -134,5 +164,6 @@ export function useAdminStats() {
         totalSubmissions: submissions?.length || 0,
       };
     },
+    enabled: role === "admin",
   });
 }
