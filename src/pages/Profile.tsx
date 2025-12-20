@@ -1,6 +1,6 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { AppLayout } from "@/components/app/AppLayout";
-import { User, Mail, Edit, Save, Copy, Share2, Check, Upload, Wallet } from "lucide-react";
+import { User, Mail, Edit, Save, Copy, Share2, Check, Upload, Wallet, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,6 +12,14 @@ import { useToast } from "@/hooks/use-toast";
 import { useCreatorStats } from "@/hooks/useStats";
 import { mapErrorToUserMessage, logError } from "@/lib/errorMapping";
 
+// Solana wallet address validation (Base58, 32-44 characters)
+const SOLANA_WALLET_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+
+const validateSolanaWallet = (address: string): boolean => {
+  if (!address) return true; // Empty is valid (not required)
+  return SOLANA_WALLET_REGEX.test(address);
+};
+
 const Profile = () => {
   const { profile, role, refreshProfile, user } = useAuth();
   const { data: stats } = useCreatorStats();
@@ -21,26 +29,62 @@ const Profile = () => {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
-    full_name: profile?.full_name || "",
-    bio: profile?.bio || "",
-    payout_method: profile?.payout_method || "paypal",
-    payout_email: profile?.payout_email || "",
-    solana_wallet_address: profile?.solana_wallet_address || "",
+    full_name: "",
+    bio: "",
+    payout_method: "paypal",
+    payout_email: "",
+    solana_wallet_address: "",
   });
+  const [walletError, setWalletError] = useState<string | null>(null);
+
+  // Sync formData when profile changes
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        full_name: profile.full_name || "",
+        bio: profile.bio || "",
+        payout_method: profile.payout_method || "paypal",
+        payout_email: profile.payout_email || "",
+        solana_wallet_address: profile.solana_wallet_address || "",
+      });
+    }
+  }, [profile]);
+
+  // Validate Solana wallet on change
+  const handleWalletChange = (value: string) => {
+    setFormData({ ...formData, solana_wallet_address: value });
+    if (value && !validateSolanaWallet(value)) {
+      setWalletError("Invalid Solana wallet address (must be 32-44 Base58 characters)");
+    } else {
+      setWalletError(null);
+    }
+  };
 
   const handleSave = async () => {
+    // Validate Solana wallet if using USDC
+    if (formData.payout_method === "usdc_solana" && formData.solana_wallet_address) {
+      if (!validateSolanaWallet(formData.solana_wallet_address)) {
+        toast({ 
+          title: "Invalid wallet address", 
+          description: "Please enter a valid Solana wallet address", 
+          variant: "destructive" 
+        });
+        return;
+      }
+    }
+
     try {
       const updateData: Record<string, string | null> = {
-        full_name: formData.full_name,
-        bio: formData.bio,
+        full_name: formData.full_name.trim(),
+        bio: formData.bio.trim(),
         payout_method: formData.payout_method,
       };
 
       // Only save relevant payment field based on method
       if (formData.payout_method === "paypal") {
-        updateData.payout_email = formData.payout_email;
+        updateData.payout_email = formData.payout_email.trim();
       } else if (formData.payout_method === "usdc_solana") {
-        updateData.solana_wallet_address = formData.solana_wallet_address;
+        updateData.solana_wallet_address = formData.solana_wallet_address.trim();
       }
 
       const { error } = await supabase
@@ -109,9 +153,12 @@ const Profile = () => {
     }
   };
 
-  const referralLink = `${window.location.origin}/auth?ref=${profile?.referral_code}`;
+  const referralLink = profile?.referral_code 
+    ? `${window.location.origin}/auth?ref=${profile.referral_code}`
+    : null;
 
   const copyReferralLink = () => {
+    if (!referralLink) return;
     navigator.clipboard.writeText(referralLink);
     setCopied(true);
     toast({ title: "Copied!", description: "Referral link copied to clipboard" });
@@ -224,11 +271,17 @@ const Profile = () => {
                         <Label>Solana Wallet Address</Label>
                         <Input 
                           value={formData.solana_wallet_address} 
-                          onChange={(e) => setFormData({...formData, solana_wallet_address: e.target.value})} 
+                          onChange={(e) => handleWalletChange(e.target.value)} 
                           disabled={!isEditing} 
                           placeholder="Your Solana wallet address"
-                          className="h-12 bg-secondary font-mono text-sm" 
+                          className={`h-12 bg-secondary font-mono text-sm ${walletError ? "border-red-500" : ""}`}
                         />
+                        {walletError && (
+                          <p className="text-sm text-red-500 flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" />
+                            {walletError}
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -264,7 +317,7 @@ const Profile = () => {
                   <div className="p-2 rounded-lg bg-primary/10"><Mail className="h-4 w-4 text-primary" /></div>
                   <div>
                     <div className="text-muted-foreground">Referral Code</div>
-                    <div className="font-medium">{profile?.referral_code}</div>
+                    <div className="font-medium">{profile?.referral_code || "Generating..."}</div>
                   </div>
                 </div>
               </div>
@@ -281,7 +334,7 @@ const Profile = () => {
               </p>
               <div className="flex gap-2">
                 <Input 
-                  value={referralLink} 
+                  value={referralLink || "Loading..."} 
                   readOnly 
                   className="bg-background/50 text-xs" 
                 />
@@ -290,6 +343,7 @@ const Profile = () => {
                   variant="outline"
                   onClick={copyReferralLink}
                   className="shrink-0"
+                  disabled={!referralLink}
                 >
                   {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
                 </Button>
