@@ -51,9 +51,23 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('TikTok API error:', response.status, errorText);
+
+      const errorCode = response.status === 403
+        ? 'not_subscribed'
+        : response.status === 429
+          ? 'rate_limited'
+          : 'api_error';
+
+      // IMPORTANT: return 200 so the web app can handle gracefully without throwing
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch TikTok data', details: errorText }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({
+          success: false,
+          error: 'Failed to fetch TikTok data',
+          error_code: errorCode,
+          upstream_status: response.status,
+          details: errorText,
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

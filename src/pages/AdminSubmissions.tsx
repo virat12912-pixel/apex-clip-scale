@@ -45,11 +45,40 @@ const AdminSubmissions = () => {
 
       if (error) throw error;
 
-      if (data?.play_count) {
-        setViewInputs({ ...viewInputs, [id]: data.play_count.toString() });
+      // Function may return a handled error payload (to avoid throwing on 403/429)
+      if (data?.success === false) {
+        const code = String(data?.error_code || "");
+
+        if (code === "not_subscribed") {
+          toast({
+            title: "TikTok API not subscribed",
+            description: "Auto-fetch is unavailable. Please enter views manually (or renew the API subscription).",
+            variant: "destructive",
+          });
+        } else if (code === "rate_limited") {
+          toast({
+            title: "Rate limited",
+            description: "Too many requests. Please wait a moment or enter views manually.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Could not fetch views",
+            description: "Please enter views manually.",
+            variant: "destructive",
+          });
+        }
+
+        return;
+      }
+
+      const playCount = Number(data?.play_count ?? 0);
+
+      if (playCount > 0) {
+        setViewInputs({ ...viewInputs, [id]: playCount.toString() });
         toast({
           title: "Views fetched",
-          description: `Found ${data.play_count.toLocaleString()} views`,
+          description: `Found ${playCount.toLocaleString()} views`,
         });
       } else {
         toast({
