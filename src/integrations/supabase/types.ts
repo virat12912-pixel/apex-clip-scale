@@ -14,16 +14,340 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      campaigns: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          image_url: string | null
+          max_earnings_per_post: number | null
+          min_views: number
+          name: string
+          niche: string | null
+          platforms: Database["public"]["Enums"]["platform_type"][]
+          rate_unit: number
+          rate_value: number
+          requirements: string | null
+          spent_budget: number
+          status: Database["public"]["Enums"]["campaign_status"]
+          total_budget: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          max_earnings_per_post?: number | null
+          min_views?: number
+          name: string
+          niche?: string | null
+          platforms?: Database["public"]["Enums"]["platform_type"][]
+          rate_unit?: number
+          rate_value?: number
+          requirements?: string | null
+          spent_budget?: number
+          status?: Database["public"]["Enums"]["campaign_status"]
+          total_budget?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          max_earnings_per_post?: number | null
+          min_views?: number
+          name?: string
+          niche?: string | null
+          platforms?: Database["public"]["Enums"]["platform_type"][]
+          rate_unit?: number
+          rate_value?: number
+          requirements?: string | null
+          spent_budget?: number
+          status?: Database["public"]["Enums"]["campaign_status"]
+          total_budget?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaigns_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payouts: {
+        Row: {
+          admin_notes: string | null
+          amount: number
+          created_at: string
+          id: string
+          payout_email: string
+          payout_method: string
+          processed_at: string | null
+          status: Database["public"]["Enums"]["payout_status"]
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          amount: number
+          created_at?: string
+          id?: string
+          payout_email: string
+          payout_method: string
+          processed_at?: string | null
+          status?: Database["public"]["Enums"]["payout_status"]
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          amount?: number
+          created_at?: string
+          id?: string
+          payout_email?: string
+          payout_method?: string
+          processed_at?: string | null
+          status?: Database["public"]["Enums"]["payout_status"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payouts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          payout_email: string | null
+          payout_method: string | null
+          referral_code: string | null
+          referred_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+          payout_email?: string | null
+          payout_method?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          payout_email?: string | null
+          payout_method?: string | null
+          referral_code?: string | null
+          referred_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referrals: {
+        Row: {
+          created_at: string
+          earnings: number
+          id: string
+          referred_id: string
+          referrer_id: string
+        }
+        Insert: {
+          created_at?: string
+          earnings?: number
+          id?: string
+          referred_id: string
+          referrer_id: string
+        }
+        Update: {
+          created_at?: string
+          earnings?: number
+          id?: string
+          referred_id?: string
+          referrer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_referred_id_fkey"
+            columns: ["referred_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referrals_referrer_id_fkey"
+            columns: ["referrer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      submissions: {
+        Row: {
+          admin_notes: string | null
+          campaign_id: string
+          clip_url: string
+          created_at: string
+          creator_id: string
+          earnings: number
+          id: string
+          platform: Database["public"]["Enums"]["platform_type"]
+          status: Database["public"]["Enums"]["submission_status"]
+          updated_at: string
+          views: number
+        }
+        Insert: {
+          admin_notes?: string | null
+          campaign_id: string
+          clip_url: string
+          created_at?: string
+          creator_id: string
+          earnings?: number
+          id?: string
+          platform: Database["public"]["Enums"]["platform_type"]
+          status?: Database["public"]["Enums"]["submission_status"]
+          updated_at?: string
+          views?: number
+        }
+        Update: {
+          admin_notes?: string | null
+          campaign_id?: string
+          clip_url?: string
+          created_at?: string
+          creator_id?: string
+          earnings?: number
+          id?: string
+          platform?: Database["public"]["Enums"]["platform_type"]
+          status?: Database["public"]["Enums"]["submission_status"]
+          updated_at?: string
+          views?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "submissions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "submissions_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wallets: {
+        Row: {
+          created_at: string
+          id: string
+          paid_balance: number
+          pending_balance: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          paid_balance?: number
+          pending_balance?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          paid_balance?: number
+          pending_balance?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "creator" | "brand" | "admin"
+      campaign_status: "active" | "paused" | "completed" | "private"
+      payout_status: "pending" | "approved" | "paid" | "rejected"
+      platform_type: "tiktok" | "instagram" | "youtube"
+      submission_status: "pending" | "approved" | "rejected" | "paid"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +474,12 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["creator", "brand", "admin"],
+      campaign_status: ["active", "paused", "completed", "private"],
+      payout_status: ["pending", "approved", "paid", "rejected"],
+      platform_type: ["tiktok", "instagram", "youtube"],
+      submission_status: ["pending", "approved", "rejected", "paid"],
+    },
   },
 } as const
