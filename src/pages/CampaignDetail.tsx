@@ -22,6 +22,7 @@ import { useCreateSubmission, useCampaignSubmissions } from "@/hooks/useSubmissi
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Database } from "@/integrations/supabase/types";
+import { validateClipUrl, SocialPlatform } from "@/lib/urlValidation";
 
 type PlatformType = Database["public"]["Enums"]["platform_type"];
 
@@ -41,6 +42,7 @@ const CampaignDetail = () => {
   const createSubmission = useCreateSubmission();
 
   const [clipUrls, setClipUrls] = useState<string[]>([""]);
+  const [urlErrors, setUrlErrors] = useState<(string | null)[]>([null]);
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformType>("tiktok");
   const [agreeToTerms, setAgreeToTerms] = useState(false);
 
@@ -52,16 +54,27 @@ const CampaignDetail = () => {
 
   const addClipUrl = () => {
     setClipUrls([...clipUrls, ""]);
+    setUrlErrors([...urlErrors, null]);
   };
 
   const removeClipUrl = (index: number) => {
     setClipUrls(clipUrls.filter((_, i) => i !== index));
+    setUrlErrors(urlErrors.filter((_, i) => i !== index));
   };
 
   const updateClipUrl = (index: number, value: string) => {
     const newUrls = [...clipUrls];
     newUrls[index] = value;
     setClipUrls(newUrls);
+    
+    // Validate URL on change
+    const newErrors = [...urlErrors];
+    if (value.trim()) {
+      newErrors[index] = validateClipUrl(value, selectedPlatform as SocialPlatform);
+    } else {
+      newErrors[index] = null;
+    }
+    setUrlErrors(newErrors);
   };
 
   const handleSubmit = async () => {
@@ -71,6 +84,19 @@ const CampaignDetail = () => {
       toast({
         title: "No clips to submit",
         description: "Please add at least one clip URL",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate all URLs before submission
+    const validationErrors = validUrls.map(url => validateClipUrl(url, selectedPlatform as SocialPlatform));
+    const hasErrors = validationErrors.some(error => error !== null);
+    
+    if (hasErrors) {
+      toast({
+        title: "Invalid URLs",
+        description: "Please fix the invalid URLs before submitting",
         variant: "destructive",
       });
       return;
@@ -237,21 +263,26 @@ const CampaignDetail = () => {
                 <div className="space-y-2">
                   <Label>Clip URLs</Label>
                   {clipUrls.map((url, index) => (
-                    <div key={index} className="flex gap-2">
-                      <Input
-                        placeholder={`https://${selectedPlatform}.com/...`}
-                        value={url}
-                        onChange={(e) => updateClipUrl(index, e.target.value)}
-                        className="bg-secondary border-border"
-                      />
-                      {clipUrls.length > 1 && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeClipUrl(index)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                    <div key={index} className="space-y-1">
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder={`https://${selectedPlatform}.com/...`}
+                          value={url}
+                          onChange={(e) => updateClipUrl(index, e.target.value)}
+                          className={`bg-secondary ${urlErrors[index] ? 'border-red-500' : 'border-border'}`}
+                        />
+                        {clipUrls.length > 1 && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeClipUrl(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                      {urlErrors[index] && (
+                        <p className="text-xs text-red-500 pl-1">{urlErrors[index]}</p>
                       )}
                     </div>
                   ))}
