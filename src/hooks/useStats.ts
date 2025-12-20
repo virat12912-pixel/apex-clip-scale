@@ -74,15 +74,19 @@ export function useBrandStats() {
 
       const campaignIds = campaigns?.map(c => c.id) || [];
 
-      // Get submissions for these campaigns
-      const { data: submissions, error: submissionsError } = await supabase
-        .from("submissions")
-        .select("views, status")
-        .in("campaign_id", campaignIds.length > 0 ? campaignIds : ["none"]);
+      // Get submissions for these campaigns (skip if no campaigns)
+      let submissions: { views: number; status: string }[] = [];
+      if (campaignIds.length > 0) {
+        const { data: submissionsData, error: submissionsError } = await supabase
+          .from("submissions")
+          .select("views, status")
+          .in("campaign_id", campaignIds);
 
-      if (submissionsError) {
-        logError("useBrandStats:submissions", submissionsError);
-        throw new Error(mapErrorToUserMessage(submissionsError));
+        if (submissionsError) {
+          logError("useBrandStats:submissions", submissionsError);
+          throw new Error(mapErrorToUserMessage(submissionsError));
+        }
+        submissions = submissionsData || [];
       }
 
       const activeCampaigns = campaigns?.filter(c => c.status === "active").length || 0;
