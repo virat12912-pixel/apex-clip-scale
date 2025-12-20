@@ -1,165 +1,101 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/app/AppLayout";
-import { 
-  User, 
-  Mail, 
-  MapPin, 
-  Calendar,
-  Edit,
-  Camera,
-  Save
-} from "lucide-react";
+import { User, Mail, MapPin, Edit, Camera, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { useCreatorStats } from "@/hooks/useStats";
 
 const Profile = () => {
+  const { profile, role, refreshProfile } = useAuth();
+  const { data: stats } = useCreatorStats();
+  const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
-  const [profile, setProfile] = useState({
-    name: "John Doe",
-    email: "john@example.com",
-    location: "Los Angeles, CA",
-    bio: "Professional clipper specializing in gaming and tech content. 3+ years of experience creating viral short-form content.",
-    joinedDate: "January 2024",
-    twitter: "@johndoe",
-    discord: "johndoe#1234",
+  const [formData, setFormData] = useState({
+    full_name: profile?.full_name || "",
+    bio: profile?.bio || "",
+    payout_method: profile?.payout_method || "paypal",
+    payout_email: profile?.payout_email || "",
   });
 
-  const stats = [
-    { label: "Total Clips", value: "47" },
-    { label: "Total Views", value: "1.2M" },
-    { label: "Campaigns Joined", value: "12" },
-    { label: "Success Rate", value: "94%" },
+  const handleSave = async () => {
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update(formData)
+        .eq("id", profile?.id);
+
+      if (error) throw error;
+      await refreshProfile();
+      setIsEditing(false);
+      toast({ title: "Profile updated" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const statItems = [
+    { label: "Total Clips", value: stats?.totalClips?.toString() || "0" },
+    { label: "Total Views", value: stats?.totalViews ? (stats.totalViews >= 1000000 ? (stats.totalViews / 1000000).toFixed(1) + "M" : stats.totalViews >= 1000 ? (stats.totalViews / 1000).toFixed(1) + "K" : stats.totalViews.toString()) : "0" },
+    { label: "Approved Clips", value: stats?.approvedClips?.toString() || "0" },
+    { label: "Total Earnings", value: `$${(stats?.totalEarnings || 0).toFixed(0)}` },
   ];
 
   return (
     <AppLayout title="My Profile">
       <div className="max-w-4xl mx-auto">
-        {/* Profile header */}
         <div className="relative mb-8">
-          {/* Cover */}
           <div className="h-32 sm:h-48 rounded-2xl bg-gradient-to-r from-primary/20 via-primary/10 to-transparent" />
-          
-          {/* Avatar and info */}
           <div className="absolute -bottom-16 left-6 flex items-end gap-4">
-            <div className="relative">
-              <div className="w-28 h-28 rounded-2xl bg-gradient-primary flex items-center justify-center text-3xl font-bold text-primary-foreground border-4 border-background">
-                JD
-              </div>
-              <button className="absolute -bottom-1 -right-1 p-2 rounded-full bg-primary text-primary-foreground">
-                <Camera className="h-4 w-4" />
-              </button>
+            <div className="w-28 h-28 rounded-2xl bg-gradient-primary flex items-center justify-center text-3xl font-bold text-primary-foreground border-4 border-background">
+              {profile?.full_name?.charAt(0) || "U"}
             </div>
           </div>
-
-          {/* Edit button */}
           <div className="absolute bottom-4 right-4">
-            <Button
-              variant={isEditing ? "default" : "outline"}
-              onClick={() => setIsEditing(!isEditing)}
-              className={isEditing ? "bg-gradient-primary" : ""}
-            >
-              {isEditing ? (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  Save Changes
-                </>
-              ) : (
-                <>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit Profile
-                </>
-              )}
+            <Button variant={isEditing ? "default" : "outline"} onClick={() => isEditing ? handleSave() : setIsEditing(true)} className={isEditing ? "bg-gradient-primary" : ""}>
+              {isEditing ? <><Save className="h-4 w-4 mr-2" />Save</> : <><Edit className="h-4 w-4 mr-2" />Edit</>}
             </Button>
           </div>
         </div>
 
-        {/* Content */}
         <div className="mt-20 grid lg:grid-cols-3 gap-6">
-          {/* Main info */}
           <div className="lg:col-span-2 space-y-6">
             <div className="p-6 rounded-xl bg-card border border-border">
               <h2 className="text-lg font-semibold mb-6">Profile Information</h2>
-
               <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Full Name</Label>
+                  <Input value={formData.full_name} onChange={(e) => setFormData({...formData, full_name: e.target.value})} disabled={!isEditing} className="h-12 bg-secondary" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input value={profile?.email || ""} disabled className="h-12 bg-secondary" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Bio</Label>
+                  <Textarea value={formData.bio} onChange={(e) => setFormData({...formData, bio: e.target.value})} disabled={!isEditing} className="min-h-[100px] bg-secondary resize-none" />
+                </div>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input
-                      id="name"
-                      value={profile.name}
-                      onChange={(e) => setProfile({ ...profile, name: e.target.value })}
-                      disabled={!isEditing}
-                      className="h-12 bg-secondary border-border disabled:opacity-100"
-                    />
+                    <Label>Payout Method</Label>
+                    <Input value={formData.payout_method} onChange={(e) => setFormData({...formData, payout_method: e.target.value})} disabled={!isEditing} className="h-12 bg-secondary" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={profile.email}
-                      onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-                      disabled={!isEditing}
-                      className="h-12 bg-secondary border-border disabled:opacity-100"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="location">Location</Label>
-                  <Input
-                    id="location"
-                    value={profile.location}
-                    onChange={(e) => setProfile({ ...profile, location: e.target.value })}
-                    disabled={!isEditing}
-                    className="h-12 bg-secondary border-border disabled:opacity-100"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="bio">Bio</Label>
-                  <Textarea
-                    id="bio"
-                    value={profile.bio}
-                    onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-                    disabled={!isEditing}
-                    className="min-h-[100px] bg-secondary border-border resize-none disabled:opacity-100"
-                  />
-                </div>
-
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="twitter">Twitter</Label>
-                    <Input
-                      id="twitter"
-                      value={profile.twitter}
-                      onChange={(e) => setProfile({ ...profile, twitter: e.target.value })}
-                      disabled={!isEditing}
-                      className="h-12 bg-secondary border-border disabled:opacity-100"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="discord">Discord</Label>
-                    <Input
-                      id="discord"
-                      value={profile.discord}
-                      onChange={(e) => setProfile({ ...profile, discord: e.target.value })}
-                      disabled={!isEditing}
-                      className="h-12 bg-secondary border-border disabled:opacity-100"
-                    />
+                    <Label>Payout Email</Label>
+                    <Input value={formData.payout_email} onChange={(e) => setFormData({...formData, payout_email: e.target.value})} disabled={!isEditing} className="h-12 bg-secondary" />
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Stats */}
             <div className="p-6 rounded-xl bg-card border border-border">
-              <h2 className="text-lg font-semibold mb-6">Performance Stats</h2>
-
+              <h2 className="text-lg font-semibold mb-6">Stats</h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {stats.map((stat) => (
+                {statItems.map((stat) => (
                   <div key={stat.label} className="text-center p-4 rounded-lg bg-secondary/50">
                     <div className="text-2xl font-bold text-primary">{stat.value}</div>
                     <div className="text-sm text-muted-foreground">{stat.label}</div>
@@ -169,67 +105,23 @@ const Profile = () => {
             </div>
           </div>
 
-          {/* Sidebar */}
           <div className="space-y-6">
-            {/* Quick info */}
             <div className="p-6 rounded-xl bg-card border border-border">
-              <h3 className="font-semibold mb-4">Quick Info</h3>
-
+              <h3 className="font-semibold mb-4">Account Info</h3>
               <div className="space-y-4">
                 <div className="flex items-center gap-3 text-sm">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <User className="h-4 w-4 text-primary" />
-                  </div>
+                  <div className="p-2 rounded-lg bg-primary/10"><User className="h-4 w-4 text-primary" /></div>
                   <div>
-                    <div className="text-muted-foreground">Member since</div>
-                    <div className="font-medium">{profile.joinedDate}</div>
+                    <div className="text-muted-foreground">Role</div>
+                    <div className="font-medium capitalize">{role}</div>
                   </div>
                 </div>
-
                 <div className="flex items-center gap-3 text-sm">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Mail className="h-4 w-4 text-primary" />
-                  </div>
+                  <div className="p-2 rounded-lg bg-primary/10"><Mail className="h-4 w-4 text-primary" /></div>
                   <div>
-                    <div className="text-muted-foreground">Email</div>
-                    <div className="font-medium">{profile.email}</div>
+                    <div className="text-muted-foreground">Referral Code</div>
+                    <div className="font-medium">{profile?.referral_code}</div>
                   </div>
-                </div>
-
-                <div className="flex items-center gap-3 text-sm">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <MapPin className="h-4 w-4 text-primary" />
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground">Location</div>
-                    <div className="font-medium">{profile.location}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Account status */}
-            <div className="p-6 rounded-xl bg-card border border-border">
-              <h3 className="font-semibold mb-4">Account Status</h3>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Account Type</span>
-                  <span className="px-2 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium">
-                    Clipper
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Verification</span>
-                  <span className="px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium">
-                    Verified
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Payout Status</span>
-                  <span className="px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-medium">
-                    Active
-                  </span>
                 </div>
               </div>
             </div>
