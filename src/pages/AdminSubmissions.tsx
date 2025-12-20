@@ -60,7 +60,28 @@ const AdminSubmissions = () => {
       }
     } catch (error: unknown) {
       logError("AdminSubmissions:handleFetchViews", error);
-      toast({ title: "Error", description: mapErrorToUserMessage(error), variant: "destructive" });
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      
+      // Check for specific API errors and provide helpful message
+      if (errorMsg.includes("403") || errorMsg.includes("not subscribed")) {
+        toast({ 
+          title: "API subscription expired", 
+          description: "Please enter views manually. The TikTok API subscription needs renewal.",
+          variant: "destructive" 
+        });
+      } else if (errorMsg.includes("429") || errorMsg.includes("Too many")) {
+        toast({ 
+          title: "Rate limited", 
+          description: "Too many requests. Please wait a moment or enter views manually.",
+          variant: "destructive" 
+        });
+      } else {
+        toast({ 
+          title: "API unavailable", 
+          description: "Please enter the view count manually.",
+          variant: "destructive" 
+        });
+      }
     } finally {
       setFetching(null);
     }
