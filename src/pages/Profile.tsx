@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/app/AppLayout";
-import { User, Mail, MapPin, Edit, Camera, Save } from "lucide-react";
+import { User, Mail, Edit, Save, Copy, Share2, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,7 @@ const Profile = () => {
   const { data: stats } = useCreatorStats();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [formData, setFormData] = useState({
     full_name: profile?.full_name || "",
     bio: profile?.bio || "",
@@ -38,6 +39,15 @@ const Profile = () => {
       logError("Profile:handleSave", error);
       toast({ title: "Error", description: mapErrorToUserMessage(error), variant: "destructive" });
     }
+  };
+
+  const referralLink = `${window.location.origin}/auth?ref=${profile?.referral_code}`;
+
+  const copyReferralLink = () => {
+    navigator.clipboard.writeText(referralLink);
+    setCopied(true);
+    toast({ title: "Copied!", description: "Referral link copied to clipboard" });
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const statItems = [
@@ -125,6 +135,32 @@ const Profile = () => {
                     <div className="font-medium">{profile?.referral_code}</div>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Referral Section */}
+            <div className="p-6 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
+              <div className="flex items-center gap-2 mb-4">
+                <Share2 className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold">Invite Friends</h3>
+              </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Share your referral link and earn when your friends join!
+              </p>
+              <div className="flex gap-2">
+                <Input 
+                  value={referralLink} 
+                  readOnly 
+                  className="bg-background/50 text-xs" 
+                />
+                <Button 
+                  size="icon" 
+                  variant="outline"
+                  onClick={copyReferralLink}
+                  className="shrink-0"
+                >
+                  {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                </Button>
               </div>
             </div>
           </div>

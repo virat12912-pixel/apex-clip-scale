@@ -6,6 +6,7 @@ import { ArrowRight, Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import { z } from "zod";
 
 const emailSchema = z.string().email("Invalid email address");
@@ -69,6 +70,36 @@ const Auth = () => {
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      toast({
+        title: "Enter your email",
+        description: "Please enter your email address first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Check your email",
+        description: "We've sent you a password reset link.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -108,9 +139,12 @@ const Auth = () => {
         }
         toast({
           title: "Account created!",
-          description: "Redirecting to dashboard...",
+          description: role === "brand" 
+            ? "Redirecting to brand application..."
+            : "Redirecting to dashboard...",
         });
-        navigate("/dashboard", { replace: true });
+        // Redirect brands to application page
+        navigate(role === "brand" ? "/brand-application" : "/dashboard", { replace: true });
       }
     } finally {
       setIsLoading(false);
@@ -246,7 +280,11 @@ const Auth = () => {
 
             {isLogin && (
               <div className="flex justify-end">
-                <button type="button" className="text-sm text-primary hover:underline">
+                <button 
+                  type="button" 
+                  onClick={handleForgotPassword}
+                  className="text-sm text-primary hover:underline"
+                >
                   Forgot password?
                 </button>
               </div>

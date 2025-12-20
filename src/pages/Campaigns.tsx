@@ -5,8 +5,6 @@ import {
   Filter, 
   DollarSign, 
   Eye, 
-  Clock, 
-  Users,
   ArrowRight,
   Gamepad2,
   Dumbbell,
@@ -22,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "react-router-dom";
 import { useCampaigns } from "@/hooks/useCampaigns";
+import { CampaignFiltersModal, FilterValues } from "@/components/campaigns/CampaignFiltersModal";
 
 const categories = [
   { id: "all", label: "All", icon: Sparkles },
@@ -41,6 +40,13 @@ const platformIcons: Record<string, string> = {
 const Campaigns = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<FilterValues>({
+    platforms: [],
+    minRate: 0,
+    maxRate: 500,
+    minViews: 0,
+  });
 
   const { data: campaigns, isLoading } = useCampaigns({
     status: "active",
@@ -48,11 +54,30 @@ const Campaigns = () => {
     search: searchQuery || undefined,
   });
 
+  // Apply client-side filters
+  const filteredCampaigns = campaigns?.filter((campaign) => {
+    if (filters.platforms.length > 0) {
+      const hasMatchingPlatform = campaign.platforms?.some((p) =>
+        filters.platforms.includes(p)
+      );
+      if (!hasMatchingPlatform) return false;
+    }
+    if (campaign.rate_value < filters.minRate || campaign.rate_value > filters.maxRate) {
+      return false;
+    }
+    if (campaign.min_views < filters.minViews) {
+      return false;
+    }
+    return true;
+  });
+
   const formatNumber = (num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
     if (num >= 1000) return (num / 1000).toFixed(1) + "K";
     return num.toString();
   };
+
+  const hasActiveFilters = filters.platforms.length > 0 || filters.minRate > 0 || filters.maxRate < 500 || filters.minViews > 0;
 
   return (
     <AppLayout title="Browse Campaigns">
@@ -67,9 +92,14 @@ const Campaigns = () => {
             className="pl-10 h-12 bg-card border-border"
           />
         </div>
-        <Button variant="outline" className="h-12 gap-2">
+        <Button 
+          variant="outline" 
+          className={`h-12 gap-2 ${hasActiveFilters ? "border-primary text-primary" : ""}`}
+          onClick={() => setShowFilters(true)}
+        >
           <Filter className="h-4 w-4" />
           Filters
+          {hasActiveFilters && <span className="ml-1 px-1.5 py-0.5 text-xs bg-primary text-primary-foreground rounded-full">!</span>}
         </Button>
       </div>
 
@@ -93,7 +123,7 @@ const Campaigns = () => {
 
       {/* Results count */}
       <div className="mb-4 text-sm text-muted-foreground">
-        {isLoading ? "Loading..." : `Showing ${campaigns?.length || 0} campaigns`}
+        {isLoading ? "Loading..." : `Showing ${filteredCampaigns?.length || 0} campaigns`}
       </div>
 
       {/* Campaign grid */}
@@ -103,110 +133,93 @@ const Campaigns = () => {
             <Skeleton key={i} className="h-80 rounded-2xl" />
           ))}
         </div>
-      ) : campaigns?.length === 0 ? (
+      ) : filteredCampaigns?.length === 0 ? (
         <div className="text-center py-16">
           <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
           <h3 className="text-lg font-semibold mb-2">No campaigns found</h3>
           <p className="text-muted-foreground">
-            {searchQuery 
-              ? "Try adjusting your search terms"
+            {searchQuery || hasActiveFilters
+              ? "Try adjusting your filters"
               : "Check back later for new campaigns"
             }
           </p>
         </div>
       ) : (
         <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {campaigns?.map((campaign) => (
+          {filteredCampaigns?.map((campaign) => (
             <div
               key={campaign.id}
               className="group p-6 rounded-2xl bg-card border border-border hover:border-primary/30 transition-all duration-300"
             >
-              {/* Header */}
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center text-sm font-semibold text-primary-foreground">
                     {campaign.creator_profile?.full_name?.charAt(0) || "C"}
                   </div>
                   <div>
-                    <div className="font-medium">
-                      {campaign.creator_profile?.full_name || "Creator"}
-                    </div>
+                    <div className="font-medium">{campaign.creator_profile?.full_name || "Creator"}</div>
                     <div className="text-xs text-muted-foreground">Campaign Creator</div>
                   </div>
                 </div>
-                <Badge 
-                  variant="secondary"
-                  className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                >
+                <Badge variant="secondary" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
                   ✨ Active
                 </Badge>
               </div>
 
-              {/* Title & Description */}
               <h3 className="font-semibold text-lg mb-2">{campaign.name}</h3>
               <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
                 {campaign.description || "No description provided"}
               </p>
 
-              {/* Platforms */}
               {campaign.platforms && campaign.platforms.length > 0 && (
                 <div className="flex gap-2 mb-4">
                   {campaign.platforms.map((platform) => (
-                    <span 
-                      key={platform}
-                      className="px-2 py-1 rounded bg-secondary text-xs capitalize"
-                    >
+                    <span key={platform} className="px-2 py-1 rounded bg-secondary text-xs capitalize">
                       {platformIcons[platform]} {platform}
                     </span>
                   ))}
                 </div>
               )}
 
-              {/* Stats */}
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div className="p-3 rounded-lg bg-secondary/50">
                   <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
-                    <DollarSign className="w-3 h-3" />
-                    Rate
+                    <DollarSign className="w-3 h-3" />Rate
                   </div>
-                  <div className="font-semibold text-primary">
-                    ${campaign.rate_value}/{formatNumber(campaign.rate_unit)} views
-                  </div>
+                  <div className="font-semibold text-primary">${campaign.rate_value}/{formatNumber(campaign.rate_unit)} views</div>
                 </div>
                 <div className="p-3 rounded-lg bg-secondary/50">
                   <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
-                    <Eye className="w-3 h-3" />
-                    Min Views
+                    <Eye className="w-3 h-3" />Min Views
                   </div>
                   <div className="font-semibold">{formatNumber(campaign.min_views)}</div>
                 </div>
               </div>
 
-              {/* Budget Progress */}
               <div className="mb-4">
                 <div className="flex justify-between text-xs text-muted-foreground mb-1">
                   <span>Budget Used</span>
                   <span>${Number(campaign.spent_budget).toFixed(0)} / ${Number(campaign.total_budget).toFixed(0)}</span>
                 </div>
                 <div className="h-2 bg-background rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-primary rounded-full"
-                    style={{ width: `${Math.min((Number(campaign.spent_budget) / Number(campaign.total_budget)) * 100, 100)}%` }}
-                  />
+                  <div className="h-full bg-gradient-primary rounded-full" style={{ width: `${Math.min((Number(campaign.spent_budget) / Number(campaign.total_budget)) * 100, 100)}%` }} />
                 </div>
               </div>
 
-              {/* CTA */}
               <Button asChild className="w-full bg-gradient-primary hover:opacity-90 glow-primary">
-                <Link to={`/campaigns/${campaign.id}`}>
-                  View Campaign
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
+                <Link to={`/campaigns/${campaign.id}`}>View Campaign<ArrowRight className="ml-2 h-4 w-4" /></Link>
               </Button>
             </div>
           ))}
         </div>
       )}
+
+      <CampaignFiltersModal
+        open={showFilters}
+        onOpenChange={setShowFilters}
+        onApply={setFilters}
+        currentFilters={filters}
+      />
     </AppLayout>
   );
 };

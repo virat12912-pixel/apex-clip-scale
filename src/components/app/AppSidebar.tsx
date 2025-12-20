@@ -1,4 +1,4 @@
-import { LayoutDashboard, Search, Rocket, User, DollarSign, LogOut, Shield } from "lucide-react";
+import { LayoutDashboard, Search, Rocket, User, DollarSign, LogOut, Shield, Settings, Building2, FileText, Wallet } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -20,10 +20,14 @@ export function AppSidebar() {
   const accountNavItems = [
     { title: "My Profile", url: "/profile", icon: User },
     { title: "Earnings", url: "/earnings", icon: DollarSign },
+    { title: "Settings", url: "/settings", icon: Settings },
   ];
 
   const adminNavItems = role === "admin" ? [
     { title: "Admin Panel", url: "/admin", icon: Shield },
+    { title: "Submissions", url: "/admin/submissions", icon: FileText },
+    { title: "Payouts", url: "/admin/payouts", icon: Wallet },
+    { title: "Brand Applications", url: "/admin/brands", icon: Building2 },
   ] : [];
 
   const handleSignOut = async () => {

@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      brand_applications: {
+        Row: {
+          admin_notes: string | null
+          campaign_goals: string
+          company_name: string
+          created_at: string
+          email: string
+          id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string | null
+          campaign_goals: string
+          company_name: string
+          created_at?: string
+          email: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string | null
+          campaign_goals?: string
+          company_name?: string
+          created_at?: string
+          email?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       campaigns: {
         Row: {
           created_at: string
@@ -225,7 +261,9 @@ export type Database = {
           earnings: number
           id: string
           platform: Database["public"]["Enums"]["platform_type"]
+          screenshot_url: string | null
           status: Database["public"]["Enums"]["submission_status"]
+          submitted_views: number | null
           updated_at: string
           views: number
         }
@@ -238,7 +276,9 @@ export type Database = {
           earnings?: number
           id?: string
           platform: Database["public"]["Enums"]["platform_type"]
+          screenshot_url?: string | null
           status?: Database["public"]["Enums"]["submission_status"]
+          submitted_views?: number | null
           updated_at?: string
           views?: number
         }
@@ -251,7 +291,9 @@ export type Database = {
           earnings?: number
           id?: string
           platform?: Database["public"]["Enums"]["platform_type"]
+          screenshot_url?: string | null
           status?: Database["public"]["Enums"]["submission_status"]
+          submitted_views?: number | null
           updated_at?: string
           views?: number
         }
@@ -340,6 +382,13 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      upgrade_user_role: {
+        Args: {
+          _new_role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

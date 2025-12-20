@@ -1,1 +1,4 @@
 project_id = "htkcortbngtlkjkmgbca"
+
+[functions.calculate-earnings]
+verify_jwt = false
