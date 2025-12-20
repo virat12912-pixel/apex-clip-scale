@@ -1,7 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Play } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const FinalCTASection = () => {
+  const navigate = useNavigate();
+
   return (
     <section className="py-24 px-4 relative overflow-hidden">
       {/* Background glow */}
@@ -20,11 +23,11 @@ const FinalCTASection = () => {
 
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Button size="lg" className="w-full sm:w-auto bg-gradient-primary hover:opacity-90 transition-opacity text-lg px-8 py-6 glow-primary">
+          <Button size="lg" className="w-full sm:w-auto bg-gradient-primary hover:opacity-90 transition-opacity text-lg px-8 py-6 glow-primary" onClick={() => navigate("/auth")}>
             Get Paid to Clip
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
-          <Button size="lg" variant="outline" className="w-full sm:w-auto text-lg px-8 py-6 border-border hover:bg-secondary">
+          <Button size="lg" variant="outline" className="w-full sm:w-auto text-lg px-8 py-6 border-border hover:bg-secondary" onClick={() => navigate("/auth")}>
             <Play className="mr-2 h-5 w-5" />
             Launch a Campaign
           </Button>

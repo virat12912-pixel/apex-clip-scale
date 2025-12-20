@@ -1,9 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
@@ -31,10 +33,10 @@ const Navbar = () => {
 
         {/* Desktop CTA */}
         <div className="hidden md:flex items-center gap-3">
-          <Button variant="ghost" size="sm">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/auth")}>
             Log In
           </Button>
-          <Button size="sm" className="bg-gradient-primary hover:opacity-90">
+          <Button size="sm" className="bg-gradient-primary hover:opacity-90" onClick={() => navigate("/auth")}>
             Get Started
           </Button>
         </div>
@@ -64,10 +66,10 @@ const Navbar = () => {
               For Clippers
             </a>
             <div className="flex flex-col gap-2 pt-4 border-t border-border">
-              <Button variant="ghost" className="w-full justify-center">
+              <Button variant="ghost" className="w-full justify-center" onClick={() => navigate("/auth")}>
                 Log In
               </Button>
-              <Button className="w-full bg-gradient-primary hover:opacity-90">
+              <Button className="w-full bg-gradient-primary hover:opacity-90" onClick={() => navigate("/auth")}>
                 Get Started
               </Button>
             </div>
