@@ -52,14 +52,15 @@ export function usePayouts() {
     queryFn: async () => {
       if (!user) return [];
 
+      // Explicitly exclude admin_notes for security
       const { data, error } = await supabase
         .from("payouts")
-        .select("*")
+        .select("id, user_id, amount, payout_method, payout_email, status, processed_at, created_at")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as Payout[];
+      return data as Omit<Payout, 'admin_notes'>[];
     },
     enabled: !!user,
   });

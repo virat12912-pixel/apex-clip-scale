@@ -33,17 +33,18 @@ export function useMySubmissions() {
     queryFn: async () => {
       if (!user) return [];
 
+      // Explicitly exclude admin_notes for security
       const { data, error } = await supabase
         .from("submissions")
         .select(`
-          *,
+          id, campaign_id, creator_id, clip_url, platform, views, earnings, status, created_at, updated_at,
           campaign:campaigns(name, rate_value, rate_unit)
         `)
         .eq("creator_id", user.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as Submission[];
+      return data as Omit<Submission, 'admin_notes'>[];
     },
     enabled: !!user,
   });
@@ -53,17 +54,18 @@ export function useCampaignSubmissions(campaignId: string) {
   return useQuery({
     queryKey: ["submissions", "campaign", campaignId],
     queryFn: async () => {
+      // Explicitly exclude admin_notes for brand users viewing their campaign submissions
       const { data, error } = await supabase
         .from("submissions")
         .select(`
-          *,
+          id, campaign_id, creator_id, clip_url, platform, views, earnings, status, created_at, updated_at,
           creator_profile:profiles!submissions_creator_id_fkey(full_name, email)
         `)
         .eq("campaign_id", campaignId)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as Submission[];
+      return data as Omit<Submission, 'admin_notes'>[];
     },
     enabled: !!campaignId,
   });
