@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { mapErrorToUserMessage, logError } from "@/lib/errorMapping";
 
 const AdminPayouts = () => {
   const { data: payouts, isLoading } = useAllPayouts();
@@ -14,8 +15,9 @@ const AdminPayouts = () => {
     try {
       await updatePayout.mutateAsync({ id, status });
       toast({ title: `Payout ${status}` });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      logError("AdminPayouts:handleAction", error);
+      toast({ title: "Error", description: mapErrorToUserMessage(error), variant: "destructive" });
     }
   };
 

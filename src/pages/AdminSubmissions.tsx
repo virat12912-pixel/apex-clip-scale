@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExternalLink, CheckCircle, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { mapErrorToUserMessage, logError } from "@/lib/errorMapping";
 
 const AdminSubmissions = () => {
   const { data: submissions, isLoading } = useAllSubmissions();
@@ -14,8 +15,9 @@ const AdminSubmissions = () => {
     try {
       await updateSubmission.mutateAsync({ id, status });
       toast({ title: `Submission ${status}` });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      logError("AdminSubmissions:handleAction", error);
+      toast({ title: "Error", description: mapErrorToUserMessage(error), variant: "destructive" });
     }
   };
 

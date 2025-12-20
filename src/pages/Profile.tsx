@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useCreatorStats } from "@/hooks/useStats";
+import { mapErrorToUserMessage, logError } from "@/lib/errorMapping";
 
 const Profile = () => {
   const { profile, role, refreshProfile } = useAuth();
@@ -33,8 +34,9 @@ const Profile = () => {
       await refreshProfile();
       setIsEditing(false);
       toast({ title: "Profile updated" });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      logError("Profile:handleSave", error);
+      toast({ title: "Error", description: mapErrorToUserMessage(error), variant: "destructive" });
     }
   };
 
