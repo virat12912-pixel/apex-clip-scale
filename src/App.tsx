@@ -16,6 +16,10 @@ import Earnings from "./pages/Earnings";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminSubmissions from "./pages/AdminSubmissions";
 import AdminPayouts from "./pages/AdminPayouts";
+import AdminBrands from "./pages/AdminBrands";
+import BrandApplication from "./pages/BrandApplication";
+import ResetPassword from "./pages/ResetPassword";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +34,12 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/brand-application" element={
+              <ProtectedRoute>
+                <BrandApplication />
+              </ProtectedRoute>
+            } />
             <Route path="/dashboard" element={
               <ProtectedRoute>
                 <Dashboard />
@@ -60,6 +70,11 @@ const App = () => (
                 <Earnings />
               </ProtectedRoute>
             } />
+            <Route path="/settings" element={
+              <ProtectedRoute>
+                <Settings />
+              </ProtectedRoute>
+            } />
             <Route path="/admin" element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <AdminDashboard />
@@ -73,6 +88,11 @@ const App = () => (
             <Route path="/admin/payouts" element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <AdminPayouts />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/brands" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminBrands />
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />
