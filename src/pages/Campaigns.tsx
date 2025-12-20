@@ -13,11 +13,15 @@ import {
   Laptop,
   Music,
   Utensils,
-  Sparkles
+  Sparkles,
+  AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Link } from "react-router-dom";
+import { useCampaigns } from "@/hooks/useCampaigns";
 
 const categories = [
   { id: "all", label: "All", icon: Sparkles },
@@ -28,103 +32,27 @@ const categories = [
   { id: "food", label: "Food", icon: Utensils },
 ];
 
-const campaigns = [
-  {
-    id: 1,
-    title: "Gaming Highlights Campaign",
-    creator: "StreamerX",
-    avatar: "SX",
-    category: "gaming",
-    budget: "$5,000",
-    cpm: "$0.20",
-    views: "2.4M target",
-    deadline: "5 days left",
-    clippers: 24,
-    description: "Looking for skilled clippers to create highlight reels from my gaming streams. Focus on epic moments and funny fails.",
-    status: "hot",
-  },
-  {
-    id: 2,
-    title: "Workout Clips Challenge",
-    creator: "FitLife",
-    avatar: "FL",
-    category: "fitness",
-    budget: "$3,500",
-    cpm: "$0.15",
-    views: "1.8M target",
-    deadline: "3 days left",
-    clippers: 18,
-    description: "Create motivational workout clips from our training videos. High energy, inspiring content preferred.",
-    status: "urgent",
-  },
-  {
-    id: 3,
-    title: "Product Review Clips",
-    creator: "TechTalk",
-    avatar: "TT",
-    category: "tech",
-    budget: "$2,800",
-    cpm: "$0.25",
-    views: "800K target",
-    deadline: "7 days left",
-    clippers: 12,
-    description: "Turn our detailed tech reviews into snappy, shareable clips. Focus on key features and honest opinions.",
-    status: "new",
-  },
-  {
-    id: 4,
-    title: "Music Video Shorts",
-    creator: "BeatMaker",
-    avatar: "BM",
-    category: "music",
-    budget: "$4,200",
-    cpm: "$0.18",
-    views: "1.5M target",
-    deadline: "10 days left",
-    clippers: 8,
-    description: "Create viral-worthy clips from our music videos. Creative edits and transitions encouraged.",
-    status: "new",
-  },
-  {
-    id: 5,
-    title: "Cooking Show Highlights",
-    creator: "ChefMaster",
-    avatar: "CM",
-    category: "food",
-    budget: "$1,800",
-    cpm: "$0.12",
-    views: "600K target",
-    deadline: "14 days left",
-    clippers: 5,
-    description: "Extract the best moments from our cooking tutorials. Recipe reveals and cooking tips preferred.",
-    status: "new",
-  },
-  {
-    id: 6,
-    title: "Esports Tournament Clips",
-    creator: "ProLeague",
-    avatar: "PL",
-    category: "gaming",
-    budget: "$8,000",
-    cpm: "$0.22",
-    views: "4M target",
-    deadline: "2 days left",
-    clippers: 45,
-    description: "Capture the most intense moments from our esports tournaments. Clutch plays and team celebrations.",
-    status: "hot",
-  },
-];
+const platformIcons: Record<string, string> = {
+  tiktok: "📱",
+  instagram: "📸",
+  youtube: "▶️",
+};
 
 const Campaigns = () => {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredCampaigns = campaigns.filter((campaign) => {
-    const matchesCategory = selectedCategory === "all" || campaign.category === selectedCategory;
-    const matchesSearch = campaign.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         campaign.creator.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+  const { data: campaigns, isLoading } = useCampaigns({
+    status: "active",
+    niche: selectedCategory === "all" ? undefined : selectedCategory,
+    search: searchQuery || undefined,
   });
+
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
+    if (num >= 1000) return (num / 1000).toFixed(1) + "K";
+    return num.toString();
+  };
 
   return (
     <AppLayout title="Browse Campaigns">
@@ -165,87 +93,120 @@ const Campaigns = () => {
 
       {/* Results count */}
       <div className="mb-4 text-sm text-muted-foreground">
-        Showing {filteredCampaigns.length} campaigns
+        {isLoading ? "Loading..." : `Showing ${campaigns?.length || 0} campaigns`}
       </div>
 
       {/* Campaign grid */}
-      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {filteredCampaigns.map((campaign) => (
-          <div
-            key={campaign.id}
-            className="group p-6 rounded-2xl bg-card border border-border hover:border-primary/30 transition-all duration-300"
-          >
-            {/* Header */}
-            <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center text-sm font-semibold text-primary-foreground">
-                  {campaign.avatar}
+      {isLoading ? (
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {Array(6).fill(0).map((_, i) => (
+            <Skeleton key={i} className="h-80 rounded-2xl" />
+          ))}
+        </div>
+      ) : campaigns?.length === 0 ? (
+        <div className="text-center py-16">
+          <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+          <h3 className="text-lg font-semibold mb-2">No campaigns found</h3>
+          <p className="text-muted-foreground">
+            {searchQuery 
+              ? "Try adjusting your search terms"
+              : "Check back later for new campaigns"
+            }
+          </p>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {campaigns?.map((campaign) => (
+            <div
+              key={campaign.id}
+              className="group p-6 rounded-2xl bg-card border border-border hover:border-primary/30 transition-all duration-300"
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center text-sm font-semibold text-primary-foreground">
+                    {campaign.creator_profile?.full_name?.charAt(0) || "C"}
+                  </div>
+                  <div>
+                    <div className="font-medium">
+                      {campaign.creator_profile?.full_name || "Creator"}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Campaign Creator</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="font-medium">{campaign.creator}</div>
-                  <div className="text-xs text-muted-foreground">Campaign Creator</div>
+                <Badge 
+                  variant="secondary"
+                  className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                >
+                  ✨ Active
+                </Badge>
+              </div>
+
+              {/* Title & Description */}
+              <h3 className="font-semibold text-lg mb-2">{campaign.name}</h3>
+              <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+                {campaign.description || "No description provided"}
+              </p>
+
+              {/* Platforms */}
+              {campaign.platforms && campaign.platforms.length > 0 && (
+                <div className="flex gap-2 mb-4">
+                  {campaign.platforms.map((platform) => (
+                    <span 
+                      key={platform}
+                      className="px-2 py-1 rounded bg-secondary text-xs capitalize"
+                    >
+                      {platformIcons[platform]} {platform}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Stats */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="p-3 rounded-lg bg-secondary/50">
+                  <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
+                    <DollarSign className="w-3 h-3" />
+                    Rate
+                  </div>
+                  <div className="font-semibold text-primary">
+                    ${campaign.rate_value}/{formatNumber(campaign.rate_unit)} views
+                  </div>
+                </div>
+                <div className="p-3 rounded-lg bg-secondary/50">
+                  <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
+                    <Eye className="w-3 h-3" />
+                    Min Views
+                  </div>
+                  <div className="font-semibold">{formatNumber(campaign.min_views)}</div>
                 </div>
               </div>
-              <Badge 
-                variant="secondary"
-                className={`text-xs ${
-                  campaign.status === "hot" 
-                    ? "bg-primary/10 text-primary border-primary/20" 
-                    : campaign.status === "urgent"
-                    ? "bg-red-500/10 text-red-400 border-red-500/20"
-                    : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
-                }`}
-              >
-                {campaign.status === "hot" ? "🔥 Hot" : campaign.status === "urgent" ? "⚡ Urgent" : "✨ New"}
-              </Badge>
+
+              {/* Budget Progress */}
+              <div className="mb-4">
+                <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                  <span>Budget Used</span>
+                  <span>${Number(campaign.spent_budget).toFixed(0)} / ${Number(campaign.total_budget).toFixed(0)}</span>
+                </div>
+                <div className="h-2 bg-background rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-primary rounded-full"
+                    style={{ width: `${Math.min((Number(campaign.spent_budget) / Number(campaign.total_budget)) * 100, 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* CTA */}
+              <Button asChild className="w-full bg-gradient-primary hover:opacity-90 glow-primary">
+                <Link to={`/campaigns/${campaign.id}`}>
+                  View Campaign
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
             </div>
-
-            {/* Title & Description */}
-            <h3 className="font-semibold text-lg mb-2">{campaign.title}</h3>
-            <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-              {campaign.description}
-            </p>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="p-3 rounded-lg bg-secondary/50">
-                <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
-                  <DollarSign className="w-3 h-3" />
-                  Budget
-                </div>
-                <div className="font-semibold text-primary">{campaign.budget}</div>
-              </div>
-              <div className="p-3 rounded-lg bg-secondary/50">
-                <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
-                  <Eye className="w-3 h-3" />
-                  CPM Rate
-                </div>
-                <div className="font-semibold">{campaign.cpm}</div>
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-between pt-4 border-t border-border mb-4">
-              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3 h-3" />
-                  {campaign.deadline}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Users className="w-3 h-3" />
-                  {campaign.clippers} clippers
-                </span>
-              </div>
-            </div>
-
-            {/* CTA */}
-            <Button className="w-full bg-gradient-primary hover:opacity-90 glow-primary">
-              Join Campaign
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </AppLayout>
   );
 };

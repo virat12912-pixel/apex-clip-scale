@@ -3,8 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowRight, Eye, EyeOff, ArrowLeft } from "lucide-react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { z } from "zod";
+
+const emailSchema = z.string().email("Invalid email address");
+const passwordSchema = z.string().min(6, "Password must be at least 6 characters");
+
+type RoleType = "creator" | "brand";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -12,23 +19,87 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [role, setRole] = useState<RoleType>("creator");
   const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+  const { signIn, signUp, user } = useAuth();
+
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/dashboard";
+
+  // Redirect if already logged in
+  if (user) {
+    navigate(from, { replace: true });
+    return null;
+  }
+
+  const validateForm = () => {
+    const newErrors: { email?: string; password?: string } = {};
+    
+    try {
+      emailSchema.parse(email);
+    } catch {
+      newErrors.email = "Invalid email address";
+    }
+
+    try {
+      passwordSchema.parse(password);
+    } catch {
+      newErrors.password = "Password must be at least 6 characters";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) return;
+    
     setIsLoading(true);
 
-    // Simulated auth - replace with real auth later
-    setTimeout(() => {
+    try {
+      if (isLogin) {
+        const { error } = await signIn(email, password);
+        if (error) {
+          toast({
+            title: "Error signing in",
+            description: error.message === "Invalid login credentials" 
+              ? "Invalid email or password. Please try again."
+              : error.message,
+            variant: "destructive",
+          });
+          return;
+        }
+        toast({
+          title: "Welcome back!",
+          description: "Redirecting to dashboard...",
+        });
+        navigate(from, { replace: true });
+      } else {
+        const { error } = await signUp(email, password, name, role);
+        if (error) {
+          toast({
+            title: "Error creating account",
+            description: error.message.includes("already registered")
+              ? "This email is already registered. Please sign in instead."
+              : error.message,
+            variant: "destructive",
+          });
+          return;
+        }
+        toast({
+          title: "Account created!",
+          description: "Redirecting to dashboard...",
+        });
+        navigate("/dashboard", { replace: true });
+      }
+    } finally {
       setIsLoading(false);
-      toast({
-        title: isLogin ? "Welcome back!" : "Account created!",
-        description: "Redirecting to dashboard...",
-      });
-      navigate("/dashboard");
-    }, 1000);
+    }
   };
 
   return (
@@ -69,18 +140,50 @@ const Auth = () => {
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             {!isLogin && (
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="John Doe"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required={!isLogin}
-                  className="h-12 bg-secondary border-border"
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="name">Full Name</Label>
+                  <Input
+                    id="name"
+                    type="text"
+                    placeholder="John Doe"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required={!isLogin}
+                    className="h-12 bg-secondary border-border"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>I want to...</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setRole("creator")}
+                      className={`p-4 rounded-xl border-2 text-left transition-all ${
+                        role === "creator"
+                          ? "border-primary bg-primary/10"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <div className="font-semibold mb-1">Create Clips</div>
+                      <div className="text-xs text-muted-foreground">Earn money by clipping content</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRole("brand")}
+                      className={`p-4 rounded-xl border-2 text-left transition-all ${
+                        role === "brand"
+                          ? "border-primary bg-primary/10"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <div className="font-semibold mb-1">Launch Campaigns</div>
+                      <div className="text-xs text-muted-foreground">Scale your content reach</div>
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
 
             <div className="space-y-2">
@@ -90,10 +193,14 @@ const Auth = () => {
                 type="email"
                 placeholder="you@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setErrors(prev => ({ ...prev, email: undefined }));
+                }}
                 required
-                className="h-12 bg-secondary border-border"
+                className={`h-12 bg-secondary border-border ${errors.email ? "border-destructive" : ""}`}
               />
+              {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
             </div>
 
             <div className="space-y-2">
@@ -104,9 +211,12 @@ const Auth = () => {
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setErrors(prev => ({ ...prev, password: undefined }));
+                  }}
                   required
-                  className="h-12 bg-secondary border-border pr-12"
+                  className={`h-12 bg-secondary border-border pr-12 ${errors.password ? "border-destructive" : ""}`}
                 />
                 <button
                   type="button"
@@ -116,6 +226,7 @@ const Auth = () => {
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
+              {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
             </div>
 
             {isLogin && (
@@ -151,7 +262,10 @@ const Auth = () => {
             {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
             <button
               type="button"
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => {
+                setIsLogin(!isLogin);
+                setErrors({});
+              }}
               className="text-primary hover:underline font-medium"
             >
               {isLogin ? "Sign up" : "Sign in"}
