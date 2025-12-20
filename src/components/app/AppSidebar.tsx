@@ -14,8 +14,8 @@ export function AppSidebar() {
   const mainNavItems = [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
     { title: "Browse Campaigns", url: "/campaigns", icon: Search },
-    // Only admins can launch campaigns (for brands)
-    ...(role === "admin" ? [{ title: "Launch Campaign", url: "/launch", icon: Rocket }] : []),
+    // Brands and admins can launch campaigns
+    ...((role === "admin" || role === "brand") ? [{ title: "Launch Campaign", url: "/launch", icon: Rocket }] : []),
   ];
 
   const accountNavItems = [
