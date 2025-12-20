@@ -66,8 +66,8 @@ serve(async (req) => {
 
     console.log('Fetching Instagram data for shortcode:', shortcode);
 
-    // Use RapidAPI Instagram Scraper endpoint for post/reel info
-    const apiUrl = `https://instagram-scraper21.p.rapidapi.com/api/v1/post_info?shortcode=${shortcode}`;
+    // Use RapidAPI Instagram Scraper endpoint - parameter must be shortcode_or_url
+    const apiUrl = `https://instagram-scraper21.p.rapidapi.com/api/v1/post_info?shortcode_or_url=${shortcode}`;
     
     const response = await fetch(apiUrl, {
       method: 'GET',
