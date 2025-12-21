@@ -17,6 +17,8 @@ import Earnings from "./pages/Earnings";
 import SocialAccounts from "./pages/SocialAccounts";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminSubmissions from "./pages/AdminSubmissions";
+import AdminCampaignSubmissions from "./pages/AdminCampaignSubmissions";
+import AdminUserSubmissions from "./pages/AdminUserSubmissions";
 import AdminPayouts from "./pages/AdminPayouts";
 import AdminCampaignPayouts from "./pages/AdminCampaignPayouts";
 import AdminUserDetail from "./pages/AdminUserDetail";
@@ -93,6 +95,16 @@ const App = () => (
             <Route path="/admin/submissions" element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <AdminSubmissions />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/submissions/:campaignId" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminCampaignSubmissions />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/submissions/:campaignId/user/:userId" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminUserSubmissions />
               </ProtectedRoute>
             } />
             <Route path="/admin/payouts" element={

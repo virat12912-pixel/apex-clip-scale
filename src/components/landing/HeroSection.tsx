@@ -27,8 +27,8 @@ const HeroSection = () => {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 py-20">
       {/* Background glow effect */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="w-[600px] h-[600px] rounded-full bg-primary/10 blur-[120px] animate-pulse-glow" />
+      <div className="absolute inset-0 flex items-center justify-center gpu-accelerated">
+        <div className="w-[600px] h-[600px] rounded-full bg-primary/10 blur-[120px] animate-pulse-glow gpu-accelerated" />
       </div>
       
       {/* Grid pattern overlay */}

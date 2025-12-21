@@ -145,45 +145,54 @@
     transform: translateY(-2px);
   }
 
+  /* GPU acceleration utilities */
+  .gpu-accelerated {
+    will-change: transform, opacity;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+  }
+
   /* Page transition animation */
   .page-enter {
-    animation: pageEnter 0.4s ease-out forwards;
+    animation: pageEnter 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    will-change: transform, opacity;
   }
   
   @keyframes pageEnter {
     from {
       opacity: 0;
-      transform: translateY(10px);
+      transform: translateY(12px) translateZ(0);
     }
     to {
       opacity: 1;
-      transform: translateY(0);
+      transform: translateY(0) translateZ(0);
     }
   }
 
   /* Stagger animation for lists */
   .stagger-enter > * {
     opacity: 0;
-    animation: staggerItem 0.4s ease-out forwards;
+    animation: staggerItem 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    will-change: transform, opacity;
   }
   
   .stagger-enter > *:nth-child(1) { animation-delay: 0ms; }
-  .stagger-enter > *:nth-child(2) { animation-delay: 50ms; }
-  .stagger-enter > *:nth-child(3) { animation-delay: 100ms; }
-  .stagger-enter > *:nth-child(4) { animation-delay: 150ms; }
-  .stagger-enter > *:nth-child(5) { animation-delay: 200ms; }
-  .stagger-enter > *:nth-child(6) { animation-delay: 250ms; }
-  .stagger-enter > *:nth-child(7) { animation-delay: 300ms; }
-  .stagger-enter > *:nth-child(8) { animation-delay: 350ms; }
+  .stagger-enter > *:nth-child(2) { animation-delay: 40ms; }
+  .stagger-enter > *:nth-child(3) { animation-delay: 80ms; }
+  .stagger-enter > *:nth-child(4) { animation-delay: 120ms; }
+  .stagger-enter > *:nth-child(5) { animation-delay: 160ms; }
+  .stagger-enter > *:nth-child(6) { animation-delay: 200ms; }
+  .stagger-enter > *:nth-child(7) { animation-delay: 240ms; }
+  .stagger-enter > *:nth-child(8) { animation-delay: 280ms; }
   
   @keyframes staggerItem {
     from {
       opacity: 0;
-      transform: translateY(10px);
+      transform: translateY(12px) translateZ(0);
     }
     to {
       opacity: 1;
-      transform: translateY(0);
+      transform: translateY(0) translateZ(0);
     }
   }
 

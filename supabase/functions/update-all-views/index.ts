@@ -329,8 +329,8 @@ serve(async (req) => {
             
             const campaignUpdate: Record<string, unknown> = { spent_budget: newSpentBudget };
             if (newRemainingBudget <= 0) {
-              campaignUpdate.status = "paused";
-              console.log(`Campaign ${campaign.id} budget exhausted, auto-pausing`);
+              campaignUpdate.status = "completed";
+              console.log(`Campaign ${campaign.id} budget exhausted, marking as completed`);
             }
             
             await supabase

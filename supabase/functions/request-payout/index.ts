@@ -33,12 +33,12 @@ Deno.serve(async (req) => {
 
     console.log(`Processing payout request for user ${user_id}: $${amount}`);
 
-    // Check for existing pending payout
+    // Check for existing pending or approved payout (prevent multiple requests)
     const { data: existingPayouts, error: checkError } = await supabase
       .from("payouts")
-      .select("id, amount")
+      .select("id, amount, status")
       .eq("user_id", user_id)
-      .eq("status", "pending");
+      .in("status", ["pending", "approved"]);
 
     if (checkError) {
       console.error("Error checking existing payouts:", checkError);
@@ -46,8 +46,9 @@ Deno.serve(async (req) => {
     }
 
     if (existingPayouts && existingPayouts.length > 0) {
+      const status = existingPayouts[0].status;
       return new Response(
-        JSON.stringify({ error: "You already have a pending payout request" }),
+        JSON.stringify({ error: `You already have a ${status} payout request in progress` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -75,10 +76,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Minimum payout check
-    if (amount < 50) {
+    // Minimum payout check - reduced to $10 for per-campaign payouts
+    if (amount < 10) {
       return new Response(
-        JSON.stringify({ error: "Minimum payout is $50" }),
+        JSON.stringify({ error: "Minimum payout is $10" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
