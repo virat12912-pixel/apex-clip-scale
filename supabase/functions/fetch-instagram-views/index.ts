@@ -9,8 +9,8 @@ interface InstagramRequest {
   video_url: string;
 }
 
-// Extract shortcode from Instagram URL
-function extractShortcode(url: string): string | null {
+// Extract reel ID/shortcode from Instagram URL
+function extractReelId(url: string): string | null {
   const patterns = [
     /instagram\.com\/(?:p|reel|reels)\/([\w-]+)/i,
     /instagr\.am\/(?:p|reel)\/([\w-]+)/i,
@@ -51,23 +51,23 @@ serve(async (req) => {
       );
     }
 
-    const shortcode = extractShortcode(video_url);
+    const reelId = extractReelId(video_url);
     
-    if (!shortcode) {
+    if (!reelId) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Could not extract shortcode from URL',
+          error: 'Could not extract reel ID from URL',
           error_code: 'invalid_url'
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Fetching Instagram data for shortcode:', shortcode);
+    console.log('Fetching Instagram data for shortcode:', reelId);
 
-    // Use RapidAPI Instagram Scraper endpoint - parameter must be shortcode_or_url
-    const apiUrl = `https://instagram-scraper21.p.rapidapi.com/api/v1/post_info?shortcode_or_url=${shortcode}`;
+    // Use new API endpoint: /api/v1/post-info?code={reel_id}
+    const apiUrl = `https://instagram-scraper21.p.rapidapi.com/api/v1/post-info?code=${reelId}`;
     
     const response = await fetch(apiUrl, {
       method: 'GET',
@@ -100,19 +100,38 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('Instagram API response:', JSON.stringify(data, null, 2));
+    console.log('Instagram API response received');
 
-    // Extract relevant video stats from the response
-    const mediaData = data.data || data;
+    // Extract from new API structure: data.post.video_play_count
+    const postData = data?.data?.post;
+    
+    if (!postData) {
+      console.error('No post data in response');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Invalid API response structure',
+          error_code: 'parse_error'
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Extract caption from edges structure
+    const captionEdges = postData.edge_media_to_caption?.edges || [];
+    const caption = captionEdges[0]?.node?.text || null;
+    
+    // Extract like count
+    const likeCount = postData.edge_media_preview_like?.count || 0;
     
     const result = {
       success: true,
-      shortcode: shortcode,
-      play_count: mediaData.play_count || mediaData.video_play_count || mediaData.view_count || 0,
-      like_count: mediaData.like_count || mediaData.likes?.count || 0,
-      comment_count: mediaData.comment_count || mediaData.comments?.count || 0,
-      author: mediaData.owner?.username || mediaData.user?.username || null,
-      description: mediaData.caption?.text || mediaData.caption || null,
+      shortcode: reelId,
+      play_count: postData.video_play_count || 0,
+      like_count: likeCount,
+      comment_count: postData.edge_media_to_comment?.count || 0,
+      author: postData.owner?.username || null,
+      description: caption,
     };
 
     console.log('Processed result:', result);
