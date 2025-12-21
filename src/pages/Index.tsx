@@ -3,7 +3,6 @@ import HeroSection from "@/components/landing/HeroSection";
 import MetricsSection from "@/components/landing/MetricsSection";
 import HowItWorksSection from "@/components/landing/HowItWorksSection";
 import WhoItsForSection from "@/components/landing/WhoItsForSection";
-import CampaignsPreviewSection from "@/components/landing/CampaignsPreviewSection";
 import TestimonialsSection from "@/components/landing/TestimonialsSection";
 import FinalCTASection from "@/components/landing/FinalCTASection";
 import Footer from "@/components/landing/Footer";
@@ -17,7 +16,6 @@ const Index = () => {
         <MetricsSection />
         <HowItWorksSection />
         <WhoItsForSection />
-        <CampaignsPreviewSection />
         <TestimonialsSection />
         <FinalCTASection />
       </main>

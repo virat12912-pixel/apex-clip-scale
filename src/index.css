@@ -41,6 +41,7 @@
     --gradient-glow: radial-gradient(ellipse at center, hsl(18 100% 56% / 0.15) 0%, transparent 70%);
     --shadow-glow: 0 0 60px hsl(18 100% 56% / 0.3);
     --shadow-card: 0 4px 24px hsl(0 0% 0% / 0.4);
+    --shadow-glow-sm: 0 0 20px hsl(18 100% 56% / 0.2);
   }
 
   .dark {
@@ -96,7 +97,144 @@
     box-shadow: var(--shadow-glow);
   }
   
+  .glow-primary-sm {
+    box-shadow: var(--shadow-glow-sm);
+  }
+  
   .card-shadow {
     box-shadow: var(--shadow-card);
+  }
+
+  /* Interactive button effects */
+  .btn-glow {
+    @apply relative overflow-hidden transition-all duration-300;
+  }
+  
+  .btn-glow::before {
+    content: '';
+    @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+    background: linear-gradient(135deg, hsl(18 100% 56% / 0.3), transparent);
+  }
+  
+  .btn-glow:hover::before {
+    @apply opacity-100;
+  }
+  
+  .btn-glow:hover {
+    box-shadow: var(--shadow-glow-sm);
+    transform: translateY(-1px);
+  }
+
+  /* Hover scale with smooth transition */
+  .hover-scale {
+    @apply transition-transform duration-200 ease-out;
+  }
+  
+  .hover-scale:hover {
+    transform: scale(1.02);
+  }
+
+  /* Card hover effect */
+  .card-hover {
+    @apply transition-all duration-300;
+  }
+  
+  .card-hover:hover {
+    @apply border-primary/30;
+    box-shadow: 0 8px 32px hsl(0 0% 0% / 0.3), 0 0 20px hsl(18 100% 56% / 0.1);
+    transform: translateY(-2px);
+  }
+
+  /* Page transition animation */
+  .page-enter {
+    animation: pageEnter 0.4s ease-out forwards;
+  }
+  
+  @keyframes pageEnter {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Stagger animation for lists */
+  .stagger-enter > * {
+    opacity: 0;
+    animation: staggerItem 0.4s ease-out forwards;
+  }
+  
+  .stagger-enter > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger-enter > *:nth-child(2) { animation-delay: 50ms; }
+  .stagger-enter > *:nth-child(3) { animation-delay: 100ms; }
+  .stagger-enter > *:nth-child(4) { animation-delay: 150ms; }
+  .stagger-enter > *:nth-child(5) { animation-delay: 200ms; }
+  .stagger-enter > *:nth-child(6) { animation-delay: 250ms; }
+  .stagger-enter > *:nth-child(7) { animation-delay: 300ms; }
+  .stagger-enter > *:nth-child(8) { animation-delay: 350ms; }
+  
+  @keyframes staggerItem {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Subtle texture overlay */
+  .texture-noise {
+    position: relative;
+  }
+  
+  .texture-noise::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    pointer-events: none;
+  }
+
+  /* Shimmer effect for loading */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--secondary)) 0%,
+      hsl(var(--muted)) 50%,
+      hsl(var(--secondary)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+  
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Floating animation */
+  .float {
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+  }
+
+  /* Pulse glow */
+  .pulse-glow {
+    animation: pulseGlow 2s ease-in-out infinite;
+  }
+  
+  @keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 20px hsl(18 100% 56% / 0.2); }
+    50% { box-shadow: 0 0 40px hsl(18 100% 56% / 0.4); }
   }
 }

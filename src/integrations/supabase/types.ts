@@ -55,15 +55,20 @@ export type Database = {
           created_at: string
           created_by: string
           description: string | null
+          duration_days: number | null
+          end_date: string | null
           id: string
           image_url: string | null
           max_earnings_per_post: number | null
+          min_payout_views: number | null
           min_views: number
           name: string
           niche: string | null
           platforms: Database["public"]["Enums"]["platform_type"][]
           rate_unit: number
           rate_value: number
+          required_hashtags: string[] | null
+          required_links: string[] | null
           requirements: string | null
           spent_budget: number
           status: Database["public"]["Enums"]["campaign_status"]
@@ -74,15 +79,20 @@ export type Database = {
           created_at?: string
           created_by: string
           description?: string | null
+          duration_days?: number | null
+          end_date?: string | null
           id?: string
           image_url?: string | null
           max_earnings_per_post?: number | null
+          min_payout_views?: number | null
           min_views?: number
           name: string
           niche?: string | null
           platforms?: Database["public"]["Enums"]["platform_type"][]
           rate_unit?: number
           rate_value?: number
+          required_hashtags?: string[] | null
+          required_links?: string[] | null
           requirements?: string | null
           spent_budget?: number
           status?: Database["public"]["Enums"]["campaign_status"]
@@ -93,15 +103,20 @@ export type Database = {
           created_at?: string
           created_by?: string
           description?: string | null
+          duration_days?: number | null
+          end_date?: string | null
           id?: string
           image_url?: string | null
           max_earnings_per_post?: number | null
+          min_payout_views?: number | null
           min_views?: number
           name?: string
           niche?: string | null
           platforms?: Database["public"]["Enums"]["platform_type"][]
           rate_unit?: number
           rate_value?: number
+          required_hashtags?: string[] | null
+          required_links?: string[] | null
           requirements?: string | null
           spent_budget?: number
           status?: Database["public"]["Enums"]["campaign_status"]
@@ -257,9 +272,49 @@ export type Database = {
           },
         ]
       }
+      social_accounts: {
+        Row: {
+          created_at: string | null
+          id: string
+          platform: Database["public"]["Enums"]["platform_type"]
+          profile_url: string | null
+          updated_at: string | null
+          user_id: string
+          username: string
+          verification_code: string | null
+          verified: boolean | null
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          platform: Database["public"]["Enums"]["platform_type"]
+          profile_url?: string | null
+          updated_at?: string | null
+          user_id: string
+          username: string
+          verification_code?: string | null
+          verified?: boolean | null
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          platform?: Database["public"]["Enums"]["platform_type"]
+          profile_url?: string | null
+          updated_at?: string | null
+          user_id?: string
+          username?: string
+          verification_code?: string | null
+          verified?: boolean | null
+          verified_at?: string | null
+        }
+        Relationships: []
+      }
       submissions: {
         Row: {
           admin_notes: string | null
+          auto_rejected: boolean | null
           campaign_id: string
           clip_url: string
           created_at: string
@@ -267,6 +322,7 @@ export type Database = {
           earnings: number
           id: string
           platform: Database["public"]["Enums"]["platform_type"]
+          rejection_reason: string | null
           screenshot_url: string | null
           status: Database["public"]["Enums"]["submission_status"]
           submitted_views: number | null
@@ -275,6 +331,7 @@ export type Database = {
         }
         Insert: {
           admin_notes?: string | null
+          auto_rejected?: boolean | null
           campaign_id: string
           clip_url: string
           created_at?: string
@@ -282,6 +339,7 @@ export type Database = {
           earnings?: number
           id?: string
           platform: Database["public"]["Enums"]["platform_type"]
+          rejection_reason?: string | null
           screenshot_url?: string | null
           status?: Database["public"]["Enums"]["submission_status"]
           submitted_views?: number | null
@@ -290,6 +348,7 @@ export type Database = {
         }
         Update: {
           admin_notes?: string | null
+          auto_rejected?: boolean | null
           campaign_id?: string
           clip_url?: string
           created_at?: string
@@ -297,6 +356,7 @@ export type Database = {
           earnings?: number
           id?: string
           platform?: Database["public"]["Enums"]["platform_type"]
+          rejection_reason?: string | null
           screenshot_url?: string | null
           status?: Database["public"]["Enums"]["submission_status"]
           submitted_views?: number | null

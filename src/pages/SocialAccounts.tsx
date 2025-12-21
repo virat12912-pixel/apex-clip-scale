@@ -1,0 +1,285 @@
+import { useState } from "react";
+import { AppLayout } from "@/components/app/AppLayout";
+import { 
+  Plus, 
+  Trash2, 
+  CheckCircle, 
+  Clock, 
+  Copy, 
+  Check,
+  Smartphone,
+  Camera,
+  Play,
+  ExternalLink,
+  Info
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { useMySocialAccounts, useCreateSocialAccount, useDeleteSocialAccount } from "@/hooks/useSocialAccounts";
+import { Database } from "@/integrations/supabase/types";
+
+type PlatformType = Database["public"]["Enums"]["platform_type"];
+
+const platformIcons: Record<PlatformType, React.ReactNode> = {
+  tiktok: <Smartphone className="h-5 w-5" />,
+  instagram: <Camera className="h-5 w-5" />,
+  youtube: <Play className="h-5 w-5" />,
+};
+
+const platformLabels: Record<PlatformType, string> = {
+  tiktok: "TikTok",
+  instagram: "Instagram",
+  youtube: "YouTube",
+};
+
+const SocialAccounts = () => {
+  const { data: accounts, isLoading } = useMySocialAccounts();
+  const createAccount = useCreateSocialAccount();
+  const deleteAccount = useDeleteSocialAccount();
+  const { toast } = useToast();
+  const [isOpen, setIsOpen] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [formData, setFormData] = useState({
+    platform: "tiktok" as PlatformType,
+    username: "",
+    profile_url: "",
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.username.trim()) {
+      toast({ title: "Username required", variant: "destructive" });
+      return;
+    }
+
+    try {
+      await createAccount.mutateAsync({
+        platform: formData.platform,
+        username: formData.username.trim(),
+        profile_url: formData.profile_url.trim() || undefined,
+      });
+      toast({ title: "Account added! Add verification code to your bio." });
+      setIsOpen(false);
+      setFormData({ platform: "tiktok", username: "", profile_url: "" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteAccount.mutateAsync(id);
+      toast({ title: "Account removed" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const copyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCode(code);
+    toast({ title: "Copied to clipboard" });
+    setTimeout(() => setCopiedCode(null), 2000);
+  };
+
+  return (
+    <AppLayout title="Social Accounts">
+      <div className="max-w-4xl mx-auto page-enter">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-bold">Linked Social Accounts</h1>
+            <p className="text-muted-foreground">
+              Connect your social accounts to verify ownership
+            </p>
+          </div>
+          <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-primary hover:opacity-90 btn-glow">
+                <Plus className="h-4 w-4 mr-2" />
+                Add Account
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Social Account</DialogTitle>
+                <DialogDescription>
+                  Link a social media account to verify ownership
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label>Platform</Label>
+                  <Select
+                    value={formData.platform}
+                    onValueChange={(value) => setFormData({ ...formData, platform: value as PlatformType })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="tiktok">TikTok</SelectItem>
+                      <SelectItem value="instagram">Instagram</SelectItem>
+                      <SelectItem value="youtube">YouTube</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Username</Label>
+                  <Input
+                    placeholder="@yourusername"
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                    className="bg-secondary"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Profile URL (optional)</Label>
+                  <Input
+                    placeholder="https://tiktok.com/@yourusername"
+                    value={formData.profile_url}
+                    onChange={(e) => setFormData({ ...formData, profile_url: e.target.value })}
+                    className="bg-secondary"
+                  />
+                </div>
+                <Button 
+                  type="submit" 
+                  className="w-full bg-gradient-primary"
+                  disabled={createAccount.isPending}
+                >
+                  {createAccount.isPending ? "Adding..." : "Add Account"}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {/* Info box */}
+        <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 mb-6 flex items-start gap-3">
+          <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-medium mb-1">How verification works</p>
+            <p className="text-muted-foreground">
+              After adding an account, copy the verification code and add it to your bio. 
+              An admin will verify your account within 24 hours.
+            </p>
+          </div>
+        </div>
+
+        {/* Accounts List */}
+        {isLoading ? (
+          <div className="space-y-4">
+            {[1, 2].map((i) => (
+              <Skeleton key={i} className="h-24" />
+            ))}
+          </div>
+        ) : accounts?.length === 0 ? (
+          <div className="text-center py-16 px-4 rounded-xl bg-card border border-border">
+            <Smartphone className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">No accounts linked</h3>
+            <p className="text-muted-foreground mb-4">
+              Add your social media accounts to verify ownership
+            </p>
+            <Button onClick={() => setIsOpen(true)} className="bg-gradient-primary">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Your First Account
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4 stagger-enter">
+            {accounts?.map((account) => (
+              <div 
+                key={account.id} 
+                className="p-5 rounded-xl bg-card border border-border card-hover"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className={`p-3 rounded-xl ${
+                      account.verified ? "bg-emerald-500/10" : "bg-primary/10"
+                    }`}>
+                      <span className={account.verified ? "text-emerald-400" : "text-primary"}>
+                        {platformIcons[account.platform]}
+                      </span>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">{account.username}</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground capitalize">
+                          {platformLabels[account.platform]}
+                        </span>
+                        {account.verified ? (
+                          <span className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                            <CheckCircle className="h-3 w-3" />
+                            Verified
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-xs text-yellow-400 bg-yellow-500/10 px-2 py-0.5 rounded-full">
+                            <Clock className="h-3 w-3" />
+                            Pending
+                          </span>
+                        )}
+                      </div>
+                      {account.profile_url && (
+                        <a 
+                          href={account.profile_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary hover:underline flex items-center gap-1 mt-1"
+                        >
+                          View Profile <ExternalLink className="h-3 w-3" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {!account.verified && (
+                      <div className="flex items-center gap-2 mr-4">
+                        <code className="px-3 py-1.5 rounded bg-secondary text-sm font-mono">
+                          {account.verification_code}
+                        </code>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => copyCode(account.verification_code)}
+                        >
+                          {copiedCode === account.verification_code ? (
+                            <Check className="h-4 w-4 text-emerald-400" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(account.id)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </AppLayout>
+  );
+};
+
+export default SocialAccounts;
