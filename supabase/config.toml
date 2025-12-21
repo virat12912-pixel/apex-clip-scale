@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.update-all-views]
 verify_jwt = false
+
+[functions.verify-instagram-bio]
+verify_jwt = false
+
+[functions.verify-tiktok-bio]
+verify_jwt = false

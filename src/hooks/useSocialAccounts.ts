@@ -123,8 +123,39 @@ export function useVerifySocialAccount() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (id: string) => {
-      const { data, error } = await supabase
+    mutationFn: async ({ id, platform, username, verification_code }: {
+      id: string;
+      platform: PlatformType;
+      username: string;
+      verification_code: string;
+    }) => {
+      // Call the appropriate verification edge function based on platform
+      const functionName = platform === 'instagram' 
+        ? 'verify-instagram-bio' 
+        : platform === 'tiktok'
+        ? 'verify-tiktok-bio'
+        : null;
+
+      if (!functionName) {
+        throw new Error('Auto-verification not available for this platform. Please contact support.');
+      }
+
+      const { data, error } = await supabase.functions.invoke(functionName, {
+        body: { username, verification_code },
+      });
+
+      if (error) throw error;
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Verification failed');
+      }
+
+      if (!data?.verified) {
+        throw new Error(data?.message || 'Verification code not found in bio');
+      }
+
+      // If verified, update the database
+      const { data: updated, error: updateError } = await supabase
         .from("social_accounts")
         .update({
           verified: true,
@@ -134,8 +165,8 @@ export function useVerifySocialAccount() {
         .select()
         .single();
 
-      if (error) throw error;
-      return data;
+      if (updateError) throw updateError;
+      return updated;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["social-accounts"] });
