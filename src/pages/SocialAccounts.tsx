@@ -11,7 +11,9 @@ import {
   Camera,
   Play,
   ExternalLink,
-  Info
+  Info,
+  ShieldCheck,
+  Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +29,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { useMySocialAccounts, useCreateSocialAccount, useDeleteSocialAccount } from "@/hooks/useSocialAccounts";
+import { useMySocialAccounts, useCreateSocialAccount, useDeleteSocialAccount, useVerifySocialAccount } from "@/hooks/useSocialAccounts";
 import { Database } from "@/integrations/supabase/types";
 
 type PlatformType = Database["public"]["Enums"]["platform_type"];
@@ -48,9 +50,11 @@ const SocialAccounts = () => {
   const { data: accounts, isLoading } = useMySocialAccounts();
   const createAccount = useCreateSocialAccount();
   const deleteAccount = useDeleteSocialAccount();
+  const verifyAccount = useVerifySocialAccount();
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     platform: "tiktok" as PlatformType,
     username: "",
@@ -71,7 +75,7 @@ const SocialAccounts = () => {
         username: formData.username.trim(),
         profile_url: formData.profile_url.trim() || undefined,
       });
-      toast({ title: "Account added! Add verification code to your bio." });
+      toast({ title: "Account added! Add verification code to your bio, then click Verify." });
       setIsOpen(false);
       setFormData({ platform: "tiktok", username: "", profile_url: "" });
     } catch (error: any) {
@@ -85,6 +89,44 @@ const SocialAccounts = () => {
       toast({ title: "Account removed" });
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  const handleVerify = async (account: {
+    id: string;
+    platform: PlatformType;
+    username: string;
+    verification_code: string;
+  }) => {
+    if (account.platform === "youtube") {
+      toast({ 
+        title: "YouTube verification", 
+        description: "YouTube auto-verification is not available yet. Please contact support.",
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    setVerifyingId(account.id);
+    try {
+      await verifyAccount.mutateAsync({
+        id: account.id,
+        platform: account.platform,
+        username: account.username,
+        verification_code: account.verification_code,
+      });
+      toast({ 
+        title: "Verified!", 
+        description: "Your account has been successfully verified." 
+      });
+    } catch (error: any) {
+      toast({ 
+        title: "Verification failed", 
+        description: error.message, 
+        variant: "destructive" 
+      });
+    } finally {
+      setVerifyingId(null);
     }
   };
 
@@ -173,8 +215,9 @@ const SocialAccounts = () => {
           <div className="text-sm">
             <p className="font-medium mb-1">How verification works</p>
             <p className="text-muted-foreground">
-              After adding an account, copy the verification code and add it to your bio. 
-              An admin will verify your account within 24 hours.
+              1. Add your account below<br />
+              2. Copy the verification code and add it to your bio<br />
+              3. Click the "Verify" button to automatically check your bio
             </p>
           </div>
         </div>
@@ -246,22 +289,46 @@ const SocialAccounts = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     {!account.verified && (
-                      <div className="flex items-center gap-2 mr-4">
-                        <code className="px-3 py-1.5 rounded bg-secondary text-sm font-mono">
-                          {account.verification_code}
-                        </code>
+                      <>
+                        <div className="flex items-center gap-2 mr-2">
+                          <code className="px-3 py-1.5 rounded bg-secondary text-sm font-mono">
+                            {account.verification_code}
+                          </code>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => copyCode(account.verification_code)}
+                            title="Copy code"
+                          >
+                            {copiedCode === account.verification_code ? (
+                              <Check className="h-4 w-4 text-emerald-400" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
                         <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => copyCode(account.verification_code)}
+                          variant="default"
+                          size="sm"
+                          onClick={() => handleVerify({
+                            id: account.id,
+                            platform: account.platform,
+                            username: account.username,
+                            verification_code: account.verification_code,
+                          })}
+                          disabled={verifyingId === account.id}
+                          className="bg-emerald-500 hover:bg-emerald-600"
                         >
-                          {copiedCode === account.verification_code ? (
-                            <Check className="h-4 w-4 text-emerald-400" />
+                          {verifyingId === account.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
-                            <Copy className="h-4 w-4" />
+                            <>
+                              <ShieldCheck className="h-4 w-4 mr-1" />
+                              Verify
+                            </>
                           )}
                         </Button>
-                      </div>
+                      </>
                     )}
                     <Button
                       variant="ghost"

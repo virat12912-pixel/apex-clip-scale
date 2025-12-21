@@ -3,7 +3,6 @@ import { AppLayout } from "@/components/app/AppLayout";
 import { 
   CheckCircle, 
   Clock, 
-  XCircle,
   Smartphone,
   Camera,
   Play,
@@ -13,8 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/hooks/use-toast";
-import { useAllSocialAccounts, useVerifySocialAccount } from "@/hooks/useSocialAccounts";
+import { useAllSocialAccounts } from "@/hooks/useSocialAccounts";
 import { Database } from "@/integrations/supabase/types";
 
 type PlatformType = Database["public"]["Enums"]["platform_type"];
@@ -33,8 +31,6 @@ const platformLabels: Record<PlatformType, string> = {
 
 const AdminSocialAccounts = () => {
   const { data: accounts, isLoading } = useAllSocialAccounts();
-  const verifyAccount = useVerifySocialAccount();
-  const { toast } = useToast();
   const [search, setSearch] = useState("");
 
   const filteredAccounts = accounts?.filter(account => 
@@ -46,17 +42,8 @@ const AdminSocialAccounts = () => {
   const pendingAccounts = filteredAccounts?.filter(a => !a.verified) || [];
   const verifiedAccounts = filteredAccounts?.filter(a => a.verified) || [];
 
-  const handleVerify = async (id: string) => {
-    try {
-      await verifyAccount.mutateAsync(id);
-      toast({ title: "Account verified!" });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
-  };
-
   return (
-    <AppLayout title="Social Account Verification">
+    <AppLayout title="Social Accounts Overview">
       <div className="page-enter">
         {/* Search */}
         <div className="flex items-center gap-4 mb-6">
@@ -69,6 +56,14 @@ const AdminSocialAccounts = () => {
               className="pl-10 bg-secondary"
             />
           </div>
+        </div>
+
+        {/* Info box */}
+        <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/20 mb-6">
+          <p className="text-sm text-muted-foreground">
+            Users self-verify their accounts by adding a verification code to their bio. 
+            This page shows all linked social accounts across the platform.
+          </p>
         </div>
 
         {isLoading ? (
@@ -129,19 +124,14 @@ const AdminSocialAccounts = () => {
                             >
                               <a href={account.profile_url} target="_blank" rel="noopener noreferrer">
                                 <ExternalLink className="h-4 w-4 mr-1" />
-                                Check Bio
+                                View Profile
                               </a>
                             </Button>
                           )}
-                          <Button
-                            size="sm"
-                            onClick={() => handleVerify(account.id)}
-                            disabled={verifyAccount.isPending}
-                            className="bg-emerald-500 hover:bg-emerald-600"
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Verify
-                          </Button>
+                          <span className="text-xs text-yellow-400 flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-500/10">
+                            <Clock className="h-3 w-3" />
+                            Awaiting user verification
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -163,7 +153,7 @@ const AdminSocialAccounts = () => {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {verifiedAccounts.slice(0, 10).map((account) => (
+                  {verifiedAccounts.slice(0, 20).map((account) => (
                     <div 
                       key={account.id}
                       className="p-4 rounded-xl bg-card border border-border"
@@ -182,10 +172,22 @@ const AdminSocialAccounts = () => {
                             </span>
                           </div>
                         </div>
-                        <span className="text-xs text-emerald-400 flex items-center gap-1">
-                          <CheckCircle className="h-3 w-3" />
-                          Verified
-                        </span>
+                        <div className="flex items-center gap-3">
+                          {account.profile_url && (
+                            <a 
+                              href={account.profile_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-sm text-primary hover:underline flex items-center gap-1"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          )}
+                          <span className="text-xs text-emerald-400 flex items-center gap-1">
+                            <CheckCircle className="h-3 w-3" />
+                            Verified
+                          </span>
+                        </div>
                       </div>
                     </div>
                   ))}
