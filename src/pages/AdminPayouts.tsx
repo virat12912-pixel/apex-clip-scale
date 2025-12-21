@@ -1,20 +1,40 @@
 import { AppLayout } from "@/components/app/AppLayout";
-import { useAllPayouts, useUpdatePayout } from "@/hooks/useWallet";
+import { useAllPayouts } from "@/hooks/useWallet";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle, XCircle, Copy, Wallet } from "lucide-react";
+import { CheckCircle, XCircle, Copy, Wallet, DollarSign } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { mapErrorToUserMessage, logError } from "@/lib/errorMapping";
 
 const AdminPayouts = () => {
   const { data: payouts, isLoading } = useAllPayouts();
-  const updatePayout = useUpdatePayout();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const handleAction = async (id: string, status: "approved" | "rejected") => {
+  const handleAction = async (id: string, action: "approve" | "pay" | "reject") => {
     try {
-      await updatePayout.mutateAsync({ id, status });
-      toast({ title: `Payout ${status}` });
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-payout`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          },
+          body: JSON.stringify({ payout_id: id, action }),
+        }
+      );
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to process payout");
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["payouts"] });
+      toast({ title: `Payout ${action === "pay" ? "paid" : action + "d"}` });
     } catch (error: unknown) {
       logError("AdminPayouts:handleAction", error);
       toast({ title: "Error", description: mapErrorToUserMessage(error), variant: "destructive" });
@@ -109,13 +129,19 @@ const AdminPayouts = () => {
                   
                   {payout.status === "pending" && (
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => handleAction(payout.id, "approved")} className="bg-emerald-500 hover:bg-emerald-600">
+                      <Button size="sm" onClick={() => handleAction(payout.id, "approve")} className="bg-emerald-500 hover:bg-emerald-600 btn-glow">
                         <CheckCircle className="h-4 w-4 mr-1" /> Approve
                       </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleAction(payout.id, "rejected")}>
+                      <Button size="sm" variant="destructive" onClick={() => handleAction(payout.id, "reject")}>
                         <XCircle className="h-4 w-4 mr-1" /> Reject
                       </Button>
                     </div>
+                  )}
+
+                  {payout.status === "approved" && (
+                    <Button size="sm" onClick={() => handleAction(payout.id, "pay")} className="bg-gradient-primary hover:opacity-90 btn-glow">
+                      <DollarSign className="h-4 w-4 mr-1" /> Mark Paid
+                    </Button>
                   )}
 
                   {payout.processed_at && (

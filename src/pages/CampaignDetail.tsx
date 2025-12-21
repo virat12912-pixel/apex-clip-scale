@@ -280,7 +280,7 @@ const CampaignDetail = () => {
         {/* Main content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Header */}
-          <div className="p-6 rounded-xl bg-card border border-border">
+          <div className="p-6 rounded-xl bg-card border border-border card-hover">
             {/* Campaign Image */}
             {campaign.image_url && (
               <div className="w-full h-48 rounded-lg overflow-hidden mb-4">
@@ -348,163 +348,183 @@ const CampaignDetail = () => {
             )}
           </div>
 
-          {/* Submit clips (for creators) */}
-          {role === "creator" && isActive && !isBudgetExhausted && (
-            <div className="p-6 rounded-xl bg-card border border-border">
-              <h3 className="text-lg font-semibold mb-4">Submit Your Clips</h3>
+          {/* Tabs for Submit / Leaderboard */}
+          <Tabs defaultValue="submit" className="w-full">
+            <TabsList className="w-full grid grid-cols-2 mb-4">
+              <TabsTrigger value="submit" className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Submit Clips
+              </TabsTrigger>
+              <TabsTrigger value="leaderboard" className="flex items-center gap-2">
+                <Trophy className="h-4 w-4" />
+                Leaderboard
+              </TabsTrigger>
+            </TabsList>
 
-              <div className="space-y-4">
-                {/* Platform selector */}
-                <div className="space-y-2">
-                  <Label>Platform</Label>
-                  <div className="flex gap-2">
-                    {campaign.platforms?.map((platform) => (
-                      <button
-                        key={platform}
-                        onClick={() => setSelectedPlatform(platform)}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                          selectedPlatform === platform
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-secondary text-muted-foreground hover:text-foreground"
-                        }`}
-                      >
-                        {platformIcons[platform]} {platform}
-                      </button>
+            <TabsContent value="submit" className="space-y-6">
+              {/* Submit clips (for creators) */}
+              {role === "creator" && isActive && !isBudgetExhausted && (
+                <div className="p-6 rounded-xl bg-card border border-border card-hover">
+                  <h3 className="text-lg font-semibold mb-4">Submit Your Clips</h3>
+
+                  <div className="space-y-4">
+                    {/* Platform selector */}
+                    <div className="space-y-2">
+                      <Label>Platform</Label>
+                      <div className="flex gap-2">
+                        {campaign.platforms?.map((platform) => (
+                          <button
+                            key={platform}
+                            onClick={() => setSelectedPlatform(platform)}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                              selectedPlatform === platform
+                                ? "bg-primary text-primary-foreground glow-primary-sm"
+                                : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80"
+                            }`}
+                          >
+                            {platformIcons[platform]} {platform}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Clip URLs */}
+                    <div className="space-y-2">
+                      <Label>Clip URLs</Label>
+                      {clipUrls.map((url, index) => (
+                        <div key={index} className="space-y-1">
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder={`https://${selectedPlatform}.com/...`}
+                              value={url}
+                              onChange={(e) => updateClipUrl(index, e.target.value)}
+                              className={`bg-secondary ${urlErrors[index] ? 'border-red-500' : 'border-border'}`}
+                            />
+                            {clipUrls.length > 1 && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeClipUrl(index)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
+                          {urlErrors[index] && (
+                            <p className="text-xs text-red-500 pl-1">{urlErrors[index]}</p>
+                          )}
+                        </div>
+                      ))}
+                      <Button variant="outline" size="sm" onClick={addClipUrl} className="btn-glow">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Another
+                      </Button>
+                    </div>
+
+                    {/* Agreement */}
+                    <div className="flex items-start gap-3 p-4 rounded-lg bg-secondary/50">
+                      <Checkbox
+                        id="agree"
+                        checked={agreeToTerms}
+                        onCheckedChange={(checked) => setAgreeToTerms(checked === true)}
+                      />
+                      <label htmlFor="agree" className="text-sm text-muted-foreground cursor-pointer">
+                        I confirm that my clips meet all campaign requirements and I agree to the terms
+                      </label>
+                    </div>
+
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={createSubmission.isPending}
+                      className="w-full bg-gradient-primary hover:opacity-90 btn-glow"
+                    >
+                      {createSubmission.isPending ? "Submitting..." : "Submit Clips"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Budget Exhausted Notice */}
+              {role === "creator" && isBudgetExhausted && (
+                <div className="p-6 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className="h-6 w-6 text-yellow-500" />
+                    <div>
+                      <h3 className="font-semibold text-yellow-500">Budget Exhausted</h3>
+                      <p className="text-sm text-muted-foreground">
+                        This campaign has reached its budget limit and is no longer accepting submissions.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Campaign Paused Notice */}
+              {role === "creator" && campaign.status === "paused" && (
+                <div className="p-6 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+                  <div className="flex items-center gap-3">
+                    <Pause className="h-6 w-6 text-yellow-500" />
+                    <div>
+                      <h3 className="font-semibold text-yellow-500">Campaign Paused</h3>
+                      <p className="text-sm text-muted-foreground">
+                        This campaign is currently paused and not accepting new submissions.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Submissions list (for brand/admin) */}
+              {(role === "brand" || role === "admin") && submissions && submissions.length > 0 && (
+                <div className="p-6 rounded-xl bg-card border border-border">
+                  <h3 className="text-lg font-semibold mb-4">
+                    Submissions ({submissions.length})
+                  </h3>
+                  <div className="space-y-3 stagger-enter">
+                    {submissions.map((sub) => (
+                      <div key={sub.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 hover-scale">
+                        <div className="flex items-center gap-3">
+                          <span className={`p-2 rounded-lg ${
+                            sub.status === "approved" || sub.status === "paid"
+                              ? "bg-emerald-500/10 text-emerald-400"
+                              : sub.status === "rejected"
+                              ? "bg-red-500/10 text-red-400"
+                              : "bg-primary/10 text-primary"
+                          }`}>
+                            {sub.status === "approved" || sub.status === "paid" ? (
+                              <CheckCircle className="h-4 w-4" />
+                            ) : (
+                              <AlertCircle className="h-4 w-4" />
+                            )}
+                          </span>
+                          <div>
+                            <p className="text-sm font-medium">{sub.creator_profile?.full_name || "Creator"}</p>
+                            <p className="text-xs text-muted-foreground">{formatNumber(sub.views)} views</p>
+                          </div>
+                          <span className="px-2 py-1 rounded bg-secondary text-xs capitalize flex items-center gap-1">
+                            {platformIcons[sub.platform]}
+                            {sub.platform}
+                          </span>
+                        </div>
+                        <a 
+                          href={sub.clip_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline text-sm flex items-center gap-1"
+                        >
+                          View <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </div>
                     ))}
                   </div>
                 </div>
+              )}
+            </TabsContent>
 
-                {/* Clip URLs */}
-                <div className="space-y-2">
-                  <Label>Clip URLs</Label>
-                  {clipUrls.map((url, index) => (
-                    <div key={index} className="space-y-1">
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder={`https://${selectedPlatform}.com/...`}
-                          value={url}
-                          onChange={(e) => updateClipUrl(index, e.target.value)}
-                          className={`bg-secondary ${urlErrors[index] ? 'border-red-500' : 'border-border'}`}
-                        />
-                        {clipUrls.length > 1 && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => removeClipUrl(index)}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                      {urlErrors[index] && (
-                        <p className="text-xs text-red-500 pl-1">{urlErrors[index]}</p>
-                      )}
-                    </div>
-                  ))}
-                  <Button variant="outline" size="sm" onClick={addClipUrl}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Another
-                  </Button>
-                </div>
-
-                {/* Agreement */}
-                <div className="flex items-start gap-3 p-4 rounded-lg bg-secondary/50">
-                  <Checkbox
-                    id="agree"
-                    checked={agreeToTerms}
-                    onCheckedChange={(checked) => setAgreeToTerms(checked === true)}
-                  />
-                  <label htmlFor="agree" className="text-sm text-muted-foreground cursor-pointer">
-                    I confirm that my clips meet all campaign requirements and I agree to the terms
-                  </label>
-                </div>
-
-                <Button
-                  onClick={handleSubmit}
-                  disabled={createSubmission.isPending}
-                  className="w-full bg-gradient-primary hover:opacity-90"
-                >
-                  {createSubmission.isPending ? "Submitting..." : "Submit Clips"}
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Budget Exhausted Notice */}
-          {role === "creator" && isBudgetExhausted && (
-            <div className="p-6 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
-              <div className="flex items-center gap-3">
-                <AlertCircle className="h-6 w-6 text-yellow-500" />
-                <div>
-                  <h3 className="font-semibold text-yellow-500">Budget Exhausted</h3>
-                  <p className="text-sm text-muted-foreground">
-                    This campaign has reached its budget limit and is no longer accepting submissions.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Campaign Paused Notice */}
-          {role === "creator" && campaign.status === "paused" && (
-            <div className="p-6 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
-              <div className="flex items-center gap-3">
-                <Pause className="h-6 w-6 text-yellow-500" />
-                <div>
-                  <h3 className="font-semibold text-yellow-500">Campaign Paused</h3>
-                  <p className="text-sm text-muted-foreground">
-                    This campaign is currently paused and not accepting new submissions.
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Submissions list (for brand/admin) */}
-          {(role === "brand" || role === "admin") && submissions && submissions.length > 0 && (
-            <div className="p-6 rounded-xl bg-card border border-border">
-              <h3 className="text-lg font-semibold mb-4">
-                Submissions ({submissions.length})
-              </h3>
-              <div className="space-y-3">
-                {submissions.map((sub) => (
-                  <div key={sub.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
-                    <div className="flex items-center gap-3">
-                      <span className={`p-2 rounded-lg ${
-                        sub.status === "approved" || sub.status === "paid"
-                          ? "bg-emerald-500/10 text-emerald-400"
-                          : sub.status === "rejected"
-                          ? "bg-red-500/10 text-red-400"
-                          : "bg-primary/10 text-primary"
-                      }`}>
-                        {sub.status === "approved" || sub.status === "paid" ? (
-                          <CheckCircle className="h-4 w-4" />
-                        ) : (
-                          <AlertCircle className="h-4 w-4" />
-                        )}
-                      </span>
-                      <div>
-                        <p className="text-sm font-medium">{sub.creator_profile?.full_name || "Creator"}</p>
-                        <p className="text-xs text-muted-foreground">{formatNumber(sub.views)} views</p>
-                      </div>
-                      <span className="px-2 py-1 rounded bg-secondary text-xs capitalize flex items-center gap-1">
-                        {platformIcons[sub.platform]}
-                        {sub.platform}
-                      </span>
-                    </div>
-                    <a 
-                      href={sub.clip_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-primary hover:underline text-sm flex items-center gap-1"
-                    >
-                      View <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+            <TabsContent value="leaderboard">
+              <CampaignLeaderboard campaignId={id || ""} />
+            </TabsContent>
+          </Tabs>
         </div>
 
         {/* Sidebar */}

@@ -56,27 +56,32 @@ const Earnings = () => {
 
   return (
     <AppLayout title="Earnings">
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {walletLoading ? Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-32" />) : (
+      <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8 stagger-enter">
+        {walletLoading ? Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-32" />) : (
           <>
-            <div className="p-5 rounded-xl bg-card border border-border">
+            <div className="p-5 rounded-xl bg-card border border-border card-hover">
               <div className="flex items-center justify-between mb-3">
                 <div className="p-2 rounded-lg bg-emerald-500/10"><DollarSign className="h-5 w-5 text-emerald-400" /></div>
               </div>
               <div className="text-2xl font-bold mb-1">${totalEarnings.toFixed(2)}</div>
               <div className="text-sm text-muted-foreground">Total Earnings</div>
             </div>
-            <div className="p-5 rounded-xl bg-card border border-border">
+            <div className="p-5 rounded-xl bg-card border border-border card-hover">
               <div className="p-2 rounded-lg bg-yellow-500/10 w-fit mb-3"><Clock className="h-5 w-5 text-yellow-400" /></div>
               <div className="text-2xl font-bold mb-1">${(wallet?.pending_balance || 0).toFixed(2)}</div>
-              <div className="text-sm text-muted-foreground">Pending Balance</div>
+              <div className="text-sm text-muted-foreground">Available</div>
             </div>
-            <div className="p-5 rounded-xl bg-card border border-border">
+            <div className="p-5 rounded-xl bg-card border border-border card-hover">
+              <div className="p-2 rounded-lg bg-orange-500/10 w-fit mb-3"><Clock className="h-5 w-5 text-orange-400" /></div>
+              <div className="text-2xl font-bold mb-1">${(wallet?.locked_earnings || 0).toFixed(2)}</div>
+              <div className="text-sm text-muted-foreground">Processing</div>
+            </div>
+            <div className="p-5 rounded-xl bg-card border border-border card-hover">
               <div className="p-2 rounded-lg bg-primary/10 w-fit mb-3"><TrendingUp className="h-5 w-5 text-primary" /></div>
               <div className="text-2xl font-bold mb-1">${(wallet?.paid_balance || 0).toFixed(2)}</div>
               <div className="text-sm text-muted-foreground">Paid Out</div>
             </div>
-            <div className="p-5 rounded-xl bg-card border border-border">
+            <div className="p-5 rounded-xl bg-card border border-border card-hover">
               <div className="p-2 rounded-lg bg-blue-500/10 w-fit mb-3"><Eye className="h-5 w-5 text-blue-400" /></div>
               <div className="text-2xl font-bold mb-1">{paidSubmissions.length}</div>
               <div className="text-sm text-muted-foreground">Paid Clips</div>
