@@ -3,17 +3,19 @@ import { useParams, Link } from "react-router-dom";
 import { AppLayout } from "@/components/app/AppLayout";
 import { useCampaigns } from "@/hooks/useCampaigns";
 import { useCampaignParticipants } from "@/hooks/useAdminUsers";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { 
   ChevronRight, 
   Users, 
   Eye, 
   DollarSign, 
-  AlertCircle,
   CheckCircle,
   Clock,
-  Ban
+  Ban,
+  Video,
+  XCircle,
+  Wallet
 } from "lucide-react";
 
 const AdminCampaignPayouts = () => {
@@ -121,49 +123,75 @@ const AdminCampaignPayouts = () => {
             <Link
               key={participant.creator_id}
               to={`/admin/payouts/campaign/${campaignId}/user/${participant.creator_id}`}
-              className="flex items-center justify-between p-5 rounded-xl bg-card border border-border hover:border-primary/30 transition-colors"
+              className="block p-5 rounded-xl bg-card border border-border hover:border-primary/30 transition-colors"
             >
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center text-lg font-bold text-primary-foreground overflow-hidden">
-                    {participant.avatar_url ? (
-                      <img src={participant.avatar_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      participant.full_name?.charAt(0) || "?"
-                    )}
-                  </div>
-                  {participant.is_banned && (
-                    <div className="absolute -bottom-1 -right-1 bg-red-500 rounded-full p-0.5">
-                      <Ban className="h-3 w-3 text-white" />
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center text-lg font-bold text-primary-foreground overflow-hidden">
+                      {participant.avatar_url ? (
+                        <img src={participant.avatar_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        participant.full_name?.charAt(0) || "?"
+                      )}
                     </div>
-                  )}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold">{participant.full_name || "Anonymous"}</h3>
-                    {!participant.payment_verified && (
-                      <span className="px-2 py-0.5 rounded text-xs bg-yellow-500/10 text-yellow-400">Unverified</span>
+                    {participant.is_banned && (
+                      <div className="absolute -bottom-1 -right-1 bg-destructive rounded-full p-0.5">
+                        <Ban className="h-3 w-3 text-destructive-foreground" />
+                      </div>
                     )}
                   </div>
-                  <p className="text-sm text-muted-foreground">{participant.email}</p>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold">{participant.full_name || "Anonymous"}</h3>
+                      {!participant.payment_verified && (
+                        <Badge variant="outline" className="text-yellow-500 border-yellow-500/30 text-xs">
+                          Unverified
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-muted-foreground">{participant.email}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  {getPayoutStatusBadge(participant.payout_status)}
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
                 </div>
               </div>
 
-              <div className="flex items-center gap-6">
-                <div className="text-right">
-                  <div className="flex items-center gap-1 text-sm">
-                    <Eye className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{formatNumber(participant.total_views)}</span>
-                  </div>
-                  <div className="flex items-center gap-1 text-sm text-primary">
-                    <DollarSign className="h-4 w-4" />
-                    <span className="font-medium">${participant.total_earnings.toFixed(2)}</span>
-                  </div>
+              {/* Clip Stats Row */}
+              <div className="mt-4 pt-4 border-t border-border flex flex-wrap gap-4 text-sm">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50">
+                  <Video className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Clips:</span>
+                  <span className="font-medium text-emerald-400">{participant.approved_count || 0}</span>
+                  <span className="text-muted-foreground">/</span>
+                  <span className="font-medium text-destructive">{participant.rejected_count || 0}</span>
+                  <span className="text-muted-foreground">/</span>
+                  <span className="font-medium text-yellow-400">{participant.pending_count || 0}</span>
+                  <span className="text-xs text-muted-foreground">(A/R/P)</span>
                 </div>
 
-                {getPayoutStatusBadge(participant.payout_status)}
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50">
+                  <Eye className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Views:</span>
+                  <span className="font-medium">{formatNumber(participant.total_views)}</span>
+                </div>
 
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10">
+                  <DollarSign className="h-4 w-4 text-primary" />
+                  <span className="text-muted-foreground">Earnings:</span>
+                  <span className="font-bold text-primary">${participant.total_earnings.toFixed(2)}</span>
+                </div>
+
+                {participant.payout_method && (
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-secondary/50">
+                    <Wallet className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Payment:</span>
+                    <span className="font-medium capitalize">{participant.payout_method}</span>
+                  </div>
+                )}
               </div>
             </Link>
           ))}

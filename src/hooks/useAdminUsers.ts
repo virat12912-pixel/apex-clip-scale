@@ -23,6 +23,7 @@ export interface CampaignParticipant {
   email: string;
   is_banned: boolean;
   payment_verified: boolean;
+  payout_method: string | null;
   total_views: number;
   total_earnings: number;
   submission_count: number;
@@ -47,7 +48,7 @@ export function useCampaignParticipants(campaignId: string) {
           earnings,
           status,
           creator_profile:profiles!submissions_creator_id_fkey(
-            id, email, full_name, avatar_url, is_banned, payment_verified
+            id, email, full_name, avatar_url, is_banned, payment_verified, payout_method
           )
         `)
         .eq("campaign_id", campaignId);
@@ -93,6 +94,7 @@ export function useCampaignParticipants(campaignId: string) {
             email: profile?.email || "",
             is_banned: profile?.is_banned || false,
             payment_verified: profile?.payment_verified || false,
+            payout_method: profile?.payout_method || null,
             total_views: isApproved ? Number(sub.views) || 0 : 0,
             total_earnings: isApproved ? Number(sub.earnings) || 0 : 0,
             submission_count: 1,
