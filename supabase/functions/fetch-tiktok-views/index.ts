@@ -45,53 +45,48 @@ function isShortUrl(url: string): boolean {
   return url.includes("vm.tiktok.com") || url.includes("vt.tiktok.com");
 }
 
-// REPLACEMENT FUNCTION: Manually handle redirects
-async function expandShortUrl(url: string): Promise<string> {
-  let currentUrl = url;
+async function expandShortUrl(shortUrl: string): Promise<string> {
+  let currentUrl = shortUrl;
   const maxRedirects = 5;
 
-  // Use a Mobile User Agent to encourage TikTok to give us the direct video link
-  // rather than a Desktop landing page.
+  // 1. Use a standard Android Mobile User-Agent
+  // This tricks TikTok into thinking we are a phone app, not a server script.
   const headers = {
     "User-Agent":
       "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.5",
   };
 
-  for (let i = 0; i < maxRedirects; i++) {
-    try {
-      // Use HEAD first as it's faster and often bypasses body-based blocks
+  try {
+    for (let i = 0; i < maxRedirects; i++) {
+      // 2. Use 'manual' redirect mode to inspect headers ourselves
       const response = await fetch(currentUrl, {
-        method: "HEAD",
-        redirect: "manual",
+        method: "HEAD", // HEAD is faster and less likely to trigger 'human verification' pages
         headers: headers,
+        redirect: "manual",
       });
 
-      if (response.status === 301 || response.status === 302 || response.status === 307) {
+      // 3. Check for Redirects (301, 302, 307, 308)
+      if ([301, 302, 303, 307, 308].includes(response.status)) {
         const location = response.headers.get("location");
         if (location) {
-          console.log(`Redirect ${i + 1}: ${currentUrl} -> ${location}`);
-          currentUrl = location;
-          // Continue loop to follow next redirect if exists
+          // Handle relative URLs if necessary (rare for TikTok but good practice)
+          currentUrl = new URL(location, currentUrl).href;
+          // If we found the long URL (contains /video/), we can stop early
+          if (currentUrl.includes("/video/")) return currentUrl;
           continue;
         }
       }
 
-      // If we are here, it's either 200 OK or a non-redirect error.
-      // If it's 200 OK but we are still on vm.tiktok.com, the HEAD failed to trigger a 301.
-      // We can try one last ditch GET request if we are still on a short link.
-      if ((currentUrl.includes("vm.tiktok.com") || currentUrl.includes("vt.tiktok.com")) && response.status === 200) {
-        // Break and return currentUrl (it failed to expand), or try a GET here if you want to be aggressive
-        console.warn("TikTok returned 200 OK on short link (Bot detection?)");
-        break;
-      }
-
-      // If we extracted a URL that is NOT a short link, we are done.
-      break;
-    } catch (err) {
-      console.error("Error expanding URL:", err);
+      // If we get a 200 OK, we stop.
       break;
     }
+  } catch (error) {
+    console.error("Expansion error:", error);
+    // Return the last known URL if fetch fails
   }
+
   return currentUrl;
 }
 
