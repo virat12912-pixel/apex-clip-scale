@@ -136,33 +136,90 @@ function validateTextRequirements(
   return { missingHashtags, missingLinks };
 }
 
-async function fetchViewsForPlatform(clipUrl: string, platform: string): Promise<ViewData> {
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchViewsForPlatform(
+  clipUrl: string,
+  platform: string,
+  maxRetries = 3,
+  retryDelayMs = 1500
+): Promise<ViewData> {
   if (platform !== "tiktok" && platform !== "instagram") {
     return { views: 0, likes: 0, comments: 0, description: null };
   }
 
   const functionName = platform === "instagram" ? "fetch-instagram-views" : "fetch-tiktok-views";
 
-  try {
-    const { data, error } = await supabase.functions.invoke(functionName, {
-      body: { video_url: clipUrl },
-    });
+  let lastError: unknown = null;
 
-    if (error || data?.success === false) {
-      console.log(`Could not fetch views for ${platform}:`, error || data?.error_code);
-      return { views: 0, likes: 0, comments: 0, description: null };
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`[${platform}] Fetching views, attempt ${attempt}/${maxRetries}...`);
+      
+      const { data, error } = await supabase.functions.invoke(functionName, {
+        body: { video_url: clipUrl },
+      });
+
+      if (error) {
+        lastError = error;
+        console.warn(`[${platform}] Attempt ${attempt} failed:`, error.message);
+        if (attempt < maxRetries) {
+          await sleep(retryDelayMs * attempt); // Exponential backoff
+          continue;
+        }
+      }
+
+      if (data?.success === false) {
+        const errorCode = data?.error_code || "unknown";
+        console.warn(`[${platform}] API returned error: ${errorCode}`);
+        
+        // Don't retry for certain error codes
+        if (errorCode === "VIDEO_NOT_FOUND" || errorCode === "PRIVATE_VIDEO") {
+          throw new Error(`Video not accessible. Please check the URL is correct and the video is public.`);
+        }
+        
+        if (attempt < maxRetries) {
+          await sleep(retryDelayMs * attempt);
+          continue;
+        }
+      }
+
+      if (data?.play_count !== undefined) {
+        console.log(`[${platform}] Successfully fetched views: ${data.play_count}`);
+        return {
+          views: Number(data.play_count ?? 0),
+          likes: Number(data.like_count ?? 0),
+          comments: Number(data.comment_count ?? 0),
+          description: (data.description as string | null | undefined) ?? null,
+        };
+      }
+
+      // If we got here with no data, retry
+      if (attempt < maxRetries) {
+        await sleep(retryDelayMs * attempt);
+        continue;
+      }
+    } catch (err) {
+      lastError = err;
+      console.error(`[${platform}] Attempt ${attempt} error:`, err);
+      
+      // Re-throw user-friendly errors immediately
+      if (err instanceof Error && err.message.includes("Video not accessible")) {
+        throw err;
+      }
+      
+      if (attempt < maxRetries) {
+        await sleep(retryDelayMs * attempt);
+        continue;
+      }
     }
-
-    return {
-      views: Number(data?.play_count ?? 0),
-      likes: Number(data?.like_count ?? 0),
-      comments: Number(data?.comment_count ?? 0),
-      description: (data?.description as string | null | undefined) ?? null,
-    };
-  } catch (err) {
-    console.error(`Error fetching ${platform} views:`, err);
-    return { views: 0, likes: 0, comments: 0, description: null };
   }
+
+  // All retries exhausted
+  console.error(`[${platform}] All ${maxRetries} attempts failed. Last error:`, lastError);
+  return { views: 0, likes: 0, comments: 0, description: null };
 }
 
 async function processSubmission(submissionId: string, viewData: ViewData): Promise<void> {
