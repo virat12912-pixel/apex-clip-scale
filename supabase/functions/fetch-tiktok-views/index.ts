@@ -45,22 +45,54 @@ function isShortUrl(url: string): boolean {
   return url.includes("vm.tiktok.com") || url.includes("vt.tiktok.com");
 }
 
-// Expand short URL by following redirects
+// REPLACEMENT FUNCTION: Manually handle redirects
 async function expandShortUrl(url: string): Promise<string> {
-  try {
-    const response = await fetch(url, {
-      method: "GET",
-      redirect: "follow",
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  let currentUrl = url;
+  const maxRedirects = 5;
+
+  // Use a Mobile User Agent to encourage TikTok to give us the direct video link
+  // rather than a Desktop landing page.
+  const headers = {
+    "User-Agent":
+      "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
+  };
+
+  for (let i = 0; i < maxRedirects; i++) {
+    try {
+      // Use HEAD first as it's faster and often bypasses body-based blocks
+      const response = await fetch(currentUrl, {
+        method: "HEAD",
+        redirect: "manual",
+        headers: headers,
+      });
+
+      if (response.status === 301 || response.status === 302 || response.status === 307) {
+        const location = response.headers.get("location");
+        if (location) {
+          console.log(`Redirect ${i + 1}: ${currentUrl} -> ${location}`);
+          currentUrl = location;
+          // Continue loop to follow next redirect if exists
+          continue;
+        }
       }
-    });
-    console.log(`Expanded URL: ${url} -> ${response.url}`);
-    return response.url;
-  } catch (err) {
-    console.error("Error expanding URL:", err);
-    return url;
+
+      // If we are here, it's either 200 OK or a non-redirect error.
+      // If it's 200 OK but we are still on vm.tiktok.com, the HEAD failed to trigger a 301.
+      // We can try one last ditch GET request if we are still on a short link.
+      if ((currentUrl.includes("vm.tiktok.com") || currentUrl.includes("vt.tiktok.com")) && response.status === 200) {
+        // Break and return currentUrl (it failed to expand), or try a GET here if you want to be aggressive
+        console.warn("TikTok returned 200 OK on short link (Bot detection?)");
+        break;
+      }
+
+      // If we extracted a URL that is NOT a short link, we are done.
+      break;
+    } catch (err) {
+      console.error("Error expanding URL:", err);
+      break;
+    }
   }
+  return currentUrl;
 }
 
 serve(async (req) => {
