@@ -15,6 +15,29 @@ interface ViewFetchResult {
   error?: string;
 }
 
+interface Campaign {
+  id: string;
+  status: string;
+  min_payout_views: number | null;
+  rate_unit: number;
+  rate_value: number;
+  max_earnings_per_post: number | null;
+  total_budget: number;
+  spent_budget: number;
+}
+
+interface SubmissionWithCampaign {
+  id: string;
+  clip_url: string;
+  platform: string;
+  views: number;
+  submitted_views: number;
+  earnings: number;
+  status: string;
+  creator_id: string;
+  campaign: Campaign | null;
+}
+
 // Check if URL is a short link
 function isShortUrl(url: string): boolean {
   return url.includes("vm.tiktok.com") || url.includes("vt.tiktok.com");
@@ -203,10 +226,10 @@ serve(async (req) => {
 
     console.log("Starting daily view update job...");
 
-    // Get all pending/approved submissions for TikTok or Instagram
-    const { data: submissions, error: fetchError } = await supabase
+    // Get all pending/approved submissions for TikTok or Instagram with campaign data
+    const { data: rawSubmissions, error: fetchError } = await supabase
       .from("submissions")
-      .select("id, clip_url, platform, views, submitted_views")
+      .select("id, clip_url, platform, views, submitted_views, earnings, status, creator_id, campaign:campaigns(id, status, min_payout_views, rate_unit, rate_value, max_earnings_per_post, total_budget, spent_budget)")
       .in("status", ["pending", "approved"])
       .in("platform", ["tiktok", "instagram"]);
 
@@ -214,6 +237,9 @@ serve(async (req) => {
       console.error("Error fetching submissions:", fetchError);
       throw fetchError;
     }
+
+    // Cast to proper type
+    const submissions = rawSubmissions as unknown as SubmissionWithCampaign[];
 
     console.log(`Found ${submissions?.length || 0} submissions to update`);
 
@@ -231,12 +257,46 @@ serve(async (req) => {
       }
 
       if (result && result.views > 0) {
+        const campaign = sub.campaign;
+        const previousViews = sub.views || 0;
+        const previousEarnings = sub.earnings || 0;
+        
+        let newEarnings = previousEarnings;
+        let shouldRecalculate = false;
+        
+        // Only recalculate if views increased and campaign is active
+        if (campaign && campaign.status === "active" && result.views > previousViews) {
+          shouldRecalculate = true;
+          const minPayoutViews = campaign.min_payout_views || 1000;
+          
+          if (result.views >= minPayoutViews) {
+            // Calculate new earnings based on new views
+            newEarnings = (result.views / campaign.rate_unit) * campaign.rate_value;
+            
+            // Apply max_earnings_per_post cap
+            if (campaign.max_earnings_per_post && newEarnings > campaign.max_earnings_per_post) {
+              newEarnings = Number(campaign.max_earnings_per_post);
+            }
+            
+            // Check remaining budget
+            const remainingBudget = Number(campaign.total_budget) - Number(campaign.spent_budget);
+            const earningsDiff = newEarnings - previousEarnings;
+            
+            if (earningsDiff > remainingBudget) {
+              newEarnings = previousEarnings + remainingBudget;
+            }
+          }
+        }
+        
+        // Update submission
         const { error: updateError } = await supabase
           .from("submissions")
           .update({ 
             views: result.views,
             likes: result.likes,
-            comments: result.comments
+            comments: result.comments,
+            earnings: newEarnings,
+            status: newEarnings > 0 ? "approved" : sub.status,
           })
           .eq("id", sub.id);
 
@@ -245,7 +305,41 @@ serve(async (req) => {
           results.push({ submission_id: sub.id, success: false, error: updateError.message });
           errorCount++;
         } else {
-          console.log(`Updated submission ${sub.id}: ${sub.views} -> ${result.views} views, ${result.likes} likes, ${result.comments} comments`);
+          // Update wallet and campaign budget if earnings changed
+          if (shouldRecalculate && newEarnings > previousEarnings && campaign) {
+            const earningsDiff = newEarnings - previousEarnings;
+            
+            // Update creator's wallet
+            const { data: wallet } = await supabase
+              .from("wallets")
+              .select("pending_balance")
+              .eq("user_id", sub.creator_id)
+              .maybeSingle();
+            
+            if (wallet) {
+              await supabase
+                .from("wallets")
+                .update({ pending_balance: Number(wallet.pending_balance) + earningsDiff })
+                .eq("user_id", sub.creator_id);
+            }
+            
+            // Update campaign spent budget
+            const newSpentBudget = Number(campaign.spent_budget) + earningsDiff;
+            const newRemainingBudget = Number(campaign.total_budget) - newSpentBudget;
+            
+            const campaignUpdate: Record<string, unknown> = { spent_budget: newSpentBudget };
+            if (newRemainingBudget <= 0) {
+              campaignUpdate.status = "paused";
+              console.log(`Campaign ${campaign.id} budget exhausted, auto-pausing`);
+            }
+            
+            await supabase
+              .from("campaigns")
+              .update(campaignUpdate)
+              .eq("id", campaign.id);
+          }
+          
+          console.log(`Updated submission ${sub.id}: ${previousViews} -> ${result.views} views, earnings: $${newEarnings.toFixed(2)}`);
           results.push({ 
             submission_id: sub.id, 
             success: true, 

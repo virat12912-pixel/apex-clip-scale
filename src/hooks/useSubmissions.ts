@@ -105,9 +105,15 @@ export function useAllSubmissions() {
   });
 }
 
-async function fetchViewsForPlatform(clipUrl: string, platform: string): Promise<number> {
+interface ViewData {
+  views: number;
+  likes: number;
+  comments: number;
+}
+
+async function fetchViewsForPlatform(clipUrl: string, platform: string): Promise<ViewData> {
   if (platform !== "tiktok" && platform !== "instagram") {
-    return 0;
+    return { views: 0, likes: 0, comments: 0 };
   }
 
   const functionName = platform === "instagram" ? "fetch-instagram-views" : "fetch-tiktok-views";
@@ -119,13 +125,36 @@ async function fetchViewsForPlatform(clipUrl: string, platform: string): Promise
 
     if (error || data?.success === false) {
       console.log(`Could not fetch views for ${platform}:`, error || data?.error_code);
-      return 0;
+      return { views: 0, likes: 0, comments: 0 };
     }
 
-    return Number(data?.play_count ?? 0);
+    return {
+      views: Number(data?.play_count ?? 0),
+      likes: Number(data?.like_count ?? 0),
+      comments: Number(data?.comment_count ?? 0),
+    };
   } catch (err) {
     console.error(`Error fetching ${platform} views:`, err);
-    return 0;
+    return { views: 0, likes: 0, comments: 0 };
+  }
+}
+
+async function processSubmission(submissionId: string, viewData: ViewData): Promise<void> {
+  try {
+    const { error } = await supabase.functions.invoke("process-submission", {
+      body: { 
+        submission_id: submissionId,
+        views: viewData.views,
+        likes: viewData.likes,
+        comments: viewData.comments,
+      },
+    });
+
+    if (error) {
+      console.error("Error processing submission:", error);
+    }
+  } catch (err) {
+    console.error("Error calling process-submission:", err);
   }
 }
 
@@ -155,13 +184,22 @@ export function useCreateSubmission() {
 
       if (error) throw error;
 
-      // Fetch views for each submission in background and update
+      // Fetch views for each submission and process automatically
       for (const sub of insertedSubmissions) {
-        const views = await fetchViewsForPlatform(sub.clip_url, sub.platform);
-        if (views > 0) {
+        const viewData = await fetchViewsForPlatform(sub.clip_url, sub.platform);
+        
+        // Process the submission with auto earnings calculation
+        if (viewData.views > 0) {
+          await processSubmission(sub.id, viewData);
+        } else {
+          // Even if no views, update the submission with zeros
           await supabase
             .from("submissions")
-            .update({ submitted_views: views })
+            .update({ 
+              submitted_views: 0,
+              likes: 0,
+              comments: 0
+            })
             .eq("id", sub.id);
         }
       }
