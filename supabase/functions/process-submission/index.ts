@@ -190,10 +190,10 @@ Deno.serve(async (req) => {
     
     const campaignUpdate: Record<string, unknown> = { spent_budget: newSpentBudget };
     
-    // Auto-pause campaign if budget is exhausted
+    // Auto-complete campaign if budget is exhausted
     if (newRemainingBudget <= 0) {
-      campaignUpdate.status = "paused";
-      console.log(`Campaign ${campaign.id} budget exhausted, auto-pausing`);
+      campaignUpdate.status = "completed";
+      console.log(`Campaign ${campaign.id} budget exhausted, marking as completed`);
     }
     
     const { error: campaignUpdateError } = await supabase

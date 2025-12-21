@@ -406,14 +406,19 @@ const CampaignDetail = () => {
                     </div>
 
                     {isVerificationRequired && !hasVerifiedSocialAccount && (
-                      <div className="p-4 rounded-lg bg-secondary/50 border border-border">
-                        <p className="text-sm font-medium">Verify your {selectedPlatform} account to submit.</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Go to Social Accounts, add your account, and click Verify.
-                        </p>
-                        <Button asChild size="sm" variant="outline" className="mt-3 btn-glow">
-                          <Link to="/social-accounts">Verify now</Link>
-                        </Button>
+                      <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/30">
+                        <div className="flex items-start gap-3">
+                          <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-medium text-destructive">Verification Required</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              You must verify your {selectedPlatform} account before submitting clips to this campaign.
+                            </p>
+                            <Button asChild size="sm" variant="outline" className="mt-3 btn-glow">
+                              <Link to="/social-accounts">Verify {selectedPlatform} Account</Link>
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     )}
 
@@ -464,10 +469,14 @@ const CampaignDetail = () => {
 
                     <Button
                       onClick={handleSubmit}
-                      disabled={createSubmission.isPending || (isVerificationRequired && !hasVerifiedSocialAccount)}
+                      disabled={createSubmission.isPending || !agreeToTerms || (isVerificationRequired && !hasVerifiedSocialAccount)}
                       className="w-full bg-gradient-primary hover:opacity-90 btn-glow"
                     >
-                      {createSubmission.isPending ? "Submitting..." : "Submit Clips"}
+                      {isVerificationRequired && !hasVerifiedSocialAccount 
+                        ? "Verification Required" 
+                        : createSubmission.isPending 
+                        ? "Submitting..." 
+                        : "Submit Clips"}
                     </Button>
                   </div>
                 </div>

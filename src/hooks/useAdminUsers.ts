@@ -26,6 +26,9 @@ export interface CampaignParticipant {
   total_views: number;
   total_earnings: number;
   submission_count: number;
+  approved_count: number;
+  rejected_count: number;
+  pending_count: number;
   payout_status: "eligible" | "pending" | "paid" | "not_eligible";
 }
 
@@ -67,10 +70,20 @@ export function useCampaignParticipants(campaignId: string) {
       submissions?.forEach((sub: any) => {
         const profile = sub.creator_profile;
         const existing = participantMap.get(sub.creator_id);
+        const isApproved = sub.status === "approved" || sub.status === "paid";
+        const isRejected = sub.status === "rejected";
+        const isPending = sub.status === "pending";
 
         if (existing) {
-          existing.total_views += Number(sub.views) || 0;
-          existing.total_earnings += Number(sub.earnings) || 0;
+          if (isApproved) {
+            existing.total_views += Number(sub.views) || 0;
+            existing.total_earnings += Number(sub.earnings) || 0;
+            existing.approved_count += 1;
+          } else if (isRejected) {
+            existing.rejected_count += 1;
+          } else if (isPending) {
+            existing.pending_count += 1;
+          }
           existing.submission_count += 1;
         } else {
           participantMap.set(sub.creator_id, {
@@ -80,9 +93,12 @@ export function useCampaignParticipants(campaignId: string) {
             email: profile?.email || "",
             is_banned: profile?.is_banned || false,
             payment_verified: profile?.payment_verified || false,
-            total_views: Number(sub.views) || 0,
-            total_earnings: Number(sub.earnings) || 0,
+            total_views: isApproved ? Number(sub.views) || 0 : 0,
+            total_earnings: isApproved ? Number(sub.earnings) || 0 : 0,
             submission_count: 1,
+            approved_count: isApproved ? 1 : 0,
+            rejected_count: isRejected ? 1 : 0,
+            pending_count: isPending ? 1 : 0,
             payout_status: "not_eligible",
           });
         }
