@@ -10,11 +10,14 @@ export interface Submission {
   clip_url: string;
   platform: "tiktok" | "instagram" | "youtube";
   views: number;
+  likes: number;
+  comments: number;
   earnings: number;
   status: "pending" | "approved" | "rejected" | "paid";
   admin_notes: string | null;
   created_at: string;
   updated_at: string;
+  submitted_views?: number;
   campaign?: {
     name: string;
     rate_value: number;

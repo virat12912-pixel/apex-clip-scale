@@ -317,10 +317,12 @@ export type Database = {
           auto_rejected: boolean | null
           campaign_id: string
           clip_url: string
+          comments: number | null
           created_at: string
           creator_id: string
           earnings: number
           id: string
+          likes: number | null
           platform: Database["public"]["Enums"]["platform_type"]
           rejection_reason: string | null
           screenshot_url: string | null
@@ -334,10 +336,12 @@ export type Database = {
           auto_rejected?: boolean | null
           campaign_id: string
           clip_url: string
+          comments?: number | null
           created_at?: string
           creator_id: string
           earnings?: number
           id?: string
+          likes?: number | null
           platform: Database["public"]["Enums"]["platform_type"]
           rejection_reason?: string | null
           screenshot_url?: string | null
@@ -351,10 +355,12 @@ export type Database = {
           auto_rejected?: boolean | null
           campaign_id?: string
           clip_url?: string
+          comments?: number | null
           created_at?: string
           creator_id?: string
           earnings?: number
           id?: string
+          likes?: number | null
           platform?: Database["public"]["Enums"]["platform_type"]
           rejection_reason?: string | null
           screenshot_url?: string | null

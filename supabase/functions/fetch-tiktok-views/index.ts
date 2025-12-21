@@ -9,23 +9,7 @@ interface TikTokRequest {
   video_url: string;
 }
 
-// Helper: Resolve short URLs (e.g., vm.tiktok.com) to full URLs
-async function expandShortUrl(url: string): Promise<string> {
-  try {
-    // We use a simple fetch. The browser/Deno runtime follows redirects automatically.
-    // We try a HEAD request first to save bandwidth, but fall back to GET if needed.
-    const response = await fetch(url, {
-      method: "GET", // TikTok sometimes blocks HEAD requests, GET is safer
-      redirect: "follow",
-    });
-    return response.url;
-  } catch (err) {
-    console.error("Error expanding URL:", err);
-    return url; // Return original if fetch fails
-  }
-}
-
-// Extract video ID from TikTok URL
+// Extract video ID from TikTok URL - handles full URLs only
 function extractVideoId(url: string): string | null {
   try {
     let cleanUrl = (url || "").trim();
@@ -35,26 +19,51 @@ function extractVideoId(url: string): string | null {
       cleanUrl = "https://" + cleanUrl;
     }
 
-    // Remove query parameters first
-    const urlWithoutQuery = cleanUrl.split("?")[0];
+    // Match pattern: /@username/video/NUMERIC_ID or /video/NUMERIC_ID
+    const videoMatch = cleanUrl.match(/\/video\/(\d+)/);
+    if (videoMatch && videoMatch[1]) {
+      return videoMatch[1];
+    }
 
-    // Get the last segment
+    // Fallback: check if URL ends with numeric ID
+    const urlWithoutQuery = cleanUrl.split("?")[0];
     const parts = urlWithoutQuery.split("/");
     const lastPart = parts[parts.length - 1];
 
-    // Basic validation to ensure it looks like an ID (numeric)
-    if (lastPart && /^\d+$/.test(lastPart)) {
+    if (lastPart && /^\d{15,}$/.test(lastPart)) {
       return lastPart;
     }
 
-    return lastPart || null;
+    return null;
   } catch {
     return null;
   }
 }
 
+// Check if URL is a short link that needs expansion
+function isShortUrl(url: string): boolean {
+  return url.includes("vm.tiktok.com") || url.includes("vt.tiktok.com");
+}
+
+// Expand short URL by following redirects
+async function expandShortUrl(url: string): Promise<string> {
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      redirect: "follow",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      }
+    });
+    console.log(`Expanded URL: ${url} -> ${response.url}`);
+    return response.url;
+  } catch (err) {
+    console.error("Error expanding URL:", err);
+    return url;
+  }
+}
+
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -82,20 +91,20 @@ serve(async (req) => {
 
     console.log(`Original URL: ${targetUrl}`);
 
-    // --- LOGIC FIX: Expand URL using TypeScript (Replacing Python requests) ---
-    // If it looks like a short link (vm.tiktok, vt.tiktok), expand it
-    if (targetUrl.includes("vm.tiktok.com") || targetUrl.includes("vt.tiktok.com")) {
+    // Expand short URLs first
+    if (isShortUrl(targetUrl)) {
       targetUrl = await expandShortUrl(targetUrl);
-      console.log(`Expanded URL: ${targetUrl}`);
+      console.log(`After expansion: ${targetUrl}`);
     }
 
     const videoId = extractVideoId(targetUrl);
 
     if (!videoId) {
+      console.error(`Could not extract video ID from: ${targetUrl}`);
       return new Response(
         JSON.stringify({
           success: false,
-          error: "Could not extract video ID from URL",
+          error: "Could not extract video ID from URL. Please use the full TikTok video URL.",
           error_code: "invalid_url",
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -104,7 +113,6 @@ serve(async (req) => {
 
     console.log("Fetching TikTok data for video ID:", videoId);
 
-    // Use RapidAPI TikTok endpoint
     const apiUrl = `https://tiktok-api-fast-reliable-data-scraper.p.rapidapi.com/video/${videoId}`;
 
     const apiResponse = await fetch(apiUrl, {
@@ -128,7 +136,6 @@ serve(async (req) => {
           error: "Failed to fetch TikTok data",
           error_code: errorCode,
           upstream_status: apiResponse.status,
-          details: errorText,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
@@ -137,11 +144,10 @@ serve(async (req) => {
     const data = await apiResponse.json();
     console.log("TikTok API response received");
 
-    // Extract from new API structure: data.aweme_detail.statistics.play_count
     const awemeDetail = data?.data?.aweme_detail;
 
     if (!awemeDetail) {
-      console.error("No aweme_detail in response");
+      console.error("No aweme_detail in response:", JSON.stringify(data).slice(0, 500));
       return new Response(
         JSON.stringify({
           success: false,
@@ -166,7 +172,7 @@ serve(async (req) => {
       description: awemeDetail.desc || null,
     };
 
-    console.log("Processed result:", result);
+    console.log("Processed result:", JSON.stringify(result));
 
     return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: unknown) {
