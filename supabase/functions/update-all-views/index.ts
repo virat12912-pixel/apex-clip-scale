@@ -13,15 +13,57 @@ interface ViewFetchResult {
   error?: string;
 }
 
+// Extract video ID from TikTok URL
+function extractTikTokVideoId(url: string): string | null {
+  try {
+    let cleanUrl = (url || "").trim();
+    if (!cleanUrl) return null;
+    
+    if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
+      cleanUrl = "https://" + cleanUrl;
+    }
+    
+    const parts = cleanUrl.split("/");
+    const lastPart = parts[parts.length - 1];
+    const videoId = lastPart.split("?")[0];
+    
+    return videoId || null;
+  } catch {
+    return null;
+  }
+}
+
+// Extract reel ID from Instagram URL
+function extractInstagramReelId(url: string): string | null {
+  const patterns = [
+    /instagram\.com\/(?:p|reel|reels)\/([\w-]+)/i,
+    /instagr\.am\/(?:p|reel)\/([\w-]+)/i,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+  return null;
+}
+
 async function fetchTikTokViews(videoUrl: string, apiKey: string): Promise<number | null> {
   try {
-    const apiUrl = `https://tiktok-video-no-watermark2.p.rapidapi.com/?url=${encodeURIComponent(videoUrl)}&hd=1`;
+    const videoId = extractTikTokVideoId(videoUrl);
+    if (!videoId) {
+      console.error('Could not extract TikTok video ID from:', videoUrl);
+      return null;
+    }
+
+    const apiUrl = `https://tiktok-api-fast-reliable-data-scraper.p.rapidapi.com/video/${videoId}`;
     
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         'x-rapidapi-key': apiKey,
-        'x-rapidapi-host': 'tiktok-video-no-watermark2.p.rapidapi.com',
+        'x-rapidapi-host': 'tiktok-api-fast-reliable-data-scraper.p.rapidapi.com',
       },
     });
 
@@ -31,8 +73,14 @@ async function fetchTikTokViews(videoUrl: string, apiKey: string): Promise<numbe
     }
 
     const data = await response.json();
-    const videoData = data.data || data;
-    return videoData.play_count || videoData.playCount || videoData.statistics?.playCount || null;
+    const awemeDetail = data?.data?.aweme_detail;
+    
+    if (!awemeDetail) {
+      console.error('No aweme_detail in TikTok response');
+      return null;
+    }
+
+    return awemeDetail.statistics?.play_count || null;
   } catch (error) {
     console.error('TikTok fetch error:', error);
     return null;
@@ -41,27 +89,14 @@ async function fetchTikTokViews(videoUrl: string, apiKey: string): Promise<numbe
 
 async function fetchInstagramViews(videoUrl: string, apiKey: string): Promise<number | null> {
   try {
-    // Extract shortcode from URL
-    const patterns = [
-      /instagram\.com\/(?:p|reel|reels)\/([\w-]+)/i,
-      /instagr\.am\/(?:p|reel)\/([\w-]+)/i,
-    ];
+    const reelId = extractInstagramReelId(videoUrl);
     
-    let shortcode: string | null = null;
-    for (const pattern of patterns) {
-      const match = videoUrl.match(pattern);
-      if (match && match[1]) {
-        shortcode = match[1];
-        break;
-      }
-    }
-    
-    if (!shortcode) {
-      console.error('Could not extract Instagram shortcode');
+    if (!reelId) {
+      console.error('Could not extract Instagram reel ID from:', videoUrl);
       return null;
     }
 
-    const apiUrl = `https://instagram-scraper21.p.rapidapi.com/api/v1/post_info?shortcode_or_url=${shortcode}`;
+    const apiUrl = `https://instagram-scraper21.p.rapidapi.com/api/v1/post-info?code=${reelId}`;
     
     const response = await fetch(apiUrl, {
       method: 'GET',
@@ -77,8 +112,14 @@ async function fetchInstagramViews(videoUrl: string, apiKey: string): Promise<nu
     }
 
     const data = await response.json();
-    const mediaData = data.data || data;
-    return mediaData.play_count || mediaData.video_play_count || mediaData.view_count || null;
+    const postData = data?.data?.post;
+    
+    if (!postData) {
+      console.error('No post data in Instagram response');
+      return null;
+    }
+
+    return postData.video_play_count || null;
   } catch (error) {
     console.error('Instagram fetch error:', error);
     return null;
@@ -101,7 +142,7 @@ serve(async (req) => {
 
     console.log('Starting daily view update job...');
 
-    // Get all pending submissions that are TikTok or Instagram
+    // Get all pending/approved submissions for TikTok or Instagram
     const { data: submissions, error: fetchError } = await supabase
       .from('submissions')
       .select('id, clip_url, platform, views, submitted_views')

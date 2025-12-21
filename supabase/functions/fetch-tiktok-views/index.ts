@@ -9,6 +9,27 @@ interface TikTokRequest {
   video_url: string;
 }
 
+// Extract video ID from TikTok URL
+function extractVideoId(url: string): string | null {
+  try {
+    let cleanUrl = (url || "").trim();
+    if (!cleanUrl) return null;
+    
+    if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
+      cleanUrl = "https://" + cleanUrl;
+    }
+    
+    // Get last part of path and remove query params
+    const parts = cleanUrl.split("/");
+    const lastPart = parts[parts.length - 1];
+    const videoId = lastPart.split("?")[0];
+    
+    return videoId || null;
+  } catch {
+    return null;
+  }
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -35,16 +56,29 @@ serve(async (req) => {
       );
     }
 
-    console.log('Fetching TikTok data for:', video_url);
+    const videoId = extractVideoId(video_url);
+    
+    if (!videoId) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Could not extract video ID from URL',
+          error_code: 'invalid_url'
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    // Use RapidAPI TikTok endpoint to fetch video info
-    const apiUrl = `https://tiktok-video-no-watermark2.p.rapidapi.com/?url=${encodeURIComponent(video_url)}&hd=1`;
+    console.log('Fetching TikTok data for video ID:', videoId);
+
+    // Use new RapidAPI TikTok endpoint
+    const apiUrl = `https://tiktok-api-fast-reliable-data-scraper.p.rapidapi.com/video/${videoId}`;
     
     const response = await fetch(apiUrl, {
       method: 'GET',
       headers: {
         'x-rapidapi-key': TIKTOK_API_KEY,
-        'x-rapidapi-host': 'tiktok-video-no-watermark2.p.rapidapi.com',
+        'x-rapidapi-host': 'tiktok-api-fast-reliable-data-scraper.p.rapidapi.com',
       },
     });
 
@@ -58,7 +92,6 @@ serve(async (req) => {
           ? 'rate_limited'
           : 'api_error';
 
-      // IMPORTANT: return 200 so the web app can handle gracefully without throwing
       return new Response(
         JSON.stringify({
           success: false,
@@ -72,20 +105,35 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('TikTok API response:', JSON.stringify(data, null, 2));
+    console.log('TikTok API response received');
 
-    // Extract relevant video stats
-    const videoData = data.data || data;
+    // Extract from new API structure: data.aweme_detail.statistics.play_count
+    const awemeDetail = data?.data?.aweme_detail;
+    
+    if (!awemeDetail) {
+      console.error('No aweme_detail in response');
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Invalid API response structure',
+          error_code: 'parse_error'
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const statistics = awemeDetail.statistics || {};
+    const author = awemeDetail.author || {};
     
     const result = {
       success: true,
-      video_id: videoData.id || null,
-      play_count: videoData.play_count || videoData.playCount || videoData.statistics?.playCount || 0,
-      like_count: videoData.digg_count || videoData.diggCount || videoData.statistics?.diggCount || 0,
-      comment_count: videoData.comment_count || videoData.commentCount || videoData.statistics?.commentCount || 0,
-      share_count: videoData.share_count || videoData.shareCount || videoData.statistics?.shareCount || 0,
-      author: videoData.author?.nickname || videoData.author?.unique_id || null,
-      description: videoData.title || videoData.desc || null,
+      video_id: videoId,
+      play_count: statistics.play_count || 0,
+      like_count: statistics.digg_count || 0,
+      comment_count: statistics.comment_count || 0,
+      share_count: statistics.share_count || 0,
+      author: author.unique_id || author.nickname || null,
+      description: awemeDetail.desc || null,
     };
 
     console.log('Processed result:', result);
