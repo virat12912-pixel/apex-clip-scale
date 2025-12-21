@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { AppLayout } from "@/components/app/AppLayout";
-import { User, Mail, Edit, Save, Copy, Share2, Check, Upload, Wallet, AlertCircle } from "lucide-react";
+import { User, Mail, Edit, Save, Upload, Wallet, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,7 +25,6 @@ const Profile = () => {
   const { data: stats } = useCreatorStats();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
@@ -151,18 +150,6 @@ const Profile = () => {
     } finally {
       setUploading(false);
     }
-  };
-
-  const referralLink = profile?.referral_code 
-    ? `${window.location.origin}/auth?ref=${profile.referral_code}`
-    : null;
-
-  const copyReferralLink = () => {
-    if (!referralLink) return;
-    navigator.clipboard.writeText(referralLink);
-    setCopied(true);
-    toast({ title: "Copied!", description: "Referral link copied to clipboard" });
-    setTimeout(() => setCopied(false), 2000);
   };
 
   const statItems = [
