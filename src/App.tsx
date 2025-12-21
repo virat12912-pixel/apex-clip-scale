@@ -14,10 +14,12 @@ import CampaignDetail from "./pages/CampaignDetail";
 import Launch from "./pages/Launch";
 import Profile from "./pages/Profile";
 import Earnings from "./pages/Earnings";
+import SocialAccounts from "./pages/SocialAccounts";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminSubmissions from "./pages/AdminSubmissions";
 import AdminPayouts from "./pages/AdminPayouts";
 import AdminBrands from "./pages/AdminBrands";
+import AdminSocialAccounts from "./pages/AdminSocialAccounts";
 import BrandApplication from "./pages/BrandApplication";
 import ResetPassword from "./pages/ResetPassword";
 import Settings from "./pages/Settings";
@@ -71,6 +73,11 @@ const App = () => (
                 <Earnings />
               </ProtectedRoute>
             } />
+            <Route path="/social-accounts" element={
+              <ProtectedRoute>
+                <SocialAccounts />
+              </ProtectedRoute>
+            } />
             <Route path="/settings" element={
               <ProtectedRoute>
                 <Settings />
@@ -94,6 +101,11 @@ const App = () => (
             <Route path="/admin/brands" element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <AdminBrands />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/social-accounts" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminSocialAccounts />
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />

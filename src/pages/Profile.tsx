@@ -316,37 +316,10 @@ const Profile = () => {
                 <div className="flex items-center gap-3 text-sm">
                   <div className="p-2 rounded-lg bg-primary/10"><Mail className="h-4 w-4 text-primary" /></div>
                   <div>
-                    <div className="text-muted-foreground">Referral Code</div>
-                    <div className="font-medium">{profile?.referral_code || "Generating..."}</div>
+                    <div className="text-muted-foreground">Email</div>
+                    <div className="font-medium">{profile?.email}</div>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Referral Section */}
-            <div className="p-6 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
-              <div className="flex items-center gap-2 mb-4">
-                <Share2 className="h-5 w-5 text-primary" />
-                <h3 className="font-semibold">Invite Friends</h3>
-              </div>
-              <p className="text-sm text-muted-foreground mb-4">
-                Share your referral link and earn when your friends join!
-              </p>
-              <div className="flex gap-2">
-                <Input 
-                  value={referralLink || "Loading..."} 
-                  readOnly 
-                  className="bg-background/50 text-xs" 
-                />
-                <Button 
-                  size="icon" 
-                  variant="outline"
-                  onClick={copyReferralLink}
-                  className="shrink-0"
-                  disabled={!referralLink}
-                >
-                  {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
-                </Button>
               </div>
             </div>
           </div>
