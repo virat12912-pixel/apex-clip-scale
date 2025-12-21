@@ -109,15 +109,40 @@ interface ViewData {
   views: number;
   likes: number;
   comments: number;
+  description?: string | null;
+}
+
+function normalizeRequirementToken(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function validateTextRequirements(
+  description: string | null | undefined,
+  requiredHashtags: string[] | null,
+  requiredLinks: string[] | null,
+) {
+  const text = (description || "").toLowerCase();
+
+  const missingHashtags = (requiredHashtags || [])
+    .map(normalizeRequirementToken)
+    .filter(Boolean)
+    .filter((h) => !text.includes(h));
+
+  const missingLinks = (requiredLinks || [])
+    .map(normalizeRequirementToken)
+    .filter(Boolean)
+    .filter((l) => !text.includes(l));
+
+  return { missingHashtags, missingLinks };
 }
 
 async function fetchViewsForPlatform(clipUrl: string, platform: string): Promise<ViewData> {
   if (platform !== "tiktok" && platform !== "instagram") {
-    return { views: 0, likes: 0, comments: 0 };
+    return { views: 0, likes: 0, comments: 0, description: null };
   }
 
   const functionName = platform === "instagram" ? "fetch-instagram-views" : "fetch-tiktok-views";
-  
+
   try {
     const { data, error } = await supabase.functions.invoke(functionName, {
       body: { video_url: clipUrl },
@@ -125,24 +150,25 @@ async function fetchViewsForPlatform(clipUrl: string, platform: string): Promise
 
     if (error || data?.success === false) {
       console.log(`Could not fetch views for ${platform}:`, error || data?.error_code);
-      return { views: 0, likes: 0, comments: 0 };
+      return { views: 0, likes: 0, comments: 0, description: null };
     }
 
     return {
       views: Number(data?.play_count ?? 0),
       likes: Number(data?.like_count ?? 0),
       comments: Number(data?.comment_count ?? 0),
+      description: (data?.description as string | null | undefined) ?? null,
     };
   } catch (err) {
     console.error(`Error fetching ${platform} views:`, err);
-    return { views: 0, likes: 0, comments: 0 };
+    return { views: 0, likes: 0, comments: 0, description: null };
   }
 }
 
 async function processSubmission(submissionId: string, viewData: ViewData): Promise<void> {
   try {
     const { error } = await supabase.functions.invoke("process-submission", {
-      body: { 
+      body: {
         submission_id: submissionId,
         views: viewData.views,
         likes: viewData.likes,
@@ -170,44 +196,102 @@ export function useCreateSubmission() {
     }[]) => {
       if (!user) throw new Error("Not authenticated");
 
-      // Insert submissions first
-      const submissionsWithCreator = submissions.map(s => ({
-        ...s,
-        creator_id: user.id,
-        submitted_views: 0,
-      }));
+      // Fetch campaign requirements once (for validation)
+      const campaignIds = [...new Set(submissions.map((s) => s.campaign_id))];
+      const { data: campaigns, error: campaignError } = await supabase
+        .from("campaigns")
+        .select("id, min_views, required_hashtags, required_links")
+        .in("id", campaignIds);
+
+      if (campaignError) throw campaignError;
+
+      const campaignMap = new Map(
+        (campaigns || []).map((c) => [
+          c.id,
+          {
+            min_views: Number((c as any).min_views ?? 0),
+            required_hashtags: ((c as any).required_hashtags as string[] | null) ?? null,
+            required_links: ((c as any).required_links as string[] | null) ?? null,
+          },
+        ]),
+      );
+
+      // Validate each submission by fetching current stats + caption
+      const viewDataByKey = new Map<string, ViewData>();
+      const toInsert: any[] = [];
+
+      for (const s of submissions) {
+        if (s.platform !== "tiktok" && s.platform !== "instagram") {
+          throw new Error("Auto-validation currently supports TikTok and Instagram only.");
+        }
+
+        const campaignReq = campaignMap.get(s.campaign_id);
+        if (!campaignReq) throw new Error("Campaign not found for submission.");
+
+        const viewData = await fetchViewsForPlatform(s.clip_url, s.platform);
+
+        if (viewData.views <= 0) {
+          throw new Error("Could not fetch views for this clip. Please double-check the URL and try again.");
+        }
+
+        if (viewData.views < campaignReq.min_views) {
+          throw new Error(
+            `This campaign requires at least ${campaignReq.min_views.toLocaleString()} views. Your clip currently has ${viewData.views.toLocaleString()} views.`
+          );
+        }
+
+        const { missingHashtags, missingLinks } = validateTextRequirements(
+          viewData.description,
+          campaignReq.required_hashtags,
+          campaignReq.required_links,
+        );
+
+        if (missingHashtags.length || missingLinks.length) {
+          const parts: string[] = [];
+          if (missingHashtags.length) parts.push(`Missing hashtags: ${missingHashtags.join(", ")}`);
+          if (missingLinks.length) parts.push(`Missing links/mentions: ${missingLinks.join(", ")}`);
+          throw new Error(parts.join(". "));
+        }
+
+        const key = `${s.platform}:${s.clip_url}`;
+        viewDataByKey.set(key, viewData);
+
+        toInsert.push({
+          ...s,
+          creator_id: user.id,
+          submitted_views: viewData.views,
+          views: viewData.views,
+          likes: viewData.likes,
+          comments: viewData.comments,
+        });
+      }
 
       const { data: insertedSubmissions, error } = await supabase
         .from("submissions")
-        .insert(submissionsWithCreator)
+        .insert(toInsert)
         .select();
 
       if (error) throw error;
 
-      // Fetch views for each submission and process automatically
-      for (const sub of insertedSubmissions) {
-        const viewData = await fetchViewsForPlatform(sub.clip_url, sub.platform);
-        
-        // Process the submission with auto earnings calculation
-        if (viewData.views > 0) {
-          await processSubmission(sub.id, viewData);
-        } else {
-          // Even if no views, update the submission with zeros
-          await supabase
-            .from("submissions")
-            .update({ 
-              submitted_views: 0,
-              likes: 0,
-              comments: 0
-            })
-            .eq("id", sub.id);
-        }
+      // Process each submission for earnings/budget updates
+      for (const sub of insertedSubmissions || []) {
+        const key = `${sub.platform}:${sub.clip_url}`;
+        const viewData = viewDataByKey.get(key) || {
+          views: Number(sub.views || 0),
+          likes: Number(sub.likes || 0),
+          comments: Number(sub.comments || 0),
+        };
+
+        await processSubmission(sub.id, viewData);
       }
 
       return insertedSubmissions;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["submissions"] });
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign"] });
+      queryClient.invalidateQueries({ queryKey: ["wallet"] });
     },
   });
 }
