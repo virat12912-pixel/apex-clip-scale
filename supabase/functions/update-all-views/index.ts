@@ -10,15 +10,25 @@ interface ViewFetchResult {
   submission_id: string;
   success: boolean;
   views?: number;
+  likes?: number;
+  comments?: number;
   error?: string;
 }
 
-// --- HELPER: Resolve short URLs (Critical for TikTok) ---
+// Check if URL is a short link
+function isShortUrl(url: string): boolean {
+  return url.includes("vm.tiktok.com") || url.includes("vt.tiktok.com");
+}
+
+// Expand short URL by following redirects
 async function expandShortUrl(url: string): Promise<string> {
   try {
     const response = await fetch(url, {
       method: "GET",
       redirect: "follow",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      }
     });
     return response.url;
   } catch (err) {
@@ -37,18 +47,22 @@ function extractTikTokVideoId(url: string): string | null {
       cleanUrl = "https://" + cleanUrl;
     }
 
-    // Clean query params first to avoid confusion
+    // Match pattern: /@username/video/NUMERIC_ID or /video/NUMERIC_ID
+    const videoMatch = cleanUrl.match(/\/video\/(\d+)/);
+    if (videoMatch && videoMatch[1]) {
+      return videoMatch[1];
+    }
+
+    // Fallback: check if URL ends with numeric ID (at least 15 digits for TikTok)
     const urlWithoutQuery = cleanUrl.split("?")[0];
     const parts = urlWithoutQuery.split("/");
     const lastPart = parts[parts.length - 1];
 
-    // Basic validation: TikTok IDs are usually numeric
-    // This helps filter out "ZM..." codes from un-expanded short links
-    if (lastPart && /^\d+$/.test(lastPart)) {
+    if (lastPart && /^\d{15,}$/.test(lastPart)) {
       return lastPart;
     }
 
-    return lastPart || null;
+    return null;
   } catch {
     return null;
   }
@@ -67,16 +81,22 @@ function extractInstagramReelId(url: string): string | null {
   return null;
 }
 
-async function fetchTikTokViews(videoUrl: string, apiKey: string): Promise<number | null> {
+interface TikTokResult {
+  views: number;
+  likes: number;
+  comments: number;
+}
+
+async function fetchTikTokViews(videoUrl: string, apiKey: string): Promise<TikTokResult | null> {
   try {
     let targetUrl = videoUrl;
 
-    // 1. Expand URL if it's a short link
-    if (targetUrl.includes("vm.tiktok.com") || targetUrl.includes("vt.tiktok.com")) {
+    // Expand short URLs first
+    if (isShortUrl(targetUrl)) {
       targetUrl = await expandShortUrl(targetUrl);
+      console.log(`Expanded TikTok URL: ${videoUrl} -> ${targetUrl}`);
     }
 
-    // 2. Extract ID
     const videoId = extractTikTokVideoId(targetUrl);
 
     if (!videoId) {
@@ -107,14 +127,25 @@ async function fetchTikTokViews(videoUrl: string, apiKey: string): Promise<numbe
       return null;
     }
 
-    return awemeDetail.statistics?.play_count || null;
+    const statistics = awemeDetail.statistics || {};
+    return {
+      views: statistics.play_count || 0,
+      likes: statistics.digg_count || 0,
+      comments: statistics.comment_count || 0,
+    };
   } catch (error) {
     console.error("TikTok fetch error:", error);
     return null;
   }
 }
 
-async function fetchInstagramViews(videoUrl: string, apiKey: string): Promise<number | null> {
+interface InstagramResult {
+  views: number;
+  likes: number;
+  comments: number;
+}
+
+async function fetchInstagramViews(videoUrl: string, apiKey: string): Promise<InstagramResult | null> {
   try {
     const reelId = extractInstagramReelId(videoUrl);
 
@@ -146,7 +177,11 @@ async function fetchInstagramViews(videoUrl: string, apiKey: string): Promise<nu
       return null;
     }
 
-    return postData.video_play_count || null;
+    return {
+      views: postData.video_play_count || 0,
+      likes: postData.edge_media_preview_like?.count || 0,
+      comments: postData.edge_media_to_comment?.count || 0,
+    };
   } catch (error) {
     console.error("Instagram fetch error:", error);
     return null;
@@ -154,7 +189,6 @@ async function fetchInstagramViews(videoUrl: string, apiKey: string): Promise<nu
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -188,25 +222,37 @@ serve(async (req) => {
     let errorCount = 0;
 
     for (const sub of submissions || []) {
-      let newViews: number | null = null;
+      let result: { views: number; likes: number; comments: number } | null = null;
 
       if (sub.platform === "tiktok" && tiktokApiKey) {
-        newViews = await fetchTikTokViews(sub.clip_url, tiktokApiKey);
+        result = await fetchTikTokViews(sub.clip_url, tiktokApiKey);
       } else if (sub.platform === "instagram" && instagramApiKey) {
-        newViews = await fetchInstagramViews(sub.clip_url, instagramApiKey);
+        result = await fetchInstagramViews(sub.clip_url, instagramApiKey);
       }
 
-      if (newViews !== null && newViews > 0) {
-        // Update the views in the database
-        const { error: updateError } = await supabase.from("submissions").update({ views: newViews }).eq("id", sub.id);
+      if (result && result.views > 0) {
+        const { error: updateError } = await supabase
+          .from("submissions")
+          .update({ 
+            views: result.views,
+            likes: result.likes,
+            comments: result.comments
+          })
+          .eq("id", sub.id);
 
         if (updateError) {
           console.error(`Failed to update submission ${sub.id}:`, updateError);
           results.push({ submission_id: sub.id, success: false, error: updateError.message });
           errorCount++;
         } else {
-          console.log(`Updated submission ${sub.id}: ${sub.views} -> ${newViews} views`);
-          results.push({ submission_id: sub.id, success: true, views: newViews });
+          console.log(`Updated submission ${sub.id}: ${sub.views} -> ${result.views} views, ${result.likes} likes, ${result.comments} comments`);
+          results.push({ 
+            submission_id: sub.id, 
+            success: true, 
+            views: result.views,
+            likes: result.likes,
+            comments: result.comments
+          });
           successCount++;
         }
       } else {
@@ -214,7 +260,7 @@ serve(async (req) => {
         errorCount++;
       }
 
-      // Rate limiting - wait between API calls to avoid 429 errors from RapidAPI
+      // Rate limiting - wait between API calls
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
 

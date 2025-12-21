@@ -17,7 +17,9 @@ import {
   ChevronDown,
   ChevronRight,
   Filter,
-  Eye
+  Eye,
+  Heart,
+  MessageCircle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -142,19 +144,26 @@ const AdminSubmissions = () => {
       if (data?.success === false) {
         toast({
           title: "Could not fetch views",
-          description: data?.error_code === "rate_limited" ? "Rate limited, try again later" : "API unavailable",
+          description: data?.error || (data?.error_code === "rate_limited" ? "Rate limited, try again later" : "API unavailable"),
           variant: "destructive",
         });
         return;
       }
 
       const playCount = Number(data?.play_count ?? 0);
+      const likeCount = Number(data?.like_count ?? 0);
+      const commentCount = Number(data?.comment_count ?? 0);
 
       if (playCount > 0) {
-        await updateSubmission.mutateAsync({ id, views: playCount });
+        await updateSubmission.mutateAsync({ 
+          id, 
+          views: playCount,
+          likes: likeCount,
+          comments: commentCount
+        });
         toast({
-          title: "Views updated",
-          description: `Updated to ${playCount.toLocaleString()} views`,
+          title: "Stats updated",
+          description: `${playCount.toLocaleString()} views, ${likeCount.toLocaleString()} likes`,
         });
         refetch();
       } else {
@@ -418,11 +427,19 @@ const AdminSubmissions = () => {
                                   
                                   {sub.status === "pending" ? (
                                     <div className="flex items-center gap-3">
-                                      {/* View count display */}
-                                      <div className="flex items-center gap-2">
-                                        <div className="text-sm text-muted-foreground flex items-center gap-1">
+                                      {/* Stats display */}
+                                      <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                        <div className="flex items-center gap-1" title="Views">
                                           <Eye className="h-4 w-4" />
-                                          {currentViews > 0 ? currentViews.toLocaleString() : "No views"}
+                                          {currentViews > 0 ? currentViews.toLocaleString() : "0"}
+                                        </div>
+                                        <div className="flex items-center gap-1" title="Likes">
+                                          <Heart className="h-4 w-4" />
+                                          {Number(sub.likes || 0).toLocaleString()}
+                                        </div>
+                                        <div className="flex items-center gap-1" title="Comments">
+                                          <MessageCircle className="h-4 w-4" />
+                                          {Number(sub.comments || 0).toLocaleString()}
                                         </div>
                                         {(sub.platform === "tiktok" || sub.platform === "instagram") && (
                                           <Button
@@ -430,7 +447,7 @@ const AdminSubmissions = () => {
                                             variant="outline"
                                             onClick={() => handleRefreshViews(sub.id, sub.clip_url, sub.platform)}
                                             disabled={refreshing === sub.id}
-                                            title="Refresh views"
+                                            title="Refresh stats"
                                           >
                                             <RefreshCw className={`h-4 w-4 ${refreshing === sub.id ? "animate-spin" : ""}`} />
                                           </Button>
@@ -459,9 +476,20 @@ const AdminSubmissions = () => {
                                   ) : (
                                     <div className="flex items-center gap-4">
                                       {(sub.status === "approved" || sub.status === "paid") && (
-                                        <div className="text-right">
-                                          <div className="text-sm text-muted-foreground">
-                                            {Number(sub.views).toLocaleString()} views
+                                        <div className="flex items-center gap-4">
+                                          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                            <span className="flex items-center gap-1" title="Views">
+                                              <Eye className="h-3 w-3" />
+                                              {Number(sub.views).toLocaleString()}
+                                            </span>
+                                            <span className="flex items-center gap-1" title="Likes">
+                                              <Heart className="h-3 w-3" />
+                                              {Number(sub.likes || 0).toLocaleString()}
+                                            </span>
+                                            <span className="flex items-center gap-1" title="Comments">
+                                              <MessageCircle className="h-3 w-3" />
+                                              {Number(sub.comments || 0).toLocaleString()}
+                                            </span>
                                           </div>
                                           <div className="font-semibold text-primary">
                                             ${Number(sub.earnings).toFixed(2)}
