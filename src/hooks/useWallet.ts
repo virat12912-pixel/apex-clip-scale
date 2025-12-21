@@ -8,6 +8,7 @@ export interface Wallet {
   user_id: string;
   pending_balance: number;
   paid_balance: number;
+  locked_earnings: number;
   created_at: string;
   updated_at: string;
 }
@@ -104,19 +105,33 @@ export function useRequestPayout() {
     mutationFn: async (amount: number) => {
       if (!user || !profile) throw new Error("Not authenticated");
 
-      const { data, error } = await supabase
-        .from("payouts")
-        .insert({
-          user_id: user.id,
-          amount,
-          payout_method: profile.payout_method || "paypal",
-          payout_email: profile.payout_email || profile.email,
-        })
-        .select()
-        .single();
+      // Call the edge function to handle payout with locking
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/request-payout`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          },
+          body: JSON.stringify({
+            user_id: user.id,
+            amount,
+            payout_method: profile.payout_method || "paypal",
+            payout_email: profile.payout_method === "usdc_solana" 
+              ? profile.solana_wallet_address 
+              : (profile.payout_email || profile.email),
+          }),
+        }
+      );
 
-      if (error) throw error;
-      return data;
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to request payout");
+      }
+
+      return data.payout;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payouts"] });

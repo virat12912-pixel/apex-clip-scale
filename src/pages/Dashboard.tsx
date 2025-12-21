@@ -66,7 +66,7 @@ const Dashboard = () => {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 stagger-enter">
         {isLoading ? (
           Array(4).fill(0).map((_, i) => (
             <Skeleton key={i} className="h-32 rounded-xl" />
@@ -265,7 +265,7 @@ function StatCard({
   positive?: boolean;
 }) {
   return (
-    <div className="p-5 rounded-xl bg-card border border-border hover:border-primary/30 transition-colors">
+    <div className="p-5 rounded-xl bg-card border border-border card-hover">
       <div className="flex items-start justify-between mb-3">
         <div className="p-2 rounded-lg bg-primary/10">
           <Icon className="h-5 w-5 text-primary" />

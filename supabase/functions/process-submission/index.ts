@@ -205,6 +205,21 @@ Deno.serve(async (req) => {
       console.error("Failed to update campaign budget:", campaignUpdateError);
     }
 
+    // Send notification to creator about earnings
+    try {
+      await supabase.functions.invoke("create-notification", {
+        body: {
+          user_id: submission.creator_id,
+          type: "earnings_updated",
+          title: "Clip Approved!",
+          message: `Your clip earned $${earnings.toFixed(2)} from ${views.toLocaleString()} views on "${campaign.name}".`,
+          related_id: submission_id,
+        },
+      });
+    } catch (notifError) {
+      console.error("Failed to send notification:", notifError);
+    }
+
     console.log(`Successfully processed submission ${submission_id}`);
 
     return new Response(
