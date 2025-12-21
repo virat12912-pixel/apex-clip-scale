@@ -102,6 +102,30 @@ export function useAllSubmissions() {
   });
 }
 
+async function fetchViewsForPlatform(clipUrl: string, platform: string): Promise<number> {
+  if (platform !== "tiktok" && platform !== "instagram") {
+    return 0;
+  }
+
+  const functionName = platform === "instagram" ? "fetch-instagram-views" : "fetch-tiktok-views";
+  
+  try {
+    const { data, error } = await supabase.functions.invoke(functionName, {
+      body: { video_url: clipUrl },
+    });
+
+    if (error || data?.success === false) {
+      console.log(`Could not fetch views for ${platform}:`, error || data?.error_code);
+      return 0;
+    }
+
+    return Number(data?.play_count ?? 0);
+  } catch (err) {
+    console.error(`Error fetching ${platform} views:`, err);
+    return 0;
+  }
+}
+
 export function useCreateSubmission() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -114,18 +138,32 @@ export function useCreateSubmission() {
     }[]) => {
       if (!user) throw new Error("Not authenticated");
 
+      // Insert submissions first
       const submissionsWithCreator = submissions.map(s => ({
         ...s,
         creator_id: user.id,
+        submitted_views: 0,
       }));
 
-      const { data, error } = await supabase
+      const { data: insertedSubmissions, error } = await supabase
         .from("submissions")
         .insert(submissionsWithCreator)
         .select();
 
       if (error) throw error;
-      return data;
+
+      // Fetch views for each submission in background and update
+      for (const sub of insertedSubmissions) {
+        const views = await fetchViewsForPlatform(sub.clip_url, sub.platform);
+        if (views > 0) {
+          await supabase
+            .from("submissions")
+            .update({ submitted_views: views })
+            .eq("id", sub.id);
+        }
+      }
+
+      return insertedSubmissions;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["submissions"] });

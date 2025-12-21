@@ -3,14 +3,11 @@ import { AppLayout } from "@/components/app/AppLayout";
 import { useAllSubmissions, useUpdateSubmission } from "@/hooks/useSubmissions";
 import { useCampaigns } from "@/hooks/useCampaigns";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { 
   ExternalLink, 
   CheckCircle, 
   XCircle, 
-  Eye, 
-  DollarSign, 
   RefreshCw, 
   Smartphone, 
   Camera, 
@@ -19,7 +16,8 @@ import {
   Trophy,
   ChevronDown,
   ChevronRight,
-  Filter
+  Filter,
+  Eye
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,10 +46,9 @@ const AdminSubmissions = () => {
   const { data: campaigns } = useCampaigns();
   const updateSubmission = useUpdateSubmission();
   const { toast } = useToast();
-  const [viewInputs, setViewInputs] = useState<Record<string, string>>({});
   const [processing, setProcessing] = useState<string | null>(null);
-  const [fetching, setFetching] = useState<string | null>(null);
-  const [fetchingAll, setFetchingAll] = useState(false);
+  const [refreshing, setRefreshing] = useState<string | null>(null);
+  const [refreshingAll, setRefreshingAll] = useState(false);
   const [expandedCampaigns, setExpandedCampaigns] = useState<Set<string>>(new Set());
   const [filterStatus, setFilterStatus] = useState<string>("pending");
 
@@ -122,7 +119,7 @@ const AdminSubmissions = () => {
     setExpandedCampaigns(newExpanded);
   };
 
-  const handleFetchViews = async (id: string, clipUrl: string, platform: string) => {
+  const handleRefreshViews = async (id: string, clipUrl: string, platform: string) => {
     if (platform !== "tiktok" && platform !== "instagram") {
       toast({
         title: "Not supported",
@@ -132,9 +129,8 @@ const AdminSubmissions = () => {
       return;
     }
 
-    setFetching(id);
+    setRefreshing(id);
     const functionName = platform === "instagram" ? "fetch-instagram-views" : "fetch-tiktok-views";
-    const platformLabel = platform === "instagram" ? "Instagram" : "TikTok";
     
     try {
       const { data, error } = await supabase.functions.invoke(functionName, {
@@ -144,107 +140,72 @@ const AdminSubmissions = () => {
       if (error) throw error;
 
       if (data?.success === false) {
-        const code = String(data?.error_code || "");
-
-        if (code === "not_subscribed") {
-          toast({
-            title: `${platformLabel} API not subscribed`,
-            description: "Auto-fetch is unavailable. Please enter views manually.",
-            variant: "destructive",
-          });
-        } else if (code === "rate_limited") {
-          toast({
-            title: "Rate limited",
-            description: "Too many requests. Please wait or enter views manually.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Could not fetch views",
-            description: "Please enter views manually.",
-            variant: "destructive",
-          });
-        }
+        toast({
+          title: "Could not fetch views",
+          description: data?.error_code === "rate_limited" ? "Rate limited, try again later" : "API unavailable",
+          variant: "destructive",
+        });
         return;
       }
 
       const playCount = Number(data?.play_count ?? 0);
 
       if (playCount > 0) {
-        setViewInputs({ ...viewInputs, [id]: playCount.toString() });
+        await updateSubmission.mutateAsync({ id, views: playCount });
         toast({
-          title: "Views fetched",
-          description: `Found ${playCount.toLocaleString()} views`,
+          title: "Views updated",
+          description: `Updated to ${playCount.toLocaleString()} views`,
         });
+        refetch();
       } else {
         toast({
           title: "Could not fetch views",
-          description: "Please enter views manually",
+          description: "No view data returned",
           variant: "destructive",
         });
       }
     } catch (error: unknown) {
-      logError("AdminSubmissions:handleFetchViews", error);
+      logError("AdminSubmissions:handleRefreshViews", error);
       toast({ 
         title: "API unavailable", 
-        description: "Please enter the view count manually.",
+        description: "Could not refresh views",
         variant: "destructive" 
       });
     } finally {
-      setFetching(null);
+      setRefreshing(null);
     }
   };
 
-  const handleFetchAllViews = async () => {
-    const allPending = submissions?.filter((s) => 
-      s.status === "pending" && (s.platform === "tiktok" || s.platform === "instagram")
-    ) || [];
+  const handleRefreshAllViews = async () => {
+    setRefreshingAll(true);
     
-    if (allPending.length === 0) {
+    try {
+      const { data, error } = await supabase.functions.invoke("update-all-views");
+      
+      if (error) throw error;
+      
       toast({
-        title: "No fetchable submissions",
-        description: "No pending TikTok/Instagram submissions found",
+        title: "Views refresh complete",
+        description: `Updated ${data?.updated || 0} of ${data?.total || 0} submissions`,
       });
-      return;
+      refetch();
+    } catch (error: unknown) {
+      logError("AdminSubmissions:handleRefreshAllViews", error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to refresh views",
+        variant: "destructive" 
+      });
+    } finally {
+      setRefreshingAll(false);
     }
-
-    setFetchingAll(true);
-    let successCount = 0;
-    let errorCount = 0;
-
-    for (const sub of allPending) {
-      try {
-        const functionName = sub.platform === "instagram" ? "fetch-instagram-views" : "fetch-tiktok-views";
-        const { data, error } = await supabase.functions.invoke(functionName, {
-          body: { video_url: sub.clip_url },
-        });
-
-        if (!error && data?.success !== false && data?.play_count) {
-          setViewInputs((prev) => ({ ...prev, [sub.id]: data.play_count.toString() }));
-          successCount++;
-        } else {
-          errorCount++;
-        }
-      } catch {
-        errorCount++;
-      }
-      await new Promise(resolve => setTimeout(resolve, 500));
-    }
-
-    setFetchingAll(false);
-    toast({
-      title: "Bulk fetch complete",
-      description: `Fetched ${successCount} of ${allPending.length} videos.`,
-    });
   };
 
-  const handleApprove = async (id: string) => {
-    const views = parseInt(viewInputs[id] || "0", 10);
-    
+  const handleApprove = async (id: string, views: number) => {
     if (views <= 0) {
       toast({
-        title: "Enter view count",
-        description: "Please enter the verified view count before approving",
+        title: "No views available",
+        description: "Please refresh views first before approving",
         variant: "destructive",
       });
       return;
@@ -292,8 +253,8 @@ const AdminSubmissions = () => {
   };
 
   const totalPending = submissions?.filter(s => s.status === "pending").length || 0;
-  const fetchablePendingCount = submissions?.filter((s) => 
-    s.status === "pending" && (s.platform === "tiktok" || s.platform === "instagram")
+  const refreshableCount = submissions?.filter((s) => 
+    (s.platform === "tiktok" || s.platform === "instagram")
   ).length || 0;
 
   return (
@@ -318,16 +279,16 @@ const AdminSubmissions = () => {
             </div>
           </div>
           
-          {fetchablePendingCount > 0 && (
+          {refreshableCount > 0 && (
             <Button
               variant="outline"
               size="sm"
-              onClick={handleFetchAllViews}
-              disabled={fetchingAll}
+              onClick={handleRefreshAllViews}
+              disabled={refreshingAll}
               className="btn-glow"
             >
-              <Zap className={`h-4 w-4 mr-2 ${fetchingAll ? "animate-pulse" : ""}`} />
-              {fetchingAll ? "Fetching..." : `Fetch All Views (${fetchablePendingCount})`}
+              <Zap className={`h-4 w-4 mr-2 ${refreshingAll ? "animate-pulse" : ""}`} />
+              {refreshingAll ? "Refreshing..." : `Refresh All Views`}
             </Button>
           )}
         </div>
@@ -424,99 +385,102 @@ const AdminSubmissions = () => {
                         
                         {/* Submissions */}
                         <div className="divide-y divide-border">
-                          {filteredSubs.map((sub) => (
-                            <div key={sub.id} className="p-4">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                  <span className={`p-2 rounded-lg ${
-                                    sub.status === "pending" 
-                                      ? "bg-yellow-500/10 text-yellow-400"
-                                      : sub.status === "approved" || sub.status === "paid"
-                                      ? "bg-emerald-500/10 text-emerald-400"
-                                      : "bg-red-500/10 text-red-400"
-                                  }`}>
-                                    {platformIcons[sub.platform]}
-                                  </span>
-                                  <div>
-                                    <div className="font-medium">
-                                      {sub.creator_profile?.full_name || "Creator"}
-                                    </div>
-                                    <a 
-                                      href={sub.clip_url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      className="text-sm text-primary hover:underline flex items-center gap-1"
-                                    >
-                                      View Clip <ExternalLink className="h-3 w-3" />
-                                    </a>
-                                  </div>
-                                </div>
-                                
-                                {sub.status === "pending" ? (
+                          {filteredSubs.map((sub) => {
+                            const currentViews = Number(sub.views) || Number(sub.submitted_views) || 0;
+                            
+                            return (
+                              <div key={sub.id} className="p-4">
+                                <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-2">
-                                      <Input
-                                        type="number"
-                                        placeholder="Views"
-                                        value={viewInputs[sub.id] || ""}
-                                        onChange={(e) => setViewInputs({ ...viewInputs, [sub.id]: e.target.value })}
-                                        className="w-28 bg-secondary"
-                                      />
-                                      {(sub.platform === "tiktok" || sub.platform === "instagram") && (
-                                        <Button
-                                          size="icon"
-                                          variant="outline"
-                                          onClick={() => handleFetchViews(sub.id, sub.clip_url, sub.platform)}
-                                          disabled={fetching === sub.id}
-                                        >
-                                          <RefreshCw className={`h-4 w-4 ${fetching === sub.id ? "animate-spin" : ""}`} />
-                                        </Button>
-                                      )}
-                                    </div>
-                                    <div className="flex gap-2">
-                                      <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => handleReject(sub.id)}
-                                        disabled={processing === sub.id}
-                                        className="text-red-400"
-                                      >
-                                        <XCircle className="h-4 w-4" />
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        onClick={() => handleApprove(sub.id)}
-                                        disabled={processing === sub.id}
-                                        className="bg-emerald-500 hover:bg-emerald-600"
-                                      >
-                                        {processing === sub.id ? "..." : <CheckCircle className="h-4 w-4" />}
-                                      </Button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="flex items-center gap-4">
-                                    {(sub.status === "approved" || sub.status === "paid") && (
-                                      <div className="text-right">
-                                        <div className="text-sm text-muted-foreground">
-                                          {Number(sub.views).toLocaleString()} views
-                                        </div>
-                                        <div className="font-semibold text-primary">
-                                          ${Number(sub.earnings).toFixed(2)}
-                                        </div>
-                                      </div>
-                                    )}
-                                    <span className={`px-3 py-1 rounded-full text-xs capitalize ${
-                                      sub.status === "approved" || sub.status === "paid"
+                                    <span className={`p-2 rounded-lg ${
+                                      sub.status === "pending" 
+                                        ? "bg-yellow-500/10 text-yellow-400"
+                                        : sub.status === "approved" || sub.status === "paid"
                                         ? "bg-emerald-500/10 text-emerald-400"
                                         : "bg-red-500/10 text-red-400"
                                     }`}>
-                                      {sub.status}
+                                      {platformIcons[sub.platform]}
                                     </span>
+                                    <div>
+                                      <div className="font-medium">
+                                        {sub.creator_profile?.full_name || "Creator"}
+                                      </div>
+                                      <a 
+                                        href={sub.clip_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-sm text-primary hover:underline flex items-center gap-1"
+                                      >
+                                        View Clip <ExternalLink className="h-3 w-3" />
+                                      </a>
+                                    </div>
                                   </div>
-                                )}
+                                  
+                                  {sub.status === "pending" ? (
+                                    <div className="flex items-center gap-3">
+                                      {/* View count display */}
+                                      <div className="flex items-center gap-2">
+                                        <div className="text-sm text-muted-foreground flex items-center gap-1">
+                                          <Eye className="h-4 w-4" />
+                                          {currentViews > 0 ? currentViews.toLocaleString() : "No views"}
+                                        </div>
+                                        {(sub.platform === "tiktok" || sub.platform === "instagram") && (
+                                          <Button
+                                            size="icon"
+                                            variant="outline"
+                                            onClick={() => handleRefreshViews(sub.id, sub.clip_url, sub.platform)}
+                                            disabled={refreshing === sub.id}
+                                            title="Refresh views"
+                                          >
+                                            <RefreshCw className={`h-4 w-4 ${refreshing === sub.id ? "animate-spin" : ""}`} />
+                                          </Button>
+                                        )}
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => handleReject(sub.id)}
+                                          disabled={processing === sub.id}
+                                          className="text-red-400"
+                                        >
+                                          <XCircle className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                          size="sm"
+                                          onClick={() => handleApprove(sub.id, currentViews)}
+                                          disabled={processing === sub.id || currentViews <= 0}
+                                          className="bg-emerald-500 hover:bg-emerald-600"
+                                        >
+                                          {processing === sub.id ? "..." : <CheckCircle className="h-4 w-4" />}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center gap-4">
+                                      {(sub.status === "approved" || sub.status === "paid") && (
+                                        <div className="text-right">
+                                          <div className="text-sm text-muted-foreground">
+                                            {Number(sub.views).toLocaleString()} views
+                                          </div>
+                                          <div className="font-semibold text-primary">
+                                            ${Number(sub.earnings).toFixed(2)}
+                                          </div>
+                                        </div>
+                                      )}
+                                      <span className={`px-3 py-1 rounded-full text-xs capitalize ${
+                                        sub.status === "approved" || sub.status === "paid"
+                                          ? "bg-emerald-500/10 text-emerald-400"
+                                          : "bg-red-500/10 text-red-400"
+                                      }`}>
+                                        {sub.status}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     </CollapsibleContent>
