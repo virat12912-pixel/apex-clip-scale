@@ -18,6 +18,8 @@ import SocialAccounts from "./pages/SocialAccounts";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminSubmissions from "./pages/AdminSubmissions";
 import AdminPayouts from "./pages/AdminPayouts";
+import AdminCampaignPayouts from "./pages/AdminCampaignPayouts";
+import AdminUserDetail from "./pages/AdminUserDetail";
 import AdminBrands from "./pages/AdminBrands";
 import AdminSocialAccounts from "./pages/AdminSocialAccounts";
 import BrandApplication from "./pages/BrandApplication";
@@ -95,7 +97,17 @@ const App = () => (
             } />
             <Route path="/admin/payouts" element={
               <ProtectedRoute allowedRoles={["admin"]}>
-                <AdminPayouts />
+                <AdminCampaignPayouts />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/payouts/campaign/:campaignId" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminCampaignPayouts />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/payouts/campaign/:campaignId/user/:userId" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminUserDetail />
               </ProtectedRoute>
             } />
             <Route path="/admin/brands" element={
