@@ -17,11 +17,16 @@ export interface Campaign {
   rate_value: number;
   rate_unit: number;
   min_views: number;
+  min_payout_views: number | null;
   max_earnings_per_post: number | null;
   total_budget: number;
   spent_budget: number;
   status: CampaignStatus;
   image_url: string | null;
+  duration_days: number | null;
+  end_date: string | null;
+  required_hashtags: string[] | null;
+  required_links: string[] | null;
   created_at: string;
   updated_at: string;
   creator_profile?: {
@@ -96,11 +101,23 @@ export function useCreateCampaign() {
       rate_value: number;
       rate_unit: number;
       min_views?: number;
+      min_payout_views?: number;
       max_earnings_per_post?: number;
       total_budget: number;
+      duration_days?: number;
+      required_hashtags?: string[];
+      required_links?: string[];
       image_url?: string;
     }) => {
       if (!user) throw new Error("Not authenticated");
+
+      // Calculate end_date if duration_days is provided
+      let end_date: string | undefined;
+      if (campaign.duration_days) {
+        const endDateObj = new Date();
+        endDateObj.setDate(endDateObj.getDate() + campaign.duration_days);
+        end_date = endDateObj.toISOString();
+      }
 
       const { data, error } = await supabase
         .from("campaigns")
@@ -113,8 +130,13 @@ export function useCreateCampaign() {
           rate_value: campaign.rate_value,
           rate_unit: campaign.rate_unit,
           min_views: campaign.min_views,
+          min_payout_views: campaign.min_payout_views,
           max_earnings_per_post: campaign.max_earnings_per_post,
           total_budget: campaign.total_budget,
+          duration_days: campaign.duration_days,
+          end_date,
+          required_hashtags: campaign.required_hashtags,
+          required_links: campaign.required_links,
           image_url: campaign.image_url,
           created_by: user.id,
         })
@@ -144,10 +166,15 @@ export function useUpdateCampaign() {
       rate_value?: number;
       rate_unit?: number;
       min_views?: number;
+      min_payout_views?: number;
       max_earnings_per_post?: number;
       total_budget?: number;
       spent_budget?: number;
       status?: CampaignStatus;
+      duration_days?: number;
+      end_date?: string;
+      required_hashtags?: string[];
+      required_links?: string[];
       image_url?: string;
     }) => {
       const { data, error } = await supabase

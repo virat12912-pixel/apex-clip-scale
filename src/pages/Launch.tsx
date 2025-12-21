@@ -10,7 +10,10 @@ import {
   X,
   Smartphone,
   Camera,
-  Play
+  Play,
+  Hash,
+  Link as LinkIcon,
+  Calendar
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +23,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { useCreateCampaign } from "@/hooks/useCampaigns";
 import { Database } from "@/integrations/supabase/types";
-import { validateCampaignInput } from "@/lib/validation";
 import { mapErrorToUserMessage, logError } from "@/lib/errorMapping";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -59,8 +61,12 @@ const Launch = () => {
     rate_value: "",
     rate_unit: "100000",
     min_views: "1000",
+    min_payout_views: "10000",
     max_earnings_per_post: "",
     total_budget: "",
+    duration_days: "30",
+    required_hashtags: "",
+    required_links: "",
   });
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -134,33 +140,55 @@ const Launch = () => {
       return;
     }
 
-    const validationResult = validateCampaignInput({
-      name: formData.name,
-      description: formData.description || undefined,
-      requirements: formData.requirements || undefined,
-      niche: formData.niche || undefined,
-      platforms: formData.platforms,
-      rate_value: parseFloat(formData.rate_value) || 75,
-      rate_unit: parseInt(formData.rate_unit) || 100000,
-      min_views: parseInt(formData.min_views) || 1000,
-      max_earnings_per_post: formData.max_earnings_per_post 
-        ? parseFloat(formData.max_earnings_per_post) 
-        : undefined,
-      total_budget: parseFloat(formData.total_budget) || 0,
-      image_url: imageUrl || undefined,
-    });
-
-    if (validationResult.success === false) {
+    if (!formData.name.trim()) {
       toast({
-        title: "Validation Error",
-        description: validationResult.error,
+        title: "Name required",
+        description: "Please enter a campaign name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.total_budget || parseFloat(formData.total_budget) <= 0) {
+      toast({
+        title: "Budget required",
+        description: "Please enter a valid budget",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      await createCampaign.mutateAsync(validationResult.data);
+      // Parse hashtags and links from comma-separated strings
+      const hashtags = formData.required_hashtags
+        .split(",")
+        .map(h => h.trim())
+        .filter(h => h.length > 0);
+      
+      const links = formData.required_links
+        .split(",")
+        .map(l => l.trim())
+        .filter(l => l.length > 0);
+
+      await createCampaign.mutateAsync({
+        name: formData.name.trim(),
+        description: formData.description.trim() || undefined,
+        requirements: formData.requirements.trim() || undefined,
+        platforms: formData.platforms,
+        niche: formData.niche || undefined,
+        rate_value: parseFloat(formData.rate_value) || 75,
+        rate_unit: parseInt(formData.rate_unit) || 100000,
+        min_views: parseInt(formData.min_views) || 1000,
+        min_payout_views: parseInt(formData.min_payout_views) || 10000,
+        max_earnings_per_post: formData.max_earnings_per_post 
+          ? parseFloat(formData.max_earnings_per_post) 
+          : undefined,
+        total_budget: parseFloat(formData.total_budget),
+        duration_days: parseInt(formData.duration_days) || 30,
+        required_hashtags: hashtags,
+        required_links: links,
+        image_url: imageUrl || undefined,
+      });
 
       toast({
         title: "Campaign created!",
@@ -179,7 +207,7 @@ const Launch = () => {
 
   return (
     <AppLayout title="Launch Campaign">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-3xl mx-auto page-enter">
         {/* Progress steps */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">
@@ -207,7 +235,7 @@ const Launch = () => {
           </div>
           <div className="flex justify-between text-sm text-muted-foreground">
             <span>Basic Info</span>
-            <span>Budget & Goals</span>
+            <span>Budget & Requirements</span>
             <span>Review</span>
           </div>
         </div>
@@ -296,9 +324,9 @@ const Launch = () => {
                         key={platform.id}
                         type="button"
                         onClick={() => togglePlatform(platform.id)}
-                        className={`p-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                        className={`p-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2 hover-scale ${
                           formData.platforms.includes(platform.id)
-                            ? "bg-primary text-primary-foreground"
+                            ? "bg-primary text-primary-foreground glow-primary-sm"
                             : "bg-secondary text-muted-foreground hover:text-foreground"
                         }`}
                       >
@@ -329,7 +357,7 @@ const Launch = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="requirements">Requirements</Label>
+                  <Label htmlFor="requirements">Requirements (Text)</Label>
                   <Textarea
                     id="requirements"
                     placeholder="Any specific requirements or style guidelines for clippers..."
@@ -345,7 +373,7 @@ const Launch = () => {
                   type="button"
                   onClick={() => setStep(2)}
                   disabled={!formData.name || formData.platforms.length === 0}
-                  className="bg-gradient-primary hover:opacity-90"
+                  className="bg-gradient-primary hover:opacity-90 btn-glow"
                 >
                   Continue
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -354,13 +382,13 @@ const Launch = () => {
             </div>
           )}
 
-          {/* Step 2: Budget & Goals */}
+          {/* Step 2: Budget & Requirements */}
           {step === 2 && (
             <div className="space-y-6 p-6 rounded-2xl bg-card border border-border">
               <div>
-                <h2 className="text-xl font-semibold mb-1">Budget & Goals</h2>
+                <h2 className="text-xl font-semibold mb-1">Budget & Requirements</h2>
                 <p className="text-sm text-muted-foreground">
-                  Set your budget and performance targets
+                  Set your budget and submission requirements
                 </p>
               </div>
 
@@ -383,6 +411,23 @@ const Launch = () => {
                   </div>
 
                   <div className="space-y-2">
+                    <Label htmlFor="duration_days">Campaign Duration (Days)</Label>
+                    <div className="relative">
+                      <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        id="duration_days"
+                        type="number"
+                        placeholder="30"
+                        value={formData.duration_days}
+                        onChange={(e) => handleInputChange("duration_days", e.target.value)}
+                        className="h-12 pl-10 bg-secondary border-border"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
                     <Label htmlFor="rate_value">Rate ($ per views)</Label>
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -397,9 +442,7 @@ const Launch = () => {
                       />
                     </div>
                   </div>
-                </div>
 
-                <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="rate_unit">Per X Views</Label>
                     <div className="relative">
@@ -414,9 +457,11 @@ const Launch = () => {
                       />
                     </div>
                   </div>
+                </div>
 
+                <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="min_views">Minimum Views</Label>
+                    <Label htmlFor="min_views">Minimum Views (for submission)</Label>
                     <div className="relative">
                       <Target className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                       <Input
@@ -428,6 +473,24 @@ const Launch = () => {
                         className="h-12 pl-10 bg-secondary border-border"
                       />
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="min_payout_views">Minimum Views (for payout)</Label>
+                    <div className="relative">
+                      <Target className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        id="min_payout_views"
+                        type="number"
+                        placeholder="10000"
+                        value={formData.min_payout_views}
+                        onChange={(e) => handleInputChange("min_payout_views", e.target.value)}
+                        className="h-12 pl-10 bg-secondary border-border"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Submissions below this won't appear in payout queue
+                    </p>
                   </div>
                 </div>
 
@@ -443,6 +506,45 @@ const Launch = () => {
                       onChange={(e) => handleInputChange("max_earnings_per_post", e.target.value)}
                       className="h-12 pl-10 bg-secondary border-border"
                     />
+                  </div>
+                </div>
+
+                {/* Required Hashtags & Links */}
+                <div className="p-4 rounded-lg bg-secondary/50 space-y-4">
+                  <h3 className="font-medium text-sm">Smart Requirements (Auto-validation)</h3>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="required_hashtags" className="flex items-center gap-2">
+                      <Hash className="h-4 w-4 text-primary" />
+                      Required Hashtags
+                    </Label>
+                    <Input
+                      id="required_hashtags"
+                      placeholder="#gaming, #clips, #viral"
+                      value={formData.required_hashtags}
+                      onChange={(e) => handleInputChange("required_hashtags", e.target.value)}
+                      className="bg-background"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Comma-separated. Submissions missing these will be auto-rejected.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="required_links" className="flex items-center gap-2">
+                      <LinkIcon className="h-4 w-4 text-primary" />
+                      Required Links/Mentions
+                    </Label>
+                    <Input
+                      id="required_links"
+                      placeholder="@yourbrand, linkin.bio/brand"
+                      value={formData.required_links}
+                      onChange={(e) => handleInputChange("required_links", e.target.value)}
+                      className="bg-background"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Comma-separated. Submissions missing these will be auto-rejected.
+                    </p>
                   </div>
                 </div>
 
@@ -472,7 +574,7 @@ const Launch = () => {
                   type="button"
                   onClick={() => setStep(3)}
                   disabled={!formData.total_budget}
-                  className="bg-gradient-primary hover:opacity-90"
+                  className="bg-gradient-primary hover:opacity-90 btn-glow"
                 >
                   Continue
                   <ArrowRight className="ml-2 h-4 w-4" />
@@ -491,7 +593,7 @@ const Launch = () => {
                 </p>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-4 stagger-enter">
                 {imageUrl && (
                   <div className="w-full h-48 rounded-lg overflow-hidden">
                     <img src={imageUrl} alt="Campaign" className="w-full h-full object-cover" />
@@ -526,8 +628,8 @@ const Launch = () => {
                     <div className="font-medium capitalize">{formData.niche || "Not set"}</div>
                   </div>
                   <div className="p-4 rounded-lg bg-secondary/50">
-                    <div className="text-sm text-muted-foreground mb-1">Min Views</div>
-                    <div className="font-medium">{parseInt(formData.min_views || "1000").toLocaleString()}</div>
+                    <div className="text-sm text-muted-foreground mb-1">Duration</div>
+                    <div className="font-medium">{formData.duration_days} days</div>
                   </div>
                 </div>
 
@@ -545,12 +647,30 @@ const Launch = () => {
                     </div>
                   </div>
                   <div className="p-4 rounded-lg bg-secondary/50">
-                    <div className="text-sm text-muted-foreground mb-1">Max Per Post</div>
+                    <div className="text-sm text-muted-foreground mb-1">Min Payout Views</div>
                     <div className="font-medium">
-                      {formData.max_earnings_per_post ? `$${formData.max_earnings_per_post}` : "No limit"}
+                      {parseInt(formData.min_payout_views || "10000").toLocaleString()}
                     </div>
                   </div>
                 </div>
+
+                {(formData.required_hashtags || formData.required_links) && (
+                  <div className="p-4 rounded-lg bg-secondary/50">
+                    <div className="text-sm text-muted-foreground mb-2">Requirements</div>
+                    {formData.required_hashtags && (
+                      <div className="flex items-center gap-2 mb-2">
+                        <Hash className="h-4 w-4 text-primary" />
+                        <span className="text-sm">{formData.required_hashtags}</span>
+                      </div>
+                    )}
+                    {formData.required_links && (
+                      <div className="flex items-center gap-2">
+                        <LinkIcon className="h-4 w-4 text-primary" />
+                        <span className="text-sm">{formData.required_links}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-between">
@@ -565,7 +685,7 @@ const Launch = () => {
                 <Button
                   type="submit"
                   disabled={createCampaign.isPending}
-                  className="bg-gradient-primary hover:opacity-90"
+                  className="bg-gradient-primary hover:opacity-90 btn-glow"
                 >
                   {createCampaign.isPending ? "Creating..." : "Launch Campaign"}
                 </Button>
