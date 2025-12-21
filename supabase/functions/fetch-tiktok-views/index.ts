@@ -1,4 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import requests
+from urllib.parse import urlparse
+
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -55,6 +58,10 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+    
+    parsed = urlparse(video_url)
+    response = requests.get(video_url, allow_redirects=True, timeout=10)
+    video_url = response.url  # Final resolved URL
 
     const videoId = extractVideoId(video_url);
     
