@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { Menu } from "lucide-react";
 
 interface AppLayoutProps {
@@ -23,6 +24,9 @@ export function AppLayout({ children, title }: AppLayoutProps) {
               {title && (
                 <h1 className="text-xl font-semibold">{title}</h1>
               )}
+            </div>
+            <div className="flex items-center gap-2">
+              <NotificationBell />
             </div>
           </header>
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { AppLayout } from "@/components/app/AppLayout";
+import { CampaignLeaderboard } from "@/components/campaigns/CampaignLeaderboard";
 import { 
   ArrowLeft,
   DollarSign, 
@@ -15,13 +16,15 @@ import {
   Trash2,
   Smartphone,
   Camera,
-  Play
+  Play,
+  Trophy
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   AlertDialog,
   AlertDialogAction,

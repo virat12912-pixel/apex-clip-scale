@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_logs: {
+        Row: {
+          action: string
+          admin_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          target_id: string
+          target_type: string
+        }
+        Insert: {
+          action: string
+          admin_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_id: string
+          target_type: string
+        }
+        Update: {
+          action?: string
+          admin_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_id?: string
+          target_type?: string
+        }
+        Relationships: []
+      }
       brand_applications: {
         Row: {
           admin_notes: string | null
@@ -133,6 +163,39 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          read: boolean
+          related_id: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          read?: boolean
+          related_id?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          read?: boolean
+          related_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       payouts: {
         Row: {
           admin_notes: string | null
@@ -186,6 +249,7 @@ export type Database = {
           full_name: string | null
           id: string
           is_banned: boolean
+          payment_verified: boolean
           payout_email: string | null
           payout_method: string | null
           referral_code: string | null
@@ -201,6 +265,7 @@ export type Database = {
           full_name?: string | null
           id: string
           is_banned?: boolean
+          payment_verified?: boolean
           payout_email?: string | null
           payout_method?: string | null
           referral_code?: string | null
@@ -216,6 +281,7 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_banned?: boolean
+          payment_verified?: boolean
           payout_email?: string | null
           payout_method?: string | null
           referral_code?: string | null
@@ -408,6 +474,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          locked_earnings: number
           paid_balance: number
           pending_balance: number
           updated_at: string
@@ -416,6 +483,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          locked_earnings?: number
           paid_balance?: number
           pending_balance?: number
           updated_at?: string
@@ -424,6 +492,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          locked_earnings?: number
           paid_balance?: number
           pending_balance?: number
           updated_at?: string
