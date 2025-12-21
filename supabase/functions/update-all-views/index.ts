@@ -2,8 +2,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
 interface ViewFetchResult {
@@ -13,21 +13,42 @@ interface ViewFetchResult {
   error?: string;
 }
 
+// --- HELPER: Resolve short URLs (Critical for TikTok) ---
+async function expandShortUrl(url: string): Promise<string> {
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      redirect: "follow",
+    });
+    return response.url;
+  } catch (err) {
+    console.error("Error expanding URL:", err);
+    return url;
+  }
+}
+
 // Extract video ID from TikTok URL
 function extractTikTokVideoId(url: string): string | null {
   try {
     let cleanUrl = (url || "").trim();
     if (!cleanUrl) return null;
-    
+
     if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
       cleanUrl = "https://" + cleanUrl;
     }
-    
-    const parts = cleanUrl.split("/");
+
+    // Clean query params first to avoid confusion
+    const urlWithoutQuery = cleanUrl.split("?")[0];
+    const parts = urlWithoutQuery.split("/");
     const lastPart = parts[parts.length - 1];
-    const videoId = lastPart.split("?")[0];
-    
-    return videoId || null;
+
+    // Basic validation: TikTok IDs are usually numeric
+    // This helps filter out "ZM..." codes from un-expanded short links
+    if (lastPart && /^\d+$/.test(lastPart)) {
+      return lastPart;
+    }
+
+    return lastPart || null;
   } catch {
     return null;
   }
@@ -35,11 +56,8 @@ function extractTikTokVideoId(url: string): string | null {
 
 // Extract reel ID from Instagram URL
 function extractInstagramReelId(url: string): string | null {
-  const patterns = [
-    /instagram\.com\/(?:p|reel|reels)\/([\w-]+)/i,
-    /instagr\.am\/(?:p|reel)\/([\w-]+)/i,
-  ];
-  
+  const patterns = [/instagram\.com\/(?:p|reel|reels)\/([\w-]+)/i, /instagr\.am\/(?:p|reel)\/([\w-]+)/i];
+
   for (const pattern of patterns) {
     const match = url.match(pattern);
     if (match && match[1]) {
@@ -51,38 +69,47 @@ function extractInstagramReelId(url: string): string | null {
 
 async function fetchTikTokViews(videoUrl: string, apiKey: string): Promise<number | null> {
   try {
-    const videoId = extractTikTokVideoId(videoUrl);
+    let targetUrl = videoUrl;
+
+    // 1. Expand URL if it's a short link
+    if (targetUrl.includes("vm.tiktok.com") || targetUrl.includes("vt.tiktok.com")) {
+      targetUrl = await expandShortUrl(targetUrl);
+    }
+
+    // 2. Extract ID
+    const videoId = extractTikTokVideoId(targetUrl);
+
     if (!videoId) {
-      console.error('Could not extract TikTok video ID from:', videoUrl);
+      console.error("Could not extract TikTok video ID from:", targetUrl);
       return null;
     }
 
     const apiUrl = `https://tiktok-api-fast-reliable-data-scraper.p.rapidapi.com/video/${videoId}`;
-    
+
     const response = await fetch(apiUrl, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'x-rapidapi-key': apiKey,
-        'x-rapidapi-host': 'tiktok-api-fast-reliable-data-scraper.p.rapidapi.com',
+        "x-rapidapi-key": apiKey,
+        "x-rapidapi-host": "tiktok-api-fast-reliable-data-scraper.p.rapidapi.com",
       },
     });
 
     if (!response.ok) {
-      console.error('TikTok API error:', response.status);
+      console.error("TikTok API error:", response.status);
       return null;
     }
 
     const data = await response.json();
     const awemeDetail = data?.data?.aweme_detail;
-    
+
     if (!awemeDetail) {
-      console.error('No aweme_detail in TikTok response');
+      console.error("No aweme_detail in TikTok response");
       return null;
     }
 
     return awemeDetail.statistics?.play_count || null;
   } catch (error) {
-    console.error('TikTok fetch error:', error);
+    console.error("TikTok fetch error:", error);
     return null;
   }
 }
@@ -90,67 +117,67 @@ async function fetchTikTokViews(videoUrl: string, apiKey: string): Promise<numbe
 async function fetchInstagramViews(videoUrl: string, apiKey: string): Promise<number | null> {
   try {
     const reelId = extractInstagramReelId(videoUrl);
-    
+
     if (!reelId) {
-      console.error('Could not extract Instagram reel ID from:', videoUrl);
+      console.error("Could not extract Instagram reel ID from:", videoUrl);
       return null;
     }
 
     const apiUrl = `https://instagram-scraper21.p.rapidapi.com/api/v1/post-info?code=${reelId}`;
-    
+
     const response = await fetch(apiUrl, {
-      method: 'GET',
+      method: "GET",
       headers: {
-        'x-rapidapi-key': apiKey,
-        'x-rapidapi-host': 'instagram-scraper21.p.rapidapi.com',
+        "x-rapidapi-key": apiKey,
+        "x-rapidapi-host": "instagram-scraper21.p.rapidapi.com",
       },
     });
 
     if (!response.ok) {
-      console.error('Instagram API error:', response.status);
+      console.error("Instagram API error:", response.status);
       return null;
     }
 
     const data = await response.json();
     const postData = data?.data?.post;
-    
+
     if (!postData) {
-      console.error('No post data in Instagram response');
+      console.error("No post data in Instagram response");
       return null;
     }
 
     return postData.video_play_count || null;
   } catch (error) {
-    console.error('Instagram fetch error:', error);
+    console.error("Instagram fetch error:", error);
     return null;
   }
 }
 
 serve(async (req) => {
   // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
+  if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const tiktokApiKey = Deno.env.get('TIKTOK_API_KEY');
-    const instagramApiKey = Deno.env.get('INSTAGRAM_API_KEY');
-    
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const tiktokApiKey = Deno.env.get("TIKTOK_API_KEY");
+    const instagramApiKey = Deno.env.get("INSTAGRAM_API_KEY");
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log('Starting daily view update job...');
+    console.log("Starting daily view update job...");
 
     // Get all pending/approved submissions for TikTok or Instagram
     const { data: submissions, error: fetchError } = await supabase
-      .from('submissions')
-      .select('id, clip_url, platform, views, submitted_views')
-      .in('status', ['pending', 'approved'])
-      .in('platform', ['tiktok', 'instagram']);
+      .from("submissions")
+      .select("id, clip_url, platform, views, submitted_views")
+      .in("status", ["pending", "approved"])
+      .in("platform", ["tiktok", "instagram"]);
 
     if (fetchError) {
-      console.error('Error fetching submissions:', fetchError);
+      console.error("Error fetching submissions:", fetchError);
       throw fetchError;
     }
 
@@ -163,18 +190,15 @@ serve(async (req) => {
     for (const sub of submissions || []) {
       let newViews: number | null = null;
 
-      if (sub.platform === 'tiktok' && tiktokApiKey) {
+      if (sub.platform === "tiktok" && tiktokApiKey) {
         newViews = await fetchTikTokViews(sub.clip_url, tiktokApiKey);
-      } else if (sub.platform === 'instagram' && instagramApiKey) {
+      } else if (sub.platform === "instagram" && instagramApiKey) {
         newViews = await fetchInstagramViews(sub.clip_url, instagramApiKey);
       }
 
       if (newViews !== null && newViews > 0) {
         // Update the views in the database
-        const { error: updateError } = await supabase
-          .from('submissions')
-          .update({ views: newViews })
-          .eq('id', sub.id);
+        const { error: updateError } = await supabase.from("submissions").update({ views: newViews }).eq("id", sub.id);
 
         if (updateError) {
           console.error(`Failed to update submission ${sub.id}:`, updateError);
@@ -186,12 +210,12 @@ serve(async (req) => {
           successCount++;
         }
       } else {
-        results.push({ submission_id: sub.id, success: false, error: 'Could not fetch views' });
+        results.push({ submission_id: sub.id, success: false, error: "Could not fetch views" });
         errorCount++;
       }
 
-      // Rate limiting - wait between API calls
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Rate limiting - wait between API calls to avoid 429 errors from RapidAPI
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
 
     console.log(`Daily update complete: ${successCount} success, ${errorCount} errors`);
@@ -204,15 +228,14 @@ serve(async (req) => {
         errors: errorCount,
         results,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
-
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Error in update-all-views:', error);
-    return new Response(
-      JSON.stringify({ success: false, error: message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("Error in update-all-views:", error);
+    return new Response(JSON.stringify({ success: false, error: message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
