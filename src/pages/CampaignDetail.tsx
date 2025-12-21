@@ -41,6 +41,7 @@ import { useCreateSubmission, useCampaignSubmissions } from "@/hooks/useSubmissi
 import { useDeleteCampaign } from "@/hooks/useCampaignActions";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useMySocialAccounts } from "@/hooks/useSocialAccounts";
 import { Database } from "@/integrations/supabase/types";
 import { validateClipUrl, SocialPlatform } from "@/lib/urlValidation";
 
@@ -57,6 +58,7 @@ const CampaignDetail = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { role, user } = useAuth();
+  const { data: socialAccounts } = useMySocialAccounts();
   const { data: campaign, isLoading, refetch } = useCampaign(id || "");
   const { data: submissions } = useCampaignSubmissions(id || "");
   const createSubmission = useCreateSubmission();
@@ -67,6 +69,11 @@ const CampaignDetail = () => {
   const [urlErrors, setUrlErrors] = useState<(string | null)[]>([null]);
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformType>("tiktok");
   const [agreeToTerms, setAgreeToTerms] = useState(false);
+
+  const isVerificationRequired = selectedPlatform === "tiktok" || selectedPlatform === "instagram";
+  const hasVerifiedSocialAccount = !isVerificationRequired
+    ? true
+    : (socialAccounts?.some((a) => a.platform === selectedPlatform && a.verified) ?? false);
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
@@ -100,6 +107,15 @@ const CampaignDetail = () => {
 
   const handleSubmit = async () => {
     const validUrls = clipUrls.filter(url => url.trim() !== "");
+
+    if (isVerificationRequired && !hasVerifiedSocialAccount) {
+      toast({
+        title: "Verification required",
+        description: `Please verify your ${selectedPlatform} account before submitting clips.`,
+        variant: "destructive",
+      });
+      return;
+    }
     
     if (validUrls.length === 0) {
       toast({
@@ -147,6 +163,7 @@ const CampaignDetail = () => {
 
       setClipUrls([""]);
       setAgreeToTerms(false);
+      refetch();
     } catch (error: any) {
       toast({
         title: "Submission failed",
@@ -388,6 +405,18 @@ const CampaignDetail = () => {
                       </div>
                     </div>
 
+                    {isVerificationRequired && !hasVerifiedSocialAccount && (
+                      <div className="p-4 rounded-lg bg-secondary/50 border border-border">
+                        <p className="text-sm font-medium">Verify your {selectedPlatform} account to submit.</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Go to Social Accounts, add your account, and click Verify.
+                        </p>
+                        <Button asChild size="sm" variant="outline" className="mt-3 btn-glow">
+                          <Link to="/social-accounts">Verify now</Link>
+                        </Button>
+                      </div>
+                    )}
+
                     {/* Clip URLs */}
                     <div className="space-y-2">
                       <Label>Clip URLs</Label>
@@ -435,7 +464,7 @@ const CampaignDetail = () => {
 
                     <Button
                       onClick={handleSubmit}
-                      disabled={createSubmission.isPending}
+                      disabled={createSubmission.isPending || (isVerificationRequired && !hasVerifiedSocialAccount)}
                       className="w-full bg-gradient-primary hover:opacity-90 btn-glow"
                     >
                       {createSubmission.isPending ? "Submitting..." : "Submit Clips"}
