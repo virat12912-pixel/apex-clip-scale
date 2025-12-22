@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
       .update(updates)
       .eq("id", user_id)
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error("Failed to update profile via service role:", error);
@@ -44,6 +44,23 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: error.message || "Update failed" }),
         {
           status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    if (!data) {
+      console.warn("Update affected 0 rows (possible RLS or missing id)", {
+        user_id,
+        updates,
+      });
+      return new Response(
+        JSON.stringify({
+          error: "No rows updated",
+          details: { user_id, updates },
+        }),
+        {
+          status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );

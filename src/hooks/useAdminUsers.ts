@@ -238,7 +238,7 @@ export function useUpdateUserStatus(campaignId?: string) {
           .update(updates)
           .eq("id", userId)
           .select()
-          .single();
+          .maybeSingle();
 
         console.debug("Supabase direct update response", {
           data,
@@ -252,6 +252,15 @@ export function useUpdateUserStatus(campaignId?: string) {
           (error as any).status = status;
           (error as any).statusText = statusText;
           throw error;
+        }
+
+        if (!data) {
+          // No rows updated, likely due to RLS or missing id — surface a clearer error
+          const msg = "No rows updated (verify RLS/policies and id)";
+          console.warn(msg, { userId, updates });
+          const e: any = new Error(msg);
+          e.details = { userId, updates };
+          throw e;
         }
       }
 
