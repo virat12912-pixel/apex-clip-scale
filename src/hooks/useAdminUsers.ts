@@ -42,7 +42,8 @@ export function useCampaignParticipants(campaignId: string) {
       // Get submissions with creator profiles
       const { data: submissions, error: subError } = await supabase
         .from("submissions")
-        .select(`
+        .select(
+          `
           creator_id,
           views,
           earnings,
@@ -50,14 +51,17 @@ export function useCampaignParticipants(campaignId: string) {
           creator_profile:profiles!submissions_creator_id_fkey(
             id, email, full_name, avatar_url, is_banned, payment_verified, payout_method
           )
-        `)
+        `
+        )
         .eq("campaign_id", campaignId);
 
       if (subError) throw subError;
 
       // Get pending payouts for these users
-      const creatorIds = [...new Set(submissions?.map(s => s.creator_id) || [])];
-      
+      const creatorIds = [
+        ...new Set(submissions?.map((s) => s.creator_id) || []),
+      ];
+
       const { data: payouts, error: payError } = await supabase
         .from("payouts")
         .select("user_id, status")
@@ -108,9 +112,12 @@ export function useCampaignParticipants(campaignId: string) {
 
       // Determine payout status
       participantMap.forEach((participant, creatorId) => {
-        const userPayouts = payouts?.filter(p => p.user_id === creatorId) || [];
-        const hasPending = userPayouts.some(p => p.status === "pending" || p.status === "approved");
-        const hasPaid = userPayouts.some(p => p.status === "paid");
+        const userPayouts =
+          payouts?.filter((p) => p.user_id === creatorId) || [];
+        const hasPending = userPayouts.some(
+          (p) => p.status === "pending" || p.status === "approved"
+        );
+        const hasPaid = userPayouts.some((p) => p.status === "paid");
 
         if (hasPending) {
           participant.payout_status = "pending";
@@ -121,7 +128,9 @@ export function useCampaignParticipants(campaignId: string) {
         }
       });
 
-      return Array.from(participantMap.values()).sort((a, b) => b.total_views - a.total_views);
+      return Array.from(participantMap.values()).sort(
+        (a, b) => b.total_views - a.total_views
+      );
     },
     enabled: role === "admin" && !!campaignId,
   });
@@ -154,10 +163,12 @@ export function useUserSubmissions(userId: string, campaignId?: string) {
     queryFn: async () => {
       let query = supabase
         .from("submissions")
-        .select(`
+        .select(
+          `
           *,
           campaign:campaigns(id, name, rate_value, rate_unit, min_views, min_payout_views)
-        `)
+        `
+        )
         .eq("creator_id", userId)
         .order("created_at", { ascending: false });
 
@@ -179,7 +190,11 @@ export function useUpdateUserStatus() {
   const createLog = useCreateAdminLog();
 
   return useMutation({
-    mutationFn: async ({ userId, updates, action }: {
+    mutationFn: async ({
+      userId,
+      updates,
+      action,
+    }: {
       userId: string;
       updates: { is_banned?: boolean; payment_verified?: boolean };
       action: string;
@@ -199,8 +214,8 @@ export function useUpdateUserStatus() {
         details: updates,
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["user_profile"] });
+    onSuccess: (_, { userId }) => {
+      queryClient.invalidateQueries({ queryKey: ["user_profile", userId] });
       queryClient.invalidateQueries({ queryKey: ["campaign_participants"] });
     },
   });
