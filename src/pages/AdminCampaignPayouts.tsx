@@ -30,7 +30,7 @@ const AdminCampaignPayouts = () => {
   const { data: participants, isLoading: participantsLoading } =
     useCampaignParticipants(campaignId || "");
   const { toast } = useToast();
-  const updateUserStatus = useUpdateUserStatus();
+  const updateUserStatus = useUpdateUserStatus(campaignId);
 
   const handleVerifyPayment = async (userId: string) => {
     try {

@@ -185,7 +185,7 @@ export function useUserSubmissions(userId: string, campaignId?: string) {
   });
 }
 
-export function useUpdateUserStatus() {
+export function useUpdateUserStatus(campaignId?: string) {
   const queryClient = useQueryClient();
   const createLog = useCreateAdminLog();
 
@@ -204,9 +204,11 @@ export function useUpdateUserStatus() {
         .update(updates)
         .eq("id", userId);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error updating user status:", error);
+        throw error;
+      }
 
-      // Log the action
       await createLog.mutateAsync({
         action,
         target_type: "user",
@@ -214,9 +216,44 @@ export function useUpdateUserStatus() {
         details: updates,
       });
     },
-    onSuccess: (_, { userId }) => {
+    onMutate: async ({ userId, updates }) => {
+      const queryKey = ["campaign_participants", campaignId];
+      await queryClient.cancelQueries({ queryKey });
+
+      const previousParticipants =
+        queryClient.getQueryData<CampaignParticipant[]>(queryKey);
+
+      queryClient.setQueryData<CampaignParticipant[]>(queryKey, (old) =>
+        old?.map((p) =>
+          p.creator_id === userId
+            ? {
+                ...p,
+                payment_verified:
+                  updates.payment_verified ?? p.payment_verified,
+              }
+            : p
+        )
+      );
+
+      return { previousParticipants, queryKey };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousParticipants) {
+        queryClient.setQueryData(
+          context.queryKey,
+          context.previousParticipants
+        );
+      }
+      console.error("Mutation failed:", err);
+    },
+    onSettled: (data, error, { userId }) => {
+      if (error) {
+        console.error("Rolling back mutation for user:", userId);
+      }
+      queryClient.invalidateQueries({
+        queryKey: ["campaign_participants", campaignId],
+      });
       queryClient.invalidateQueries({ queryKey: ["user_profile", userId] });
-      queryClient.invalidateQueries({ queryKey: ["campaign_participants"] });
     },
   });
 }
