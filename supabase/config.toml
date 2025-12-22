@@ -29,3 +29,6 @@ verify_jwt = true
 
 [functions.process-payout]
 verify_jwt = false
+
+[functions.reject-submission]
+verify_jwt = false
