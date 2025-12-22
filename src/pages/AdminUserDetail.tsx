@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { AppLayout } from "@/components/app/AppLayout";
-import { 
-  useUserProfile, 
-  useUserSubmissions, 
-  useUpdateUserStatus 
+import {
+  useUserProfile,
+  useUserSubmissions,
+  useUpdateUserStatus,
 } from "@/hooks/useAdminUsers";
 import { useAdminLogs } from "@/hooks/useAdminLogs";
 import { useCampaign } from "@/hooks/useCampaigns";
@@ -24,12 +24,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  ChevronRight, 
-  Ban, 
-  Shield, 
-  CheckCircle, 
-  XCircle, 
+import {
+  ChevronRight,
+  Ban,
+  Shield,
+  CheckCircle,
+  XCircle,
   ExternalLink,
   Eye,
   DollarSign,
@@ -37,23 +37,28 @@ import {
   Clock,
   AlertCircle,
   Wallet,
-  FileText
+  FileText,
 } from "lucide-react";
 
 const AdminUserDetail = () => {
-  const { campaignId, userId } = useParams<{ campaignId: string; userId: string }>();
+  const { campaignId, userId } = useParams<{
+    campaignId: string;
+    userId: string;
+  }>();
   const { toast } = useToast();
-  
+
   const { data: user, isLoading: userLoading } = useUserProfile(userId || "");
-  const { data: submissions, isLoading: submissionsLoading } = useUserSubmissions(userId || "", campaignId);
+  const { data: submissions, isLoading: submissionsLoading } =
+    useUserSubmissions(userId || "", campaignId);
   const { data: campaign } = useCampaign(campaignId || "");
   const { data: allPayouts } = useAllPayouts();
   const { data: logs, isLoading: logsLoading } = useAdminLogs("user", userId);
-  
+
   const updateUserStatus = useUpdateUserStatus();
   const updatePayout = useUpdatePayout();
 
-  const userPayouts = allPayouts?.filter((p: any) => p.user_id === userId) || [];
+  const userPayouts =
+    allPayouts?.filter((p: any) => p.user_id === userId) || [];
   const pendingPayouts = userPayouts.filter((p: any) => p.status === "pending");
 
   const formatNumber = (num: number) => {
@@ -69,6 +74,7 @@ const AdminUserDetail = () => {
 
   const handleBan = async () => {
     try {
+      console.debug("handleBan invoked", { userId });
       await updateUserStatus.mutateAsync({
         userId: userId!,
         updates: { is_banned: true },
@@ -76,12 +82,17 @@ const AdminUserDetail = () => {
       });
       toast({ title: "User banned" });
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
   const handleUnban = async () => {
     try {
+      console.debug("handleUnban invoked", { userId });
       await updateUserStatus.mutateAsync({
         userId: userId!,
         updates: { is_banned: false },
@@ -89,12 +100,17 @@ const AdminUserDetail = () => {
       });
       toast({ title: "User unbanned" });
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
   const handleVerifyPayment = async () => {
     try {
+      console.debug("handleVerifyPayment invoked", { userId });
       await updateUserStatus.mutateAsync({
         userId: userId!,
         updates: { payment_verified: true },
@@ -102,16 +118,27 @@ const AdminUserDetail = () => {
       });
       toast({ title: "Payment method verified" });
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
-  const handlePayoutAction = async (payoutId: string, status: "approved" | "rejected" | "paid") => {
+  const handlePayoutAction = async (
+    payoutId: string,
+    status: "approved" | "rejected" | "paid"
+  ) => {
     try {
       await updatePayout.mutateAsync({ id: payoutId, status });
       toast({ title: `Payout ${status}` });
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
@@ -119,11 +146,23 @@ const AdminUserDetail = () => {
     switch (status) {
       case "approved":
       case "paid":
-        return <span className="px-2 py-1 rounded-full text-xs bg-emerald-500/10 text-emerald-400">{status}</span>;
+        return (
+          <span className="px-2 py-1 rounded-full text-xs bg-emerald-500/10 text-emerald-400">
+            {status}
+          </span>
+        );
       case "rejected":
-        return <span className="px-2 py-1 rounded-full text-xs bg-red-500/10 text-red-400">{status}</span>;
+        return (
+          <span className="px-2 py-1 rounded-full text-xs bg-red-500/10 text-red-400">
+            {status}
+          </span>
+        );
       default:
-        return <span className="px-2 py-1 rounded-full text-xs bg-yellow-500/10 text-yellow-400">{status}</span>;
+        return (
+          <span className="px-2 py-1 rounded-full text-xs bg-yellow-500/10 text-yellow-400">
+            {status}
+          </span>
+        );
     }
   };
 
@@ -146,16 +185,26 @@ const AdminUserDetail = () => {
     );
   }
 
-  const totalViews = submissions?.reduce((sum, s) => sum + Number(s.views || 0), 0) || 0;
-  const totalEarnings = submissions?.reduce((sum, s) => sum + Number(s.earnings || 0), 0) || 0;
+  const totalViews =
+    submissions?.reduce((sum, s) => sum + Number(s.views || 0), 0) || 0;
+  const totalEarnings =
+    submissions?.reduce((sum, s) => sum + Number(s.earnings || 0), 0) || 0;
 
   return (
     <AppLayout title={user.full_name || "User Details"}>
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-        <Link to="/admin/payouts" className="hover:text-foreground transition-colors">Campaigns</Link>
+        <Link
+          to="/admin/payouts"
+          className="hover:text-foreground transition-colors"
+        >
+          Campaigns
+        </Link>
         <ChevronRight className="h-4 w-4" />
-        <Link to={`/admin/payouts/campaign/${campaignId}`} className="hover:text-foreground transition-colors">
+        <Link
+          to={`/admin/payouts/campaign/${campaignId}`}
+          className="hover:text-foreground transition-colors"
+        >
           {campaign?.name}
         </Link>
         <ChevronRight className="h-4 w-4" />
@@ -169,7 +218,11 @@ const AdminUserDetail = () => {
             <div className="relative">
               <div className="w-16 h-16 rounded-xl bg-gradient-primary flex items-center justify-center text-2xl font-bold text-primary-foreground overflow-hidden">
                 {user.avatar_url ? (
-                  <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                  <img
+                    src={user.avatar_url}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
                 ) : (
                   user.full_name?.charAt(0) || "?"
                 )}
@@ -183,7 +236,9 @@ const AdminUserDetail = () => {
             <div>
               <h2 className="text-xl font-bold flex items-center gap-2">
                 {user.full_name || "Anonymous"}
-                {user.is_banned && <span className="text-xs text-red-400">(Banned)</span>}
+                {user.is_banned && (
+                  <span className="text-xs text-red-400">(Banned)</span>
+                )}
               </h2>
               <p className="text-muted-foreground">{user.email}</p>
               <div className="flex items-center gap-2 mt-2">
@@ -225,12 +280,16 @@ const AdminUserDetail = () => {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Ban User?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will prevent the user from logging in and submitting clips. Pending payouts will be blocked.
+                      This will prevent the user from logging in and submitting
+                      clips. Pending payouts will be blocked.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleBan} className="bg-red-500 hover:bg-red-600">
+                    <AlertDialogAction
+                      onClick={handleBan}
+                      className="bg-red-500 hover:bg-red-600"
+                    >
                       Ban User
                     </AlertDialogAction>
                   </AlertDialogFooter>
@@ -267,7 +326,9 @@ const AdminUserDetail = () => {
         <TabsList>
           <TabsTrigger value="submissions">Submissions</TabsTrigger>
           <TabsTrigger value="payment">Payment Details</TabsTrigger>
-          <TabsTrigger value="payouts">Payouts ({userPayouts.length})</TabsTrigger>
+          <TabsTrigger value="payouts">
+            Payouts ({userPayouts.length})
+          </TabsTrigger>
           <TabsTrigger value="logs">Audit Logs</TabsTrigger>
         </TabsList>
 
@@ -275,7 +336,11 @@ const AdminUserDetail = () => {
         <TabsContent value="submissions">
           {submissionsLoading ? (
             <div className="space-y-4">
-              {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-20" />)}
+              {Array(3)
+                .fill(0)
+                .map((_, i) => (
+                  <Skeleton key={i} className="h-20" />
+                ))}
             </div>
           ) : submissions?.length === 0 ? (
             <div className="p-8 rounded-xl bg-card border border-border text-center text-muted-foreground">
@@ -284,13 +349,16 @@ const AdminUserDetail = () => {
           ) : (
             <div className="space-y-3">
               {submissions?.map((sub: any) => (
-                <div key={sub.id} className="p-4 rounded-xl bg-card border border-border">
+                <div
+                  key={sub.id}
+                  className="p-4 rounded-xl bg-card border border-border"
+                >
                   <div className="flex items-start justify-between">
                     <div className="space-y-2">
                       <div className="flex items-center gap-3">
-                        <a 
-                          href={sub.clip_url} 
-                          target="_blank" 
+                        <a
+                          href={sub.clip_url}
+                          target="_blank"
                           rel="noopener noreferrer"
                           className="text-primary hover:underline flex items-center gap-1"
                         >
@@ -305,7 +373,8 @@ const AdminUserDetail = () => {
                           <Eye className="h-4 w-4" /> {formatNumber(sub.views)}
                         </span>
                         <span className="flex items-center gap-1 text-primary">
-                          <DollarSign className="h-4 w-4" /> ${Number(sub.earnings).toFixed(2)}
+                          <DollarSign className="h-4 w-4" /> $
+                          {Number(sub.earnings).toFixed(2)}
                         </span>
                       </div>
                     </div>
@@ -326,26 +395,34 @@ const AdminUserDetail = () => {
               <Wallet className="h-5 w-5" />
               Payment Method
             </h3>
-            
+
             <div className="space-y-4">
               <div className="p-4 rounded-lg bg-secondary/50">
                 <div className="text-sm text-muted-foreground mb-1">Method</div>
                 <div className="font-medium capitalize">
-                  {user.payout_method === "usdc_solana" ? "USDC (Solana)" : user.payout_method || "Not set"}
+                  {user.payout_method === "usdc_solana"
+                    ? "USDC (Solana)"
+                    : user.payout_method || "Not set"}
                 </div>
               </div>
 
               {user.payout_method === "paypal" && (
                 <div className="p-4 rounded-lg bg-secondary/50">
-                  <div className="text-sm text-muted-foreground mb-1">PayPal Email</div>
+                  <div className="text-sm text-muted-foreground mb-1">
+                    PayPal Email
+                  </div>
                   <div className="flex items-center gap-2">
-                    <code className="font-mono">{user.payout_email || "Not set"}</code>
+                    <code className="font-mono">
+                      {user.payout_email || "Not set"}
+                    </code>
                     {user.payout_email && (
                       <Button
                         size="icon"
                         variant="ghost"
                         className="h-6 w-6"
-                        onClick={() => copyToClipboard(user.payout_email!, "PayPal email")}
+                        onClick={() =>
+                          copyToClipboard(user.payout_email!, "PayPal email")
+                        }
                       >
                         <Copy className="h-3 w-3" />
                       </Button>
@@ -356,7 +433,9 @@ const AdminUserDetail = () => {
 
               {user.payout_method === "usdc_solana" && (
                 <div className="p-4 rounded-lg bg-secondary/50">
-                  <div className="text-sm text-muted-foreground mb-1">Solana Wallet</div>
+                  <div className="text-sm text-muted-foreground mb-1">
+                    Solana Wallet
+                  </div>
                   <div className="flex items-center gap-2">
                     <code className="font-mono text-sm break-all">
                       {user.solana_wallet_address || "Not set"}
@@ -366,7 +445,12 @@ const AdminUserDetail = () => {
                         size="icon"
                         variant="ghost"
                         className="h-6 w-6 flex-shrink-0"
-                        onClick={() => copyToClipboard(user.solana_wallet_address!, "Wallet address")}
+                        onClick={() =>
+                          copyToClipboard(
+                            user.solana_wallet_address!,
+                            "Wallet address"
+                          )
+                        }
                       >
                         <Copy className="h-3 w-3" />
                       </Button>
@@ -376,11 +460,13 @@ const AdminUserDetail = () => {
               )}
 
               <div className="flex items-center gap-3 pt-4">
-                <span className={`px-3 py-1.5 rounded-lg text-sm ${
-                  user.payment_verified 
-                    ? "bg-emerald-500/10 text-emerald-400" 
-                    : "bg-yellow-500/10 text-yellow-400"
-                }`}>
+                <span
+                  className={`px-3 py-1.5 rounded-lg text-sm ${
+                    user.payment_verified
+                      ? "bg-emerald-500/10 text-emerald-400"
+                      : "bg-yellow-500/10 text-yellow-400"
+                  }`}
+                >
                   {user.payment_verified ? "✓ Verified" : "⚠ Unverified"}
                 </span>
                 {!user.payment_verified && (
@@ -402,12 +488,18 @@ const AdminUserDetail = () => {
           ) : (
             <div className="space-y-3">
               {userPayouts.map((payout: any) => (
-                <div key={payout.id} className="p-5 rounded-xl bg-card border border-border">
+                <div
+                  key={payout.id}
+                  className="p-5 rounded-xl bg-card border border-border"
+                >
                   <div className="flex items-start justify-between">
                     <div>
-                      <div className="text-2xl font-bold text-primary">${Number(payout.amount).toFixed(2)}</div>
+                      <div className="text-2xl font-bold text-primary">
+                        ${Number(payout.amount).toFixed(2)}
+                      </div>
                       <div className="text-sm text-muted-foreground mt-1">
-                        Requested {new Date(payout.created_at).toLocaleDateString()}
+                        Requested{" "}
+                        {new Date(payout.created_at).toLocaleDateString()}
                       </div>
                       {getStatusBadge(payout.status)}
                     </div>
@@ -426,17 +518,21 @@ const AdminUserDetail = () => {
                           </div>
                         ) : (
                           <>
-                            <Button 
-                              size="sm" 
+                            <Button
+                              size="sm"
                               className="bg-emerald-500 hover:bg-emerald-600"
-                              onClick={() => handlePayoutAction(payout.id, "approved")}
+                              onClick={() =>
+                                handlePayoutAction(payout.id, "approved")
+                              }
                             >
                               <CheckCircle className="h-4 w-4 mr-1" /> Approve
                             </Button>
-                            <Button 
-                              size="sm" 
+                            <Button
+                              size="sm"
                               variant="destructive"
-                              onClick={() => handlePayoutAction(payout.id, "rejected")}
+                              onClick={() =>
+                                handlePayoutAction(payout.id, "rejected")
+                              }
                             >
                               <XCircle className="h-4 w-4 mr-1" /> Reject
                             </Button>
@@ -446,7 +542,7 @@ const AdminUserDetail = () => {
                     )}
 
                     {payout.status === "approved" && (
-                      <Button 
+                      <Button
                         size="sm"
                         onClick={() => handlePayoutAction(payout.id, "paid")}
                       >
@@ -472,12 +568,17 @@ const AdminUserDetail = () => {
           ) : (
             <div className="space-y-2">
               {logs?.map((log) => (
-                <div key={log.id} className="p-4 rounded-lg bg-card border border-border flex items-center gap-4">
+                <div
+                  key={log.id}
+                  className="p-4 rounded-lg bg-card border border-border flex items-center gap-4"
+                >
                   <div className="p-2 rounded-lg bg-secondary">
                     <FileText className="h-4 w-4 text-muted-foreground" />
                   </div>
                   <div className="flex-1">
-                    <p className="font-medium capitalize">{log.action.replace(/_/g, " ")}</p>
+                    <p className="font-medium capitalize">
+                      {log.action.replace(/_/g, " ")}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {new Date(log.created_at).toLocaleString()}
                     </p>

@@ -199,6 +199,8 @@ export function useUpdateUserStatus(campaignId?: string) {
       updates: { is_banned?: boolean; payment_verified?: boolean };
       action: string;
     }) => {
+      console.debug("Updating user status", { userId, updates, action });
+
       const { error } = await supabase
         .from("profiles")
         .update(updates)
@@ -209,12 +211,19 @@ export function useUpdateUserStatus(campaignId?: string) {
         throw error;
       }
 
-      await createLog.mutateAsync({
-        action,
-        target_type: "user",
-        target_id: userId,
-        details: updates,
-      });
+      // Create an admin log but don't let logging failures block the primary update.
+      try {
+        await createLog.mutateAsync({
+          action,
+          target_type: "user",
+          target_id: userId,
+          details: updates,
+        });
+      } catch (logErr) {
+        console.warn("Failed to create admin log (non-fatal):", logErr);
+      }
+
+      console.debug("User status updated successfully", { userId, updates });
     },
     onMutate: async ({ userId, updates }) => {
       const queryKey = ["campaign_participants", campaignId];
@@ -235,13 +244,35 @@ export function useUpdateUserStatus(campaignId?: string) {
         )
       );
 
-      return { previousParticipants, queryKey };
+      // Also optimistically update the user_profile cache so the UI updates immediately
+      const userProfileKey = ["user_profile", userId];
+      const previousUserProfile = queryClient.getQueryData(userProfileKey);
+
+      if (updates && Object.keys(updates).length > 0) {
+        queryClient.setQueryData(userProfileKey, (old: any) => ({
+          ...(old || {}),
+          ...updates,
+        }));
+      }
+
+      return {
+        previousParticipants,
+        previousUserProfile,
+        queryKey,
+        userProfileKey,
+      };
     },
     onError: (err, variables, context) => {
       if (context?.previousParticipants) {
         queryClient.setQueryData(
           context.queryKey,
           context.previousParticipants
+        );
+      }
+      if (context?.previousUserProfile) {
+        queryClient.setQueryData(
+          context.userProfileKey,
+          context.previousUserProfile
         );
       }
       console.error("Mutation failed:", err);

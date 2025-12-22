@@ -51,17 +51,29 @@ export function useCreateAdminLog() {
       target_id: string;
       details?: Record<string, unknown>;
     }) => {
-      if (!user) throw new Error("Not authenticated");
+      if (!user) {
+        console.warn(
+          "Attempted to create admin log without authenticated user, skipping."
+        );
+        return;
+      }
 
-      const { error } = await supabase.from("admin_logs").insert([{
-        admin_id: user.id,
-        action: log.action,
-        target_type: log.target_type,
-        target_id: log.target_id,
-        details: log.details as any,
-      }]);
+      console.debug("Creating admin log", { admin_id: user.id, log });
 
-      if (error) throw error;
+      const { error } = await supabase.from("admin_logs").insert([
+        {
+          admin_id: user.id,
+          action: log.action,
+          target_type: log.target_type,
+          target_id: log.target_id,
+          details: log.details as any,
+        },
+      ]);
+
+      if (error) {
+        console.error("Failed to insert admin log:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin_logs"] });
