@@ -2,12 +2,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 interface ProcessPayoutBody {
   payout_id: string;
-  action: "approve" | "pay" | "reject";
+  action: "approve" | "paid" | "reject";
   admin_notes?: string;
 }
 
@@ -21,12 +22,16 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { payout_id, action, admin_notes }: ProcessPayoutBody = await req.json();
+    const { payout_id, action, admin_notes }: ProcessPayoutBody =
+      await req.json();
 
     if (!payout_id || !action) {
       return new Response(
         JSON.stringify({ error: "payout_id and action are required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
       );
     }
 
@@ -41,10 +46,10 @@ Deno.serve(async (req) => {
 
     if (payoutError || !payout) {
       console.error("Payout not found:", payoutError);
-      return new Response(
-        JSON.stringify({ error: "Payout not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Payout not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Get user's wallet
@@ -56,10 +61,10 @@ Deno.serve(async (req) => {
 
     if (walletError || !wallet) {
       console.error("Wallet not found:", walletError);
-      return new Response(
-        JSON.stringify({ error: "Wallet not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "Wallet not found" }), {
+        status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     let newStatus: string;
@@ -67,23 +72,20 @@ Deno.serve(async (req) => {
     let notificationTitle: string;
     let notificationMessage: string;
 
-    if (action === "approve") {
-      newStatus = "approved";
-      notificationType = "payout_approved";
-      notificationTitle = "Payout Approved";
-      notificationMessage = `Your payout request for $${payout.amount.toFixed(2)} has been approved and will be processed soon.`;
-
-      // Update payout status
-      await supabase
-        .from("payouts")
-        .update({ status: "approved", admin_notes })
-        .eq("id", payout_id);
-
-    } else if (action === "pay") {
-      newStatus = "paid";
-      notificationType = "payout_paid";
-      notificationTitle = "Payout Sent";
-      notificationMessage = `Your payout of $${payout.amount.toFixed(2)} has been sent to your ${payout.payout_method === "usdc_solana" ? "Solana wallet" : "PayPal account"}.`;
+    if (action === "approve" || action === "paid") {
+      const isPaid = action === "paid";
+      newStatus = isPaid ? "paid" : "approved";
+      notificationType = isPaid ? "payout_paid" : "payout_approved";
+      notificationTitle = isPaid ? "Payout Sent" : "Payout Approved";
+      notificationMessage = isPaid
+        ? `Your payout of $${payout.amount.toFixed(2)} has been sent to your ${
+            payout.payout_method === "usdc_solana"
+              ? "Solana wallet"
+              : "PayPal account"
+          }.`
+        : `Your payout request for $${payout.amount.toFixed(
+            2
+          )} has been approved and will be processed soon.`;
 
       // Move from locked to paid
       const newLockedEarnings = (wallet.locked_earnings || 0) - payout.amount;
@@ -101,19 +103,22 @@ Deno.serve(async (req) => {
       await supabase
         .from("payouts")
         .update({
-          status: "paid",
-          processed_at: new Date().toISOString(),
+          status: newStatus,
+          processed_at: isPaid ? new Date().toISOString() : null,
           admin_notes,
         })
         .eq("id", payout_id);
 
-      console.log(`Payout ${payout_id} marked as paid, moved $${payout.amount} from locked to paid`);
-
+      console.log(
+        `Payout ${payout_id} marked as ${newStatus}, moved $${payout.amount} from locked to paid`
+      );
     } else if (action === "reject") {
       newStatus = "rejected";
       notificationType = "payout_rejected";
       notificationTitle = "Payout Rejected";
-      notificationMessage = `Your payout request for $${payout.amount.toFixed(2)} has been rejected.${admin_notes ? ` Reason: ${admin_notes}` : ""}`;
+      notificationMessage = `Your payout request for $${payout.amount.toFixed(
+        2
+      )} has been rejected.${admin_notes ? ` Reason: ${admin_notes}` : ""}`;
 
       // Return locked funds to pending balance
       const newLockedEarnings = (wallet.locked_earnings || 0) - payout.amount;
@@ -133,13 +138,14 @@ Deno.serve(async (req) => {
         .update({ status: "rejected", admin_notes })
         .eq("id", payout_id);
 
-      console.log(`Payout ${payout_id} rejected, returned $${payout.amount} to pending balance`);
-
-    } else {
-      return new Response(
-        JSON.stringify({ error: "Invalid action" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      console.log(
+        `Payout ${payout_id} rejected, returned $${payout.amount} to pending balance`
       );
+    } else {
+      return new Response(JSON.stringify({ error: "Invalid action" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Send notification
@@ -153,16 +159,16 @@ Deno.serve(async (req) => {
       },
     });
 
-    return new Response(
-      JSON.stringify({ success: true, status: newStatus }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ success: true, status: newStatus }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     console.error("Error processing payout:", error);
-    return new Response(
-      JSON.stringify({ error: errorMessage }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
