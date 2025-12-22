@@ -201,14 +201,58 @@ export function useUpdateUserStatus(campaignId?: string) {
     }) => {
       console.debug("Updating user status", { userId, updates, action });
 
-      const { error } = await supabase
-        .from("profiles")
-        .update(updates)
-        .eq("id", userId);
+      // Try invoking server-side function (uses service role) to perform admin update.
+      try {
+        const fnBody = { user_id: userId, updates, action };
+        console.debug("Invoking admin-update-user function", fnBody);
+        const { data: fnData, error: fnError } =
+          await supabase.functions.invoke("admin-update-user", {
+            body: fnBody,
+          });
 
-      if (error) {
-        console.error("Error updating user status:", error);
-        throw error;
+        console.debug("admin-update-user response", { fnData, fnError });
+
+        if (fnError) {
+          console.warn(
+            "admin-update-user function returned error, falling back to direct update",
+            fnError
+          );
+          throw fnError;
+        }
+
+        // If function returns a JSON error payload, detect it
+        if (fnData && (fnData as any).error) {
+          const e = new Error((fnData as any).error || "Function error");
+          (e as any).details = fnData;
+          throw e;
+        }
+
+        // Success via function
+        console.debug("Profile updated via admin function", fnData);
+      } catch (fnInvokeErr) {
+        // Fallback: try direct update (may fail due to RLS)
+        console.debug("Falling back to direct supabase update", fnInvokeErr);
+
+        const { data, error, status, statusText } = await supabase
+          .from("profiles")
+          .update(updates)
+          .eq("id", userId)
+          .select()
+          .single();
+
+        console.debug("Supabase direct update response", {
+          data,
+          error,
+          status,
+          statusText,
+        });
+
+        if (error) {
+          console.error("Error updating user status (direct):", error);
+          (error as any).status = status;
+          (error as any).statusText = statusText;
+          throw error;
+        }
       }
 
       // Create an admin log but don't let logging failures block the primary update.

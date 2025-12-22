@@ -82,9 +82,15 @@ const AdminUserDetail = () => {
       });
       toast({ title: "User banned" });
     } catch (error: any) {
+      console.error("handleBan error:", error);
+      const desc =
+        error?.message ||
+        error?.error ||
+        JSON.stringify(error) ||
+        "Unknown error";
       toast({
         title: "Error",
-        description: error.message,
+        description: String(desc),
         variant: "destructive",
       });
     }
@@ -100,9 +106,15 @@ const AdminUserDetail = () => {
       });
       toast({ title: "User unbanned" });
     } catch (error: any) {
+      console.error("handleUnban error:", error);
+      const desc =
+        error?.message ||
+        error?.error ||
+        JSON.stringify(error) ||
+        "Unknown error";
       toast({
         title: "Error",
-        description: error.message,
+        description: String(desc),
         variant: "destructive",
       });
     }
@@ -118,9 +130,15 @@ const AdminUserDetail = () => {
       });
       toast({ title: "Payment method verified" });
     } catch (error: any) {
+      console.error("handleVerifyPayment error:", error);
+      const desc =
+        error?.message ||
+        error?.error ||
+        JSON.stringify(error) ||
+        "Unknown error";
       toast({
         title: "Error",
-        description: error.message,
+        description: String(desc),
         variant: "destructive",
       });
     }
