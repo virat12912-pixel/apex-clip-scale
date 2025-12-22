@@ -154,14 +154,42 @@ const AdminUserSubmissions = () => {
     }
   };
 
-  const handleReject = async (id: string) => {
+  const handleReject = async (id: string, hasEarnings: boolean) => {
+    setProcessing(id);
+    
     try {
-      await updateSubmission.mutateAsync({ id, status: "rejected" });
-      toast({ title: "Submission rejected" });
+      // Use the reject-submission edge function which handles reverting earnings
+      const { data, error } = await supabase.functions.invoke("reject-submission", {
+        body: { submission_id: id },
+      });
+
+      if (error) throw error;
+
+      if (data?.error) {
+        toast({
+          title: "Error",
+          description: data.error,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const reversedAmount = parseFloat(data?.reversed_earnings || "0");
+      if (reversedAmount > 0) {
+        toast({ 
+          title: "Submission rejected", 
+          description: `$${reversedAmount.toFixed(2)} earnings reversed` 
+        });
+      } else {
+        toast({ title: "Submission rejected" });
+      }
+      
       refetch();
     } catch (error: unknown) {
       logError("AdminUserSubmissions:handleReject", error);
       toast({ title: "Error", description: mapErrorToUserMessage(error), variant: "destructive" });
+    } finally {
+      setProcessing(null);
     }
   };
 
@@ -330,38 +358,54 @@ const AdminUserSubmissions = () => {
                 </div>
 
                 {/* Actions */}
-                {sub.status === "pending" && (
-                  <div className="flex items-center gap-2">
-                    <Button
-                      size="sm"
-                      className="bg-emerald-500 hover:bg-emerald-600"
-                      onClick={() => handleApprove(sub.id, currentViews)}
-                      disabled={processing === sub.id}
-                    >
-                      <CheckCircle className="h-4 w-4 mr-1" />
-                      {processing === sub.id ? "Processing..." : "Approve"}
-                    </Button>
+                <div className="flex items-center gap-2">
+                  {sub.status === "pending" && (
+                    <>
+                      <Button
+                        size="sm"
+                        className="bg-emerald-500 hover:bg-emerald-600"
+                        onClick={() => handleApprove(sub.id, currentViews)}
+                        disabled={processing === sub.id}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        {processing === sub.id ? "Processing..." : "Approve"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleReject(sub.id, Number(sub.earnings || 0) > 0)}
+                        disabled={processing === sub.id}
+                      >
+                        <XCircle className="h-4 w-4 mr-1" />
+                        {processing === sub.id ? "Processing..." : "Reject"}
+                      </Button>
+                    </>
+                  )}
+                  
+                  {sub.status === "approved" && (
                     <Button
                       size="sm"
                       variant="destructive"
-                      onClick={() => handleReject(sub.id)}
+                      onClick={() => handleReject(sub.id, Number(sub.earnings || 0) > 0)}
+                      disabled={processing === sub.id}
                     >
                       <XCircle className="h-4 w-4 mr-1" />
-                      Reject
+                      {processing === sub.id ? "Reversing..." : "Reject & Reverse Earnings"}
                     </Button>
-                    {(sub.platform === "tiktok" || sub.platform === "instagram") && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleRefreshViews(sub.id, sub.clip_url, sub.platform)}
-                        disabled={refreshing === sub.id}
-                      >
-                        <RefreshCw className={`h-4 w-4 mr-1 ${refreshing === sub.id ? "animate-spin" : ""}`} />
-                        Refresh Views
-                      </Button>
-                    )}
-                  </div>
-                )}
+                  )}
+                  
+                  {(sub.platform === "tiktok" || sub.platform === "instagram") && sub.status !== "rejected" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleRefreshViews(sub.id, sub.clip_url, sub.platform)}
+                      disabled={refreshing === sub.id}
+                    >
+                      <RefreshCw className={`h-4 w-4 mr-1 ${refreshing === sub.id ? "animate-spin" : ""}`} />
+                      Refresh Views
+                    </Button>
+                  )}
+                </div>
 
                 <div className="text-xs text-muted-foreground mt-3">
                   Submitted {new Date(sub.created_at).toLocaleDateString()} at {new Date(sub.created_at).toLocaleTimeString()}

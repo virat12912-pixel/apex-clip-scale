@@ -230,24 +230,6 @@ async function fetchViewsForPlatform(
   return { views: 0, likes: 0, comments: 0, description: null, author: null };
 }
 
-async function processSubmission(submissionId: string, viewData: ViewData): Promise<void> {
-  try {
-    const { error } = await supabase.functions.invoke("process-submission", {
-      body: {
-        submission_id: submissionId,
-        views: viewData.views,
-        likes: viewData.likes,
-        comments: viewData.comments,
-      },
-    });
-
-    if (error) {
-      console.error("Error processing submission:", error);
-    }
-  } catch (err) {
-    console.error("Error calling process-submission:", err);
-  }
-}
 
 export function useCreateSubmission() {
   const queryClient = useQueryClient();
@@ -365,17 +347,9 @@ export function useCreateSubmission() {
 
       if (error) throw error;
 
-      // Process each submission for earnings/budget updates
-      for (const sub of insertedSubmissions || []) {
-        const key = `${sub.platform}:${sub.clip_url}`;
-        const viewData = viewDataByKey.get(key) || {
-          views: Number(sub.views || 0),
-          likes: Number(sub.likes || 0),
-          comments: Number(sub.comments || 0),
-        };
-
-        await processSubmission(sub.id, viewData);
-      }
+      // Submissions are now in "pending" status with views recorded.
+      // Earnings will only be calculated when admin approves.
+      // No processSubmission call here - that happens on admin approval.
 
       return insertedSubmissions;
     },
