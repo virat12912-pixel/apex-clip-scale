@@ -50,8 +50,8 @@ async function expandShortUrl(url: string): Promise<string> {
       method: "GET",
       redirect: "follow",
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-      }
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      },
     });
     return response.url;
   } catch (err) {
@@ -201,9 +201,9 @@ async function fetchInstagramViews(videoUrl: string, apiKey: string): Promise<In
     }
 
     return {
-      views: postData.video_play_count || 0,
+      views: postData.video_view_count || 0,
       likes: postData.edge_media_preview_like?.count || 0,
-      comments: postData.edge_media_to_comment?.count || 0,
+      comments: postData.edge_media_preview_comment?.count || 0,
     };
   } catch (error) {
     console.error("Instagram fetch error:", error);
@@ -229,7 +229,9 @@ serve(async (req) => {
     // Get all pending/approved submissions for TikTok or Instagram with campaign data
     const { data: rawSubmissions, error: fetchError } = await supabase
       .from("submissions")
-      .select("id, clip_url, platform, views, submitted_views, earnings, status, creator_id, campaign:campaigns(id, status, min_payout_views, rate_unit, rate_value, max_earnings_per_post, total_budget, spent_budget)")
+      .select(
+        "id, clip_url, platform, views, submitted_views, earnings, status, creator_id, campaign:campaigns(id, status, min_payout_views, rate_unit, rate_value, max_earnings_per_post, total_budget, spent_budget)",
+      )
       .in("status", ["pending", "approved"])
       .in("platform", ["tiktok", "instagram"]);
 
@@ -260,38 +262,38 @@ serve(async (req) => {
         const campaign = sub.campaign;
         const previousViews = sub.views || 0;
         const previousEarnings = sub.earnings || 0;
-        
+
         let newEarnings = previousEarnings;
         let shouldRecalculate = false;
-        
+
         // Only recalculate if views increased and campaign is active
         if (campaign && campaign.status === "active" && result.views > previousViews) {
           shouldRecalculate = true;
           const minPayoutViews = campaign.min_payout_views || 1000;
-          
+
           if (result.views >= minPayoutViews) {
             // Calculate new earnings based on new views
             newEarnings = (result.views / campaign.rate_unit) * campaign.rate_value;
-            
+
             // Apply max_earnings_per_post cap
             if (campaign.max_earnings_per_post && newEarnings > campaign.max_earnings_per_post) {
               newEarnings = Number(campaign.max_earnings_per_post);
             }
-            
+
             // Check remaining budget
             const remainingBudget = Number(campaign.total_budget) - Number(campaign.spent_budget);
             const earningsDiff = newEarnings - previousEarnings;
-            
+
             if (earningsDiff > remainingBudget) {
               newEarnings = previousEarnings + remainingBudget;
             }
           }
         }
-        
+
         // Update submission
         const { error: updateError } = await supabase
           .from("submissions")
-          .update({ 
+          .update({
             views: result.views,
             likes: result.likes,
             comments: result.comments,
@@ -308,44 +310,43 @@ serve(async (req) => {
           // Update wallet and campaign budget if earnings changed
           if (shouldRecalculate && newEarnings > previousEarnings && campaign) {
             const earningsDiff = newEarnings - previousEarnings;
-            
+
             // Update creator's wallet
             const { data: wallet } = await supabase
               .from("wallets")
               .select("pending_balance")
               .eq("user_id", sub.creator_id)
               .maybeSingle();
-            
+
             if (wallet) {
               await supabase
                 .from("wallets")
                 .update({ pending_balance: Number(wallet.pending_balance) + earningsDiff })
                 .eq("user_id", sub.creator_id);
             }
-            
+
             // Update campaign spent budget
             const newSpentBudget = Number(campaign.spent_budget) + earningsDiff;
             const newRemainingBudget = Number(campaign.total_budget) - newSpentBudget;
-            
+
             const campaignUpdate: Record<string, unknown> = { spent_budget: newSpentBudget };
             if (newRemainingBudget <= 0) {
               campaignUpdate.status = "completed";
               console.log(`Campaign ${campaign.id} budget exhausted, marking as completed`);
             }
-            
-            await supabase
-              .from("campaigns")
-              .update(campaignUpdate)
-              .eq("id", campaign.id);
+
+            await supabase.from("campaigns").update(campaignUpdate).eq("id", campaign.id);
           }
-          
-          console.log(`Updated submission ${sub.id}: ${previousViews} -> ${result.views} views, earnings: $${newEarnings.toFixed(2)}`);
-          results.push({ 
-            submission_id: sub.id, 
-            success: true, 
+
+          console.log(
+            `Updated submission ${sub.id}: ${previousViews} -> ${result.views} views, earnings: $${newEarnings.toFixed(2)}`,
+          );
+          results.push({
+            submission_id: sub.id,
+            success: true,
             views: result.views,
             likes: result.likes,
-            comments: result.comments
+            comments: result.comments,
           });
           successCount++;
         }
