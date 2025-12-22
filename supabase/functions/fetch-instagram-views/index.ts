@@ -121,7 +121,7 @@ serve(async (req) => {
     const result = {
       success: true,
       shortcode: reelId,
-      play_count: postData.video_play_count || 0,
+      play_count: postData.video_view_count || 0,
       like_count: likeCount,
       comment_count: postData.edge_media_preview_comment?.count || 0,
       author: postData.owner?.username || null,
