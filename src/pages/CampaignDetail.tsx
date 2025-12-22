@@ -148,13 +148,18 @@ const CampaignDetail = () => {
     }
 
     try {
-      await createSubmission.mutateAsync(
-        validUrls.map(url => ({
+      await createSubmission.mutateAsync({
+        submissions: validUrls.map(url => ({
           campaign_id: id!,
           clip_url: url.trim(),
           platform: selectedPlatform,
-        }))
-      );
+        })),
+        verifiedAccounts: (socialAccounts || []).map(a => ({
+          platform: a.platform,
+          username: a.username,
+          verified: a.verified,
+        })),
+      });
 
       toast({
         title: "Clips submitted!",

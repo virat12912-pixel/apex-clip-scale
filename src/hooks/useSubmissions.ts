@@ -110,6 +110,13 @@ interface ViewData {
   likes: number;
   comments: number;
   description?: string | null;
+  author?: string | null;
+}
+
+interface VerifiedAccount {
+  platform: string;
+  username: string;
+  verified: boolean | null;
 }
 
 function normalizeRequirementToken(value: string) {
@@ -187,12 +194,13 @@ async function fetchViewsForPlatform(
       }
 
       if (data?.play_count !== undefined) {
-        console.log(`[${platform}] Successfully fetched views: ${data.play_count}`);
+        console.log(`[${platform}] Successfully fetched views: ${data.play_count}, author: ${data.author}`);
         return {
           views: Number(data.play_count ?? 0),
           likes: Number(data.like_count ?? 0),
           comments: Number(data.comment_count ?? 0),
           description: (data.description as string | null | undefined) ?? null,
+          author: (data.author as string | null | undefined) ?? null,
         };
       }
 
@@ -219,7 +227,7 @@ async function fetchViewsForPlatform(
 
   // All retries exhausted
   console.error(`[${platform}] All ${maxRetries} attempts failed. Last error:`, lastError);
-  return { views: 0, likes: 0, comments: 0, description: null };
+  return { views: 0, likes: 0, comments: 0, description: null, author: null };
 }
 
 async function processSubmission(submissionId: string, viewData: ViewData): Promise<void> {
@@ -246,11 +254,15 @@ export function useCreateSubmission() {
   const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async (submissions: {
-      campaign_id: string;
-      clip_url: string;
-      platform: "tiktok" | "instagram" | "youtube";
-    }[]) => {
+    mutationFn: async (params: {
+      submissions: {
+        campaign_id: string;
+        clip_url: string;
+        platform: "tiktok" | "instagram" | "youtube";
+      }[];
+      verifiedAccounts: VerifiedAccount[];
+    }) => {
+      const { submissions, verifiedAccounts } = params;
       if (!user) throw new Error("Not authenticated");
 
       // Fetch campaign requirements once (for validation)
@@ -294,6 +306,29 @@ export function useCreateSubmission() {
         if (viewData.views < campaignReq.min_views) {
           throw new Error(
             `This campaign requires at least ${campaignReq.min_views.toLocaleString()} views. Your clip currently has ${viewData.views.toLocaleString()} views.`
+          );
+        }
+
+        // Validate that the clip author matches a verified account
+        if (viewData.author) {
+          const normalizedAuthor = viewData.author.toLowerCase().replace(/^@/, '');
+          const hasVerifiedAccount = verifiedAccounts.some(
+            (a) =>
+              a.platform === s.platform &&
+              a.verified === true &&
+              a.username.toLowerCase().replace(/^@/, '') === normalizedAuthor
+          );
+
+          if (!hasVerifiedAccount) {
+            const platformName = s.platform.charAt(0).toUpperCase() + s.platform.slice(1);
+            throw new Error(
+              `The clip is from @${viewData.author}, but you haven't verified this account. Go to Social Accounts to add and verify @${viewData.author} on ${platformName}.`
+            );
+          }
+        } else {
+          // If we couldn't get the author, we cannot verify ownership
+          throw new Error(
+            `Could not verify the clip author. Please ensure the video is public and try again.`
           );
         }
 
