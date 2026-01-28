@@ -1,9 +1,10 @@
-import { LayoutDashboard, Search, Rocket, User, DollarSign, LogOut, Shield, Settings, Building2, FileText, Wallet, Smartphone, Users, Zap } from "lucide-react";
+import { LayoutDashboard, Search, Rocket, User, DollarSign, LogOut, Shield, Settings, Building2, FileText, Wallet, Smartphone, Users, Zap, BarChart3, Crown } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { ClipperTierBadge } from "@/components/dashboard/ClipperTierBadge";
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -11,11 +12,18 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const isCollapsed = state === "collapsed";
 
+  // Check if user has admin-level access
+  const hasAdminAccess = role === "admin" || role === "platform_admin";
+  // Check if user can launch campaigns (brands/admins)
+  const canLaunchCampaigns = hasAdminAccess || role === "brand" || role === "client_admin";
+  // Check if user is a clipper/creator type
+  const isClipperRole = role === "creator" || role === "clipper";
+
   const mainNavItems = [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
     { title: "Browse Campaigns", url: "/campaigns", icon: Search },
-    // Brands and admins can launch campaigns
-    ...((role === "admin" || role === "brand") ? [{ title: "Launch Campaign", url: "/launch", icon: Rocket }] : []),
+    // Brands, admins, and client admins can launch campaigns
+    ...(canLaunchCampaigns ? [{ title: "Launch Campaign", url: "/launch", icon: Rocket }] : []),
   ];
 
   const accountNavItems = [
@@ -25,7 +33,7 @@ export function AppSidebar() {
     { title: "Settings", url: "/settings", icon: Settings },
   ];
 
-  const adminNavItems = role === "admin" ? [
+  const adminNavItems = hasAdminAccess ? [
     { title: "Admin Panel", url: "/admin", icon: Shield },
     { title: "Submissions", url: "/admin/submissions", icon: FileText },
     { title: "Payouts", url: "/admin/payouts", icon: Wallet },
@@ -114,7 +122,12 @@ export function AppSidebar() {
           </div>
           {!isCollapsed && (
             <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium truncate">{profile?.full_name || "User"}</div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium truncate">{profile?.full_name || "User"}</span>
+                {isClipperRole && (
+                  <ClipperTierBadge tier={(profile as any)?.clipper_tier || "standard"} size="sm" showLabel={false} />
+                )}
+              </div>
               <div className="text-xs text-muted-foreground truncate">{profile?.email}</div>
             </div>
           )}

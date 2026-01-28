@@ -8,7 +8,9 @@ import {
   ArrowRight,
   Clock,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Activity,
+  Target
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
@@ -16,7 +18,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCreatorStats, useBrandStats } from "@/hooks/useStats";
 import { useCampaigns } from "@/hooks/useCampaigns";
 import { useMySubmissions } from "@/hooks/useSubmissions";
+import { useCreatorAnalytics } from "@/hooks/useCampaignAnalytics";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ExecutiveKPICard } from "@/components/dashboard/ExecutiveKPICard";
+import { ViewsChart } from "@/components/dashboard/ViewsChart";
+import { ClipperTierBadge } from "@/components/dashboard/ClipperTierBadge";
+import { CampaignHealthBadge } from "@/components/dashboard/CampaignHealthBadge";
+import { CampaignExportButton } from "@/components/campaigns/CampaignExportButton";
 
 const Dashboard = () => {
   const { profile, role } = useAuth();
@@ -24,9 +32,9 @@ const Dashboard = () => {
   const { data: brandStats, isLoading: brandLoading } = useBrandStats();
   const { data: campaigns, isLoading: campaignsLoading } = useCampaigns({ status: "active" });
   const { data: submissions, isLoading: submissionsLoading } = useMySubmissions();
+  const { data: analyticsData } = useCreatorAnalytics(30);
 
   const isLoading = role === "creator" ? creatorLoading : brandLoading;
-  const stats = role === "creator" ? creatorStats : brandStats;
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
@@ -37,97 +45,127 @@ const Dashboard = () => {
   const recentSubmissions = submissions?.slice(0, 4) || [];
   const activeCampaigns = campaigns?.slice(0, 3) || [];
 
+  // Calculate CPV for brands
+  const cpv = brandStats?.totalViews && brandStats.totalViews > 0 
+    ? (brandStats.spentBudget / brandStats.totalViews * 1000).toFixed(2)
+    : "0.00";
+
   return (
     <AppLayout title="Dashboard">
       {/* Welcome banner */}
-      <div className="mb-8 p-6 rounded-2xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20">
-        <h2 className="text-2xl font-bold mb-2">
-          Welcome back, {profile?.full_name?.split(" ")[0] || "there"}! 👋
-        </h2>
-        <p className="text-muted-foreground mb-4">
-          {role === "creator" 
-            ? `You have ${submissions?.filter(s => s.status === "pending").length || 0} pending submissions.`
-            : `You have ${campaigns?.length || 0} active campaigns.`
-          }
-        </p>
-        <div className="flex gap-3">
-          <Button asChild className="bg-gradient-primary hover:opacity-90">
-            <Link to="/campaigns">
-              Browse Campaigns
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Link>
-          </Button>
-          {(role === "brand" || role === "admin") && (
-            <Button variant="outline" asChild>
-              <Link to="/launch">Launch Campaign</Link>
+      <div className="mb-8 p-6 rounded-2xl bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border border-primary/20 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="relative">
+          <div className="flex items-center gap-3 mb-2">
+            <h2 className="text-2xl font-bold">
+              Welcome back, {profile?.full_name?.split(" ")[0] || "there"}!
+            </h2>
+            {role === "creator" && (
+              <ClipperTierBadge tier={(profile as any)?.clipper_tier || "standard"} size="sm" />
+            )}
+          </div>
+          <p className="text-muted-foreground mb-4">
+            {role === "creator" 
+              ? `You have ${submissions?.filter(s => s.status === "pending").length || 0} pending submissions.`
+              : `You have ${campaigns?.length || 0} active campaigns running.`
+            }
+          </p>
+          <div className="flex gap-3">
+            <Button asChild className="bg-gradient-primary hover:opacity-90 glow-primary-sm">
+              <Link to="/campaigns">
+                Browse Campaigns
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
             </Button>
-          )}
+            {(role === "brand" || role === "admin") && (
+              <Button variant="outline" asChild>
+                <Link to="/launch">Launch Campaign</Link>
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8 stagger-enter">
+      {/* Executive KPI Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {isLoading ? (
           Array(4).fill(0).map((_, i) => (
-            <Skeleton key={i} className="h-32 rounded-xl" />
+            <Skeleton key={i} className="h-40 rounded-xl" />
           ))
         ) : role === "creator" ? (
           <>
-            <StatCard 
+            <ExecutiveKPICard 
               icon={DollarSign}
               label="Total Earnings"
               value={`$${(creatorStats?.totalEarnings || 0).toFixed(2)}`}
-              change="+12.5%"
-              positive
+              subValue={`$${(creatorStats?.pendingBalance || 0).toFixed(2)} pending`}
+              trend={{ value: "12.5%", positive: true }}
+              variant="success"
             />
-            <StatCard 
+            <ExecutiveKPICard 
               icon={Eye}
               label="Total Views"
               value={formatNumber(creatorStats?.totalViews || 0)}
-              change="+8.2%"
-              positive
+              trend={{ value: "8.2%", positive: true }}
+              variant="primary"
             />
-            <StatCard 
+            <ExecutiveKPICard 
               icon={Film}
               label="Clips Submitted"
               value={creatorStats?.totalClips?.toString() || "0"}
-              change={`${creatorStats?.approvedClips || 0} approved`}
+              subValue={`${creatorStats?.approvedClips || 0} approved`}
+              variant="default"
             />
-            <StatCard 
-              icon={Clock}
-              label="Pending Balance"
-              value={`$${(creatorStats?.pendingBalance || 0).toFixed(2)}`}
+            <ExecutiveKPICard 
+              icon={Target}
+              label="Approval Rate"
+              value={`${creatorStats?.totalClips ? ((creatorStats?.approvedClips || 0) / creatorStats.totalClips * 100).toFixed(0) : 0}%`}
+              variant="default"
             />
           </>
         ) : (
           <>
-            <StatCard 
-              icon={TrendingUp}
+            <ExecutiveKPICard 
+              icon={Activity}
               label="Active Campaigns"
               value={brandStats?.activeCampaigns?.toString() || "0"}
-              change={`${brandStats?.totalCampaigns || 0} total`}
+              subValue={`${brandStats?.totalCampaigns || 0} total campaigns`}
+              variant="primary"
             />
-            <StatCard 
+            <ExecutiveKPICard 
               icon={DollarSign}
               label="Total Spent"
               value={`$${(brandStats?.spentBudget || 0).toFixed(2)}`}
-              change={`$${(brandStats?.totalBudget || 0).toFixed(0)} budget`}
+              subValue={`$${(brandStats?.totalBudget || 0).toFixed(0)} total budget`}
+              variant="warning"
             />
-            <StatCard 
+            <ExecutiveKPICard 
               icon={Eye}
               label="Total Views"
               value={formatNumber(brandStats?.totalViews || 0)}
-              change="+8.2%"
-              positive
+              trend={{ value: "15.3%", positive: true }}
+              variant="success"
             />
-            <StatCard 
-              icon={Film}
-              label="Submissions"
-              value={brandStats?.totalSubmissions?.toString() || "0"}
+            <ExecutiveKPICard 
+              icon={TrendingUp}
+              label="CPV (Cost per 1K Views)"
+              value={`$${cpv}`}
+              variant="default"
             />
           </>
         )}
       </div>
+
+      {/* Analytics Chart - Show for creators */}
+      {role === "creator" && analyticsData && analyticsData.length > 0 && (
+        <div className="mb-8">
+          <ViewsChart 
+            data={analyticsData} 
+            title="Your Performance (Last 30 Days)"
+            showEarnings={true}
+          />
+        </div>
+      )}
 
       {/* Main content grid */}
       <div className="grid lg:grid-cols-3 gap-6">
@@ -148,7 +186,7 @@ const Dashboard = () => {
           {campaignsLoading ? (
             <div className="space-y-4">
               {Array(3).fill(0).map((_, i) => (
-                <Skeleton key={i} className="h-24 rounded-lg" />
+                <Skeleton key={i} className="h-28 rounded-lg" />
               ))}
             </div>
           ) : activeCampaigns.length === 0 ? (
@@ -159,23 +197,37 @@ const Dashboard = () => {
           ) : (
             <div className="space-y-4">
               {activeCampaigns.map((campaign) => (
-                <Link
+                <div
                   key={campaign.id}
-                  to={`/campaigns/${campaign.id}`}
-                  className="block p-4 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors"
+                  className="p-4 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors border border-transparent hover:border-primary/20"
                 >
                   <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h4 className="font-medium">{campaign.name}</h4>
+                    <Link to={`/campaigns/${campaign.id}`} className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h4 className="font-medium">{campaign.name}</h4>
+                        {(campaign as any).health_status && (
+                          <CampaignHealthBadge status={(campaign as any).health_status} size="sm" />
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground">
                         ${campaign.rate_value} per {formatNumber(campaign.rate_unit)} views
                       </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-semibold text-primary">
-                        ${Number(campaign.total_budget).toFixed(0)}
+                    </Link>
+                    <div className="flex items-center gap-2">
+                      {role !== "creator" && (
+                        <CampaignExportButton 
+                          campaignId={campaign.id} 
+                          campaignName={campaign.name}
+                          variant="ghost"
+                          size="sm"
+                        />
+                      )}
+                      <div className="text-right">
+                        <div className="font-semibold text-primary">
+                          ${Number(campaign.total_budget).toFixed(0)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">budget</div>
                       </div>
-                      <div className="text-xs text-muted-foreground">budget</div>
                     </div>
                   </div>
 
@@ -187,9 +239,9 @@ const Dashboard = () => {
                     />
                   </div>
                   <div className="mt-1 text-xs text-muted-foreground text-right">
-                    ${Number(campaign.spent_budget).toFixed(0)} spent
+                    ${Number(campaign.spent_budget).toFixed(0)} spent ({((Number(campaign.spent_budget) / Number(campaign.total_budget)) * 100).toFixed(0)}%)
                   </div>
-                </Link>
+                </div>
               ))}
             </div>
           )}
@@ -216,7 +268,7 @@ const Dashboard = () => {
           ) : (
             <div className="space-y-4">
               {recentSubmissions.map((submission) => (
-                <div key={submission.id} className="flex items-start gap-3">
+                <div key={submission.id} className="flex items-start gap-3 p-3 rounded-lg bg-secondary/30 hover:bg-secondary/50 transition-colors">
                   <div className={`p-2 rounded-lg ${
                     submission.status === "approved" || submission.status === "paid"
                       ? "bg-emerald-500/10 text-emerald-400"
@@ -238,9 +290,16 @@ const Dashboard = () => {
                       {submission.campaign?.name || "Campaign"}
                     </p>
                   </div>
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">
-                    {new Date(submission.created_at).toLocaleDateString()}
-                  </span>
+                  <div className="text-right">
+                    {(submission.status === "approved" || submission.status === "paid") && (
+                      <p className="text-sm font-medium text-emerald-400">
+                        +${Number(submission.earnings).toFixed(2)}
+                      </p>
+                    )}
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(submission.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -250,40 +309,5 @@ const Dashboard = () => {
     </AppLayout>
   );
 };
-
-function StatCard({ 
-  icon: Icon, 
-  label, 
-  value, 
-  change, 
-  positive 
-}: { 
-  icon: React.ElementType; 
-  label: string; 
-  value: string; 
-  change?: string;
-  positive?: boolean;
-}) {
-  return (
-    <div className="p-5 rounded-xl bg-card border border-border card-hover">
-      <div className="flex items-start justify-between mb-3">
-        <div className="p-2 rounded-lg bg-primary/10">
-          <Icon className="h-5 w-5 text-primary" />
-        </div>
-        {change && (
-          <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-            positive 
-              ? "bg-emerald-500/10 text-emerald-400" 
-              : "bg-secondary text-muted-foreground"
-          }`}>
-            {change}
-          </span>
-        )}
-      </div>
-      <div className="text-2xl font-bold mb-1">{value}</div>
-      <div className="text-sm text-muted-foreground">{label}</div>
-    </div>
-  );
-}
 
 export default Dashboard;

@@ -2,6 +2,10 @@ import { useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { AppLayout } from "@/components/app/AppLayout";
 import { CampaignLeaderboard } from "@/components/campaigns/CampaignLeaderboard";
+import { CampaignExportButton } from "@/components/campaigns/CampaignExportButton";
+import { CampaignHealthBadge } from "@/components/dashboard/CampaignHealthBadge";
+import { ViewsChart } from "@/components/dashboard/ViewsChart";
+import { useCampaignAnalytics } from "@/hooks/useCampaignAnalytics";
 import { 
   ArrowLeft,
   DollarSign, 
@@ -17,7 +21,8 @@ import {
   Smartphone,
   Camera,
   Play,
-  Trophy
+  Trophy,
+  BarChart3
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +66,7 @@ const CampaignDetail = () => {
   const { data: socialAccounts } = useMySocialAccounts();
   const { data: campaign, isLoading, refetch } = useCampaign(id || "");
   const { data: submissions } = useCampaignSubmissions(id || "");
+  const { data: analyticsData } = useCampaignAnalytics(id, 30);
   const createSubmission = useCreateSubmission();
   const updateCampaign = useUpdateCampaign();
   const deleteCampaign = useDeleteCampaign();
@@ -241,7 +247,12 @@ const CampaignDetail = () => {
 
         {/* Campaign Management for owners/admins */}
         {canManage && (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <CampaignExportButton 
+              campaignId={campaign.id} 
+              campaignName={campaign.name}
+              size="sm"
+            />
             {campaign.status === "active" && (
               <Button
                 size="sm"
@@ -288,7 +299,7 @@ const CampaignDetail = () => {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleDelete} className="bg-red-500 hover:bg-red-600">
+                  <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
                     Delete
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -326,15 +337,20 @@ const CampaignDetail = () => {
                   </p>
                 </div>
               </div>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                isActive
-                  ? "bg-emerald-500/10 text-emerald-400"
-                  : campaign.status === "paused"
-                  ? "bg-yellow-500/10 text-yellow-400"
-                  : "bg-secondary text-muted-foreground"
-              }`}>
-                {campaign.status}
-              </span>
+              <div className="flex items-center gap-2">
+                {(campaign as any).health_status && (
+                  <CampaignHealthBadge status={(campaign as any).health_status} size="sm" />
+                )}
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  isActive
+                    ? "bg-emerald-500/10 text-emerald-400"
+                    : campaign.status === "paused"
+                    ? "bg-amber-500/10 text-amber-400"
+                    : "bg-secondary text-muted-foreground"
+                }`}>
+                  {campaign.status}
+                </span>
+              </div>
             </div>
 
             {/* Platforms */}
@@ -370,9 +386,9 @@ const CampaignDetail = () => {
             )}
           </div>
 
-          {/* Tabs for Submit / Leaderboard */}
+          {/* Tabs for Submit / Leaderboard / Analytics */}
           <Tabs defaultValue="submit" className="w-full">
-            <TabsList className="w-full grid grid-cols-2 mb-4">
+            <TabsList className={`w-full grid ${canManage ? 'grid-cols-3' : 'grid-cols-2'} mb-4`}>
               <TabsTrigger value="submit" className="flex items-center gap-2">
                 <Plus className="h-4 w-4" />
                 Submit Clips
@@ -381,6 +397,12 @@ const CampaignDetail = () => {
                 <Trophy className="h-4 w-4" />
                 Leaderboard
               </TabsTrigger>
+              {canManage && (
+                <TabsTrigger value="analytics" className="flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4" />
+                  Analytics
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="submit" className="space-y-6">
@@ -567,6 +589,26 @@ const CampaignDetail = () => {
             <TabsContent value="leaderboard">
               <CampaignLeaderboard campaignId={id || ""} />
             </TabsContent>
+
+            {canManage && (
+              <TabsContent value="analytics" className="space-y-6">
+                {analyticsData && analyticsData.length > 0 ? (
+                  <ViewsChart 
+                    data={analyticsData} 
+                    title="Campaign Performance (Last 30 Days)"
+                    showEarnings={true}
+                  />
+                ) : (
+                  <div className="p-6 rounded-xl bg-card border border-border text-center">
+                    <BarChart3 className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                    <p className="text-muted-foreground">No analytics data available yet</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Analytics will appear once submissions start coming in
+                    </p>
+                  </div>
+                )}
+              </TabsContent>
+            )}
           </Tabs>
         </div>
 

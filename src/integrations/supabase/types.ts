@@ -80,13 +80,54 @@ export type Database = {
         }
         Relationships: []
       }
+      campaign_analytics: {
+        Row: {
+          campaign_id: string
+          created_at: string | null
+          date: string
+          earnings: number | null
+          id: string
+          submissions_count: number | null
+          views: number | null
+        }
+        Insert: {
+          campaign_id: string
+          created_at?: string | null
+          date: string
+          earnings?: number | null
+          id?: string
+          submissions_count?: number | null
+          views?: number | null
+        }
+        Update: {
+          campaign_id?: string
+          created_at?: string | null
+          date?: string
+          earnings?: number | null
+          id?: string
+          submissions_count?: number | null
+          views?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_analytics_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
+          auto_pause_enabled: boolean | null
+          budget_alert_threshold: number | null
           created_at: string
           created_by: string
           description: string | null
           duration_days: number | null
           end_date: string | null
+          health_status: string | null
           id: string
           image_url: string | null
           max_earnings_per_post: number | null
@@ -106,11 +147,14 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_pause_enabled?: boolean | null
+          budget_alert_threshold?: number | null
           created_at?: string
           created_by: string
           description?: string | null
           duration_days?: number | null
           end_date?: string | null
+          health_status?: string | null
           id?: string
           image_url?: string | null
           max_earnings_per_post?: number | null
@@ -130,11 +174,14 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_pause_enabled?: boolean | null
+          budget_alert_threshold?: number | null
           created_at?: string
           created_by?: string
           description?: string | null
           duration_days?: number | null
           end_date?: string | null
+          health_status?: string | null
           id?: string
           image_url?: string | null
           max_earnings_per_post?: number | null
@@ -162,6 +209,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      clipper_stats: {
+        Row: {
+          approvals_count: number | null
+          created_at: string | null
+          date: string
+          earnings: number | null
+          id: string
+          submissions_count: number | null
+          user_id: string
+          views: number | null
+        }
+        Insert: {
+          approvals_count?: number | null
+          created_at?: string | null
+          date: string
+          earnings?: number | null
+          id?: string
+          submissions_count?: number | null
+          user_id: string
+          views?: number | null
+        }
+        Update: {
+          approvals_count?: number | null
+          created_at?: string | null
+          date?: string
+          earnings?: number | null
+          id?: string
+          submissions_count?: number | null
+          user_id?: string
+          views?: number | null
+        }
+        Relationships: []
       }
       notifications: {
         Row: {
@@ -242,8 +322,10 @@ export type Database = {
       }
       profiles: {
         Row: {
+          approval_rate: number | null
           avatar_url: string | null
           bio: string | null
+          clipper_tier: string | null
           created_at: string
           email: string
           full_name: string | null
@@ -255,11 +337,14 @@ export type Database = {
           referral_code: string | null
           referred_by: string | null
           solana_wallet_address: string | null
+          total_views_generated: number | null
           updated_at: string
         }
         Insert: {
+          approval_rate?: number | null
           avatar_url?: string | null
           bio?: string | null
+          clipper_tier?: string | null
           created_at?: string
           email: string
           full_name?: string | null
@@ -271,11 +356,14 @@ export type Database = {
           referral_code?: string | null
           referred_by?: string | null
           solana_wallet_address?: string | null
+          total_views_generated?: number | null
           updated_at?: string
         }
         Update: {
+          approval_rate?: number | null
           avatar_url?: string | null
           bio?: string | null
+          clipper_tier?: string | null
           created_at?: string
           email?: string
           full_name?: string | null
@@ -287,6 +375,7 @@ export type Database = {
           referral_code?: string | null
           referred_by?: string | null
           solana_wallet_address?: string | null
+          total_views_generated?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -543,6 +632,7 @@ export type Database = {
         | "clipper"
         | "platform_admin"
       campaign_status: "active" | "paused" | "completed" | "private"
+      clipper_tier: "standard" | "verified" | "elite"
       payout_status: "pending" | "approved" | "paid" | "rejected"
       platform_type: "tiktok" | "instagram" | "youtube"
       submission_status: "pending" | "approved" | "rejected" | "paid"
@@ -684,6 +774,7 @@ export const Constants = {
         "platform_admin",
       ],
       campaign_status: ["active", "paused", "completed", "private"],
+      clipper_tier: ["standard", "verified", "elite"],
       payout_status: ["pending", "approved", "paid", "rejected"],
       platform_type: ["tiktok", "instagram", "youtube"],
       submission_status: ["pending", "approved", "rejected", "paid"],
