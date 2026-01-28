@@ -533,7 +533,15 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "creator" | "brand" | "admin"
+      app_role:
+        | "creator"
+        | "brand"
+        | "admin"
+        | "client_admin"
+        | "client_manager"
+        | "client_viewer"
+        | "clipper"
+        | "platform_admin"
       campaign_status: "active" | "paused" | "completed" | "private"
       payout_status: "pending" | "approved" | "paid" | "rejected"
       platform_type: "tiktok" | "instagram" | "youtube"
@@ -665,7 +673,16 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["creator", "brand", "admin"],
+      app_role: [
+        "creator",
+        "brand",
+        "admin",
+        "client_admin",
+        "client_manager",
+        "client_viewer",
+        "clipper",
+        "platform_admin",
+      ],
       campaign_status: ["active", "paused", "completed", "private"],
       payout_status: ["pending", "approved", "paid", "rejected"],
       platform_type: ["tiktok", "instagram", "youtube"],
