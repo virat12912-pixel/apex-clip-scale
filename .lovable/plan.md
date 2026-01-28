@@ -1,92 +1,37 @@
 
 
-# Plan: Real-Time Submission View Updates
+# Plan: Update RapidAPI Keys for Bio Verification
 
 ## Overview
-Add real-time view updates to submissions so creators and admins see live view counts without page refresh, similar to how notifications currently work.
+Update the TikTok and Instagram API keys with the new RapidAPI key you provided so the bio verification mechanism works.
 
-## Current Architecture
-- Views are fetched at submission time and refreshed daily via cron job
-- Dashboard polls data on mount but doesn't receive live updates
-- Notifications already use Supabase Realtime for instant updates
+## Steps
 
-## Implementation Approach
-
-### 1. Enable Realtime on Submissions Table
-Add the submissions table to Supabase Realtime publication to broadcast changes.
-
-**Database change:**
-```sql
-ALTER PUBLICATION supabase_realtime ADD TABLE public.submissions;
+### 1. Update TIKTOK_API_KEY Secret
+Replace the current TikTok API key with the new key:
+```
+aa0adfaf90msh966f61f493a0d28p11f6afjsnff2a014bd89b
 ```
 
-### 2. Add Realtime Subscription to Submissions Hook
-Update `useMySubmissions` to subscribe to real-time changes, mirroring the pattern used in `useNotifications`.
-
-**File:** `src/hooks/useSubmissions.ts`
-- Add `useEffect` with Supabase channel subscription
-- Listen for `UPDATE` events on submissions for the current user
-- Invalidate queries when changes are detected
-
-### 3. Add Realtime to Admin Submissions
-For the admin dashboard, subscribe to all submission updates.
-
-**File:** `src/hooks/useSubmissions.ts` (in `useAllSubmissions`)
-- Add realtime subscription for admins to see updates across all submissions
-
-### 4. (Optional) On-Demand Refresh Button
-Add a "Refresh Views" button on individual submission cards that triggers a fresh view fetch for that specific clip.
-
-**Files to modify:**
-- Create new edge function `refresh-single-submission` or reuse existing `fetch-tiktok-views`/`fetch-instagram-views`
-- Add UI button component on submission cards
-
----
-
-## Technical Details
-
-### Realtime Subscription Pattern (from notifications)
-```typescript
-useEffect(() => {
-  if (!user) return;
-
-  const channel = supabase
-    .channel('submissions-realtime')
-    .on(
-      'postgres_changes',
-      {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'submissions',
-        filter: `creator_id=eq.${user.id}`
-      },
-      () => {
-        queryClient.invalidateQueries({ queryKey: ["submissions"] });
-      }
-    )
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}, [user, queryClient]);
+### 2. Update INSTAGRAM_API_KEY Secret
+If the same key is subscribed to both APIs, update the Instagram API key with the same value:
+```
+aa0adfaf90msh966f61f493a0d28p11f6afjsnff2a014bd89b
 ```
 
-### Files to Modify
-| File | Changes |
-|------|---------|
-| `src/hooks/useSubmissions.ts` | Add realtime subscriptions to `useMySubmissions` and `useAllSubmissions` |
-| Database migration | Enable realtime for submissions table |
+### 3. Test Verification Flow
+After updating the secrets:
+1. Go to Social Accounts page
+2. Add a TikTok or Instagram account
+3. Copy the verification code shown (e.g., `APEX12345678`)
+4. Add that code to your social media bio
+5. Click "Verify" button
+6. The system will fetch your bio and confirm the code is present
 
-### How Updates Flow
-1. Daily cron job runs `update-all-views` edge function
-2. Edge function updates submissions in database
-3. Supabase Realtime broadcasts the change
-4. Frontend hooks receive the update and refresh data
-5. UI updates instantly without page reload
+## Prerequisites
+Ensure your RapidAPI account has active subscriptions to:
+- `tiktok-scraper7.p.rapidapi.com` (for TikTok verification)
+- `instagram-scraper21.p.rapidapi.com` (for Instagram verification)
 
----
-
-## Summary
-This adds real-time view updates using the same pattern already working for notifications. When views are updated (via daily cron or manual refresh), all connected clients will see the changes immediately.
+Both can use the same API key if subscribed under the same RapidAPI account.
 
