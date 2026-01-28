@@ -1,9 +1,11 @@
 import { useAuth } from "@/hooks/useAuth";
 import { Navigate, useLocation } from "react-router-dom";
 
+type AppRole = "creator" | "brand" | "admin" | "client_admin" | "client_manager" | "client_viewer" | "clipper" | "platform_admin";
+
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRoles?: Array<"creator" | "brand" | "admin">;
+  allowedRoles?: AppRole[];
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {

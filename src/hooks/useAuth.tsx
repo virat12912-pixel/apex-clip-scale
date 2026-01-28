@@ -3,7 +3,7 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
-type AppRole = "creator" | "brand" | "admin";
+type AppRole = "creator" | "brand" | "admin" | "client_admin" | "client_manager" | "client_viewer" | "clipper" | "platform_admin";
 
 interface Profile {
   id: string;
