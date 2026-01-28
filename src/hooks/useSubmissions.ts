@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { mapErrorToUserMessage, logError } from "@/lib/errorMapping";
+import { useEffect } from "react";
 
 export interface Submission {
   id: string;
@@ -31,6 +32,32 @@ export interface Submission {
 
 export function useMySubmissions() {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Set up realtime subscription for view updates
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('my-submissions-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'submissions',
+          filter: `creator_id=eq.${user.id}`
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["submissions", "my", user.id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, queryClient]);
 
   return useQuery({
     queryKey: ["submissions", "my", user?.id],
@@ -77,6 +104,31 @@ export function useCampaignSubmissions(campaignId: string) {
 
 export function useAllSubmissions() {
   const { role } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Set up realtime subscription for admin view updates (all submissions)
+  useEffect(() => {
+    if (role !== "admin") return;
+
+    const channel = supabase
+      .channel('all-submissions-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'submissions'
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["submissions", "all"] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [role, queryClient]);
   
   return useQuery({
     queryKey: ["submissions", "all"],
