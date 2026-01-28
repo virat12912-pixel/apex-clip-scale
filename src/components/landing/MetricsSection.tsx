@@ -1,11 +1,11 @@
-import { Users, Eye, CheckCircle, Film, TrendingUp } from "lucide-react";
+import { Users, Eye, CheckCircle, Film, Building2, Globe } from "lucide-react";
 
 const metrics = [
   {
     icon: Users,
     value: "2,400+",
-    label: "Active Clippers",
-    description: "Skilled creators ready to clip",
+    label: "Vetted Clippers",
+    description: "Quality-screened professionals",
   },
   {
     icon: Eye,
@@ -17,13 +17,13 @@ const metrics = [
     icon: CheckCircle,
     value: "890+",
     label: "Campaigns Completed",
-    description: "Successful launches",
+    description: "Enterprise-grade launches",
   },
   {
-    icon: Film,
-    value: "12K+",
-    label: "Clips Published",
-    description: "Quality content created",
+    icon: Building2,
+    value: "150+",
+    label: "Brands Trust Us",
+    description: "From startups to enterprises",
   },
 ];
 
@@ -42,17 +42,17 @@ const MetricsSection = () => {
               <span className="relative w-3 h-3 rounded-full bg-emerald-500" />
             </div>
             <span className="text-sm text-muted-foreground">
-              <span className="font-semibold text-foreground">+25,767</span> active creators in the community
+              <span className="font-semibold text-foreground">+25,767</span> active creators in the network
             </span>
           </div>
         </div>
 
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-            Built for <span className="text-gradient">Scale</span>
+            Built for <span className="text-gradient">Enterprise Scale</span>
           </h2>
           <p className="text-muted-foreground max-w-xl mx-auto">
-            Real results from real creators. Our platform delivers measurable impact.
+            Real results from real brands. Our platform delivers measurable impact at any scale.
           </p>
         </div>
 

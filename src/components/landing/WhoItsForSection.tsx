@@ -1,24 +1,26 @@
-import { Check, Sparkles, DollarSign } from "lucide-react";
+import { Check, Building2, DollarSign, Users, Shield, Clock, BarChart3 } from "lucide-react";
 
-const creatorBenefits = [
+const clientBenefits = [
   "Scale content without hiring a team",
   "Pay only for performance",
-  "Access a global network of clippers",
-  "Real-time analytics dashboard",
-  "Full creative control",
+  "Full approval control over all content",
+  "Real-time analytics & reporting",
+  "Multi-user team access",
+  "Budget caps & governance controls",
 ];
 
 const clipperBenefits = [
-  "Earn money doing what you love",
+  "Earn from your clipping skills",
   "Work on your own schedule",
-  "Access premium content to clip",
+  "Access premium brand content",
   "Performance-based bonuses",
-  "Build your portfolio",
+  "Build your professional portfolio",
+  "Tiered rewards (Standard → Elite)",
 ];
 
 const WhoItsForSection = () => {
   return (
-    <section className="py-20 px-4">
+    <section id="for-clients" className="py-20 px-4">
       <div className="container">
         <div className="text-center mb-16">
           <span className="inline-block text-primary text-sm font-semibold tracking-wider uppercase mb-4">
@@ -28,27 +30,27 @@ const WhoItsForSection = () => {
             Built for <span className="text-gradient">Both Sides</span>
           </h2>
           <p className="text-muted-foreground max-w-xl mx-auto">
-            Whether you're scaling content or earning from your skills, Apex has you covered.
+            Whether you're scaling content or earning from your skills, Amplify has you covered.
           </p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6 sm:gap-8 max-w-5xl mx-auto stagger-enter">
-          {/* Creators Card */}
+          {/* Clients Card */}
           <div className="group relative p-8 rounded-2xl bg-card border border-border card-hover">
             {/* Header */}
             <div className="flex items-center gap-4 mb-6">
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 text-primary transition-transform duration-300 group-hover:scale-110">
-                <Sparkles className="w-6 h-6" />
+                <Building2 className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-xl font-semibold">For Creators & Brands</h3>
-                <p className="text-sm text-muted-foreground">Scale your content empire</p>
+                <h3 className="text-xl font-semibold">For Brands & Enterprises</h3>
+                <p className="text-sm text-muted-foreground">Scale your content operation</p>
               </div>
             </div>
 
             {/* Benefits List */}
             <ul className="space-y-4">
-              {creatorBenefits.map((benefit, index) => (
+              {clientBenefits.map((benefit, index) => (
                 <li 
                   key={benefit} 
                   className="flex items-start gap-3 opacity-0 animate-fade-up"
@@ -62,12 +64,22 @@ const WhoItsForSection = () => {
               ))}
             </ul>
 
+            {/* Role badges */}
+            <div className="mt-6 pt-6 border-t border-border">
+              <p className="text-xs text-muted-foreground mb-3">Available roles:</p>
+              <div className="flex flex-wrap gap-2">
+                <span className="badge-enterprise">Client Admin</span>
+                <span className="badge-enterprise">Client Manager</span>
+                <span className="badge-enterprise">Client Viewer</span>
+              </div>
+            </div>
+
             {/* Decorative gradient */}
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
           </div>
 
           {/* Clippers Card */}
-          <div className="group relative p-8 rounded-2xl bg-card border border-border card-hover">
+          <div id="for-clippers" className="group relative p-8 rounded-2xl bg-card border border-border card-hover">
             {/* Header */}
             <div className="flex items-center gap-4 mb-6">
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 text-primary transition-transform duration-300 group-hover:scale-110">
@@ -94,6 +106,16 @@ const WhoItsForSection = () => {
                 </li>
               ))}
             </ul>
+
+            {/* Tier badges */}
+            <div className="mt-6 pt-6 border-t border-border">
+              <p className="text-xs text-muted-foreground mb-3">Quality tiers:</p>
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-secondary text-secondary-foreground border border-border">Standard</span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20">Verified</span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">Elite</span>
+              </div>
+            </div>
 
             {/* Decorative gradient */}
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />

@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Play } from "lucide-react";
+import { ArrowRight, Play, Shield, TrendingUp, Users } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 // Platform icons as SVG components
@@ -28,7 +28,7 @@ const HeroSection = () => {
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 py-20">
       {/* Background glow effect */}
       <div className="absolute inset-0 flex items-center justify-center gpu-accelerated">
-        <div className="w-[600px] h-[600px] rounded-full bg-primary/10 blur-[120px] animate-pulse-glow gpu-accelerated" />
+        <div className="w-[700px] h-[700px] rounded-full bg-primary/10 blur-[150px] animate-pulse-glow gpu-accelerated" />
       </div>
       
       {/* Grid pattern overlay */}
@@ -42,40 +42,58 @@ const HeroSection = () => {
       />
 
       <div className="container relative z-10 text-center">
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-card/50 backdrop-blur-sm mb-8 opacity-0 animate-fade-up" style={{ animationDelay: '0.1s' }}>
-          <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-          <span className="text-sm text-muted-foreground">Performance-driven clipping network</span>
+        {/* Enterprise badge */}
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/30 bg-primary/5 backdrop-blur-sm mb-8 opacity-0 animate-fade-up" style={{ animationDelay: '0.1s' }}>
+          <Shield className="w-4 h-4 text-primary" />
+          <span className="text-sm text-foreground font-medium">Enterprise-Grade Short-Form Growth Platform</span>
         </div>
 
         {/* Main headline */}
         <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-6 opacity-0 animate-fade-up" style={{ animationDelay: '0.2s' }}>
-          Clip Faster.{" "}
-          <span className="text-gradient">Scale Harder.</span>
+          Scale Content.{" "}
+          <span className="text-gradient">Amplify Growth.</span>
         </h1>
 
         {/* Subheadline */}
         <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 opacity-0 animate-fade-up" style={{ animationDelay: '0.3s' }}>
-          Apex Clipping connects creators with a global network of skilled clippers. 
-          Launch campaigns, track performance, and scale your short-form content organically.
+          Amplify connects enterprise brands with a vetted network of professional clippers. 
+          Launch campaigns, track performance, and scale your short-form content with confidence.
         </p>
 
         {/* CTA Buttons */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 opacity-0 animate-fade-up" style={{ animationDelay: '0.4s' }}>
           <Button size="lg" className="w-full sm:w-auto bg-gradient-primary hover:opacity-90 transition-opacity text-lg px-8 py-6 glow-primary" onClick={() => navigate("/auth")}>
-            Get Paid to Clip
+            Start a Campaign
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
-          <Button size="lg" variant="outline" className="w-full sm:w-auto text-lg px-8 py-6 border-border hover:bg-secondary" onClick={() => navigate("/auth")}>
+          <Button size="lg" variant="outline" className="w-full sm:w-auto text-lg px-8 py-6 border-border hover:bg-secondary hover:border-primary/30" onClick={() => navigate("/auth")}>
             <Play className="mr-2 h-5 w-5" />
-            Launch a Campaign
+            View Examples
           </Button>
         </div>
 
+        {/* Trust indicators */}
+        <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-6 opacity-0 animate-fade-up" style={{ animationDelay: '0.5s' }}>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <TrendingUp className="w-4 h-4 text-primary" />
+            <span>Budget-based pricing</span>
+          </div>
+          <div className="hidden sm:block w-1 h-1 rounded-full bg-muted-foreground" />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Users className="w-4 h-4 text-primary" />
+            <span>2,400+ vetted clippers</span>
+          </div>
+          <div className="hidden sm:block w-1 h-1 rounded-full bg-muted-foreground" />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Shield className="w-4 h-4 text-primary" />
+            <span>Full approval control</span>
+          </div>
+        </div>
+
         {/* Platform icons */}
-        <div className="mt-12 opacity-0 animate-fade-up" style={{ animationDelay: '0.5s' }}>
+        <div className="mt-10 opacity-0 animate-fade-up" style={{ animationDelay: '0.6s' }}>
           <p className="text-sm text-muted-foreground mb-4">Distribute across all major platforms</p>
-          <div className="flex items-center justify-center gap-6">
+          <div className="flex items-center justify-center gap-4">
             <div className="p-3 rounded-xl bg-card/50 border border-border hover:border-primary/30 transition-colors text-muted-foreground hover:text-foreground">
               <TikTokIcon />
             </div>
