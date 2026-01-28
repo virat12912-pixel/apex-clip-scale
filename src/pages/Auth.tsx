@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowRight, Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, ArrowLeft, Zap, Shield, TrendingUp } from "lucide-react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -166,11 +166,11 @@ const Auth = () => {
           </Link>
 
           {/* Logo */}
-          <div className="flex items-center gap-2 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center">
-              <span className="text-lg font-bold text-primary-foreground">A</span>
+          <div className="flex items-center gap-2.5 mb-8">
+            <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center glow-primary-sm">
+              <Zap className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="font-bold text-2xl">Apex Clipping</span>
+            <span className="font-bold text-2xl">Amplify</span>
           </div>
 
           {/* Header */}
@@ -337,18 +337,39 @@ const Auth = () => {
         {/* Content */}
         <div className="relative z-10 flex flex-col justify-center px-16">
           <h2 className="text-4xl font-bold mb-4">
-            <span className="text-gradient">Join the #1</span> clipping network
+            <span className="text-gradient">Enterprise-Grade</span> Content Scaling
           </h2>
           <p className="text-lg text-muted-foreground mb-8 max-w-md">
-            Connect with creators, clip content, and earn money. 
-            Or scale your brand with performance-driven clips.
+            Connect with vetted clippers, scale content professionally, and track everything with enterprise analytics.
           </p>
+
+          {/* Trust signals */}
+          <div className="space-y-4 mb-8">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Shield className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <div className="font-medium">Full Approval Control</div>
+                <div className="text-sm text-muted-foreground">Review every clip before it goes live</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <div className="font-medium">Real-Time Analytics</div>
+                <div className="text-sm text-muted-foreground">Track performance across all platforms</div>
+              </div>
+            </div>
+          </div>
 
           {/* Stats */}
           <div className="grid grid-cols-2 gap-6">
             <div className="p-4 rounded-xl bg-card/50 border border-border backdrop-blur-sm">
               <div className="text-3xl font-bold text-primary mb-1">2,400+</div>
-              <div className="text-sm text-muted-foreground">Active Clippers</div>
+              <div className="text-sm text-muted-foreground">Vetted Clippers</div>
             </div>
             <div className="p-4 rounded-xl bg-card/50 border border-border backdrop-blur-sm">
               <div className="text-3xl font-bold text-primary mb-1">$890K+</div>

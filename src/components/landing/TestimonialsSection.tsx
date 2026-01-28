@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { Star, ChevronLeft, ChevronRight, Quote, DollarSign } from "lucide-react";
+import { Star, ChevronLeft, ChevronRight, Quote, DollarSign, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const testimonials = [
   {
     type: "clipper",
     name: "Marcus Chen",
-    role: "Pro Clipper",
+    role: "Elite Clipper",
     content: "I've made over $2,000 in my first month. The platform is intuitive and payments are always on time.",
     rating: 5,
     earnings: "$2,340",
@@ -15,15 +15,15 @@ const testimonials = [
   {
     type: "brand",
     name: "Sarah Johnson",
-    role: "Gaming Brand Manager",
-    content: "Apex transformed how we approach content. We went from 10K to 500K monthly views in 3 months.",
+    role: "VP of Marketing, TechCorp",
+    content: "Amplify transformed how we approach content. We went from 10K to 500K monthly views in 3 months.",
     rating: 5,
     avatar: "S",
   },
   {
     type: "clipper",
     name: "Alex Rivera",
-    role: "Content Creator",
+    role: "Verified Clipper",
     content: "Finally, a platform that values quality. The campaign variety keeps things interesting and profitable.",
     rating: 5,
     earnings: "$1,850",
@@ -32,7 +32,7 @@ const testimonials = [
   {
     type: "brand",
     name: "David Park",
-    role: "Startup Founder",
+    role: "CEO, GrowthStartup",
     content: "The ROI on our campaigns is incredible. We're getting 10x the engagement at half the cost.",
     rating: 5,
     avatar: "D",
@@ -40,7 +40,7 @@ const testimonials = [
   {
     type: "clipper",
     name: "Jordan Lee",
-    role: "Video Editor",
+    role: "Elite Clipper",
     content: "Turned my hobby into a full-time income. The flexibility to work on campaigns I love is amazing.",
     rating: 5,
     earnings: "$3,100",
@@ -90,10 +90,10 @@ const TestimonialsSection = () => {
             Testimonials
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-            Loved by <span className="text-gradient">Creators & Brands</span>
+            Trusted by <span className="text-gradient">Brands & Clippers</span>
           </h2>
           <p className="text-muted-foreground max-w-xl mx-auto">
-            Join thousands of satisfied users who are already growing with Apex.
+            Join thousands of satisfied users who are already growing with Amplify.
           </p>
         </div>
 
@@ -138,18 +138,28 @@ const TestimonialsSection = () => {
                     
                     {/* Type badge and earnings */}
                     <div className="flex items-center justify-between mb-6">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
                         testimonial.type === "clipper"
                           ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                          : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                          : "bg-primary/10 text-primary border border-primary/20"
                       }`}>
-                        {testimonial.type === "clipper" ? "Clipper" : "Brand"}
+                        {testimonial.type === "clipper" ? (
+                          <>
+                            <DollarSign className="w-3 h-3" />
+                            Clipper
+                          </>
+                        ) : (
+                          <>
+                            <Building2 className="w-3 h-3" />
+                            Brand
+                          </>
+                        )}
                       </span>
                       
                       {testimonial.earnings && (
-                        <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-primary/10 border border-primary/20">
-                          <DollarSign className="w-3 h-3 text-primary" />
-                          <span className="text-xs font-semibold text-primary">
+                        <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                          <DollarSign className="w-3 h-3 text-emerald-400" />
+                          <span className="text-xs font-semibold text-emerald-400">
                             {testimonial.earnings} earned
                           </span>
                         </div>

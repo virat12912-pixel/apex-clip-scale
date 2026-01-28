@@ -1,4 +1,4 @@
-import { LayoutDashboard, Search, Rocket, User, DollarSign, LogOut, Shield, Settings, Building2, FileText, Wallet, Smartphone, Users } from "lucide-react";
+import { LayoutDashboard, Search, Rocket, User, DollarSign, LogOut, Shield, Settings, Building2, FileText, Wallet, Smartphone, Users, Zap } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -41,11 +41,11 @@ export function AppSidebar() {
   return (
     <Sidebar className="border-r border-border bg-card">
       <SidebarHeader className="p-4 border-b border-border">
-        <NavLink to="/dashboard" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center">
-            <span className="text-sm font-bold text-primary-foreground">A</span>
+        <NavLink to="/dashboard" className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center glow-primary-sm">
+            <Zap className="w-5 h-5 text-primary-foreground" />
           </div>
-          {!isCollapsed && <span className="font-bold text-lg">Apex</span>}
+          {!isCollapsed && <span className="font-bold text-lg">Amplify</span>}
         </NavLink>
       </SidebarHeader>
 

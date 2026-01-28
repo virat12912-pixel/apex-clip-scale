@@ -1,51 +1,57 @@
-import { Upload, Scissors, BarChart3 } from "lucide-react";
+import { Upload, Scissors, CheckCircle, BarChart3 } from "lucide-react";
 
 const steps = [
   {
     icon: Upload,
     step: "01",
-    title: "Launch Your Campaign",
-    description: "Creators upload content and set campaign goals. Define your target audience and budget.",
+    title: "Submit Your Content",
+    description: "Upload your content and define campaign goals. Set budget caps, target platforms, and approval criteria.",
   },
   {
     icon: Scissors,
     step: "02",
-    title: "Clippers Create Magic",
-    description: "Skilled clippers transform your content into engaging short-form videos across platforms.",
+    title: "Clippers Create Content",
+    description: "Our vetted network transforms your content into engaging short-form videos optimized for each platform.",
+  },
+  {
+    icon: CheckCircle,
+    step: "03",
+    title: "Review & Approve",
+    description: "Full control over every clip. Approve, reject, or request revisions before any content goes live.",
   },
   {
     icon: BarChart3,
-    step: "03",
-    title: "Track & Get Paid",
-    description: "Performance is tracked in real-time. Automated payouts reward top-performing clips.",
+    step: "04",
+    title: "Track & Optimize",
+    description: "Real-time analytics dashboard. Monitor views, engagement, and ROI across all platforms.",
   },
 ];
 
 const HowItWorksSection = () => {
   return (
-    <section className="py-20 px-4 relative bg-gradient-dark">
+    <section id="how-it-works" className="py-20 px-4 relative bg-gradient-dark">
       <div className="container">
         <div className="text-center mb-16">
           <span className="inline-block text-primary text-sm font-semibold tracking-wider uppercase mb-4">
             How It Works
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-            Simple. Transparent. <span className="text-gradient">Effective.</span>
+            Simple. Transparent. <span className="text-gradient">Professional.</span>
           </h2>
           <p className="text-muted-foreground max-w-xl mx-auto">
-            From campaign launch to payout, we've streamlined every step.
+            From campaign launch to performance tracking—we've streamlined every step for enterprise needs.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 sm:gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
           {steps.map((item, index) => (
             <div
               key={item.step}
               className="group relative"
             >
-              {/* Connector line (hidden on mobile, visible on md+) */}
+              {/* Connector line (hidden on mobile, visible on lg+) */}
               {index < steps.length - 1 && (
-                <div className="hidden md:block absolute top-16 left-[60%] w-full h-px bg-gradient-to-r from-border to-transparent" />
+                <div className="hidden lg:block absolute top-16 left-[60%] w-full h-px bg-gradient-to-r from-border to-transparent" />
               )}
 
               <div className="relative p-8 rounded-2xl bg-card border border-border hover:border-primary/30 transition-all duration-300 h-full">
@@ -69,6 +75,13 @@ const HowItWorksSection = () => {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Enterprise note */}
+        <div className="mt-12 text-center">
+          <p className="text-sm text-muted-foreground">
+            <span className="text-primary">Note:</span> No guaranteed views or sales. Results are organic and performance-based.
+          </p>
         </div>
       </div>
     </section>
