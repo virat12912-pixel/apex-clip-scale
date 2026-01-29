@@ -47,10 +47,10 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar className="border-r border-border bg-card">
+    <Sidebar className="border-r border-border bg-card/80 backdrop-blur-sm">
       <SidebarHeader className="p-4 border-b border-border">
-        <NavLink to="/dashboard" className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center glow-primary-sm">
+        <NavLink to="/dashboard" className="flex items-center gap-2.5 group">
+          <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center glow-primary-sm transition-transform group-hover:scale-105">
             <Zap className="w-5 h-5 text-primary-foreground" />
           </div>
           {!isCollapsed && <span className="font-bold text-lg">Amplify</span>}
@@ -61,12 +61,16 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel className="text-muted-foreground text-xs uppercase tracking-wider mb-2">{!isCollapsed && "Main"}</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-1">
               {mainNavItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className="flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors" activeClassName="bg-primary/10 text-primary">
-                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                    <NavLink 
+                      to={item.url} 
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-all duration-200 group relative" 
+                      activeClassName="bg-primary/10 text-primary"
+                    >
+                      <item.icon className="h-5 w-5 flex-shrink-0 transition-transform group-hover:scale-110" />
                       {!isCollapsed && <span>{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
@@ -79,12 +83,16 @@ export function AppSidebar() {
         <SidebarGroup className="mt-6">
           <SidebarGroupLabel className="text-muted-foreground text-xs uppercase tracking-wider mb-2">{!isCollapsed && "Account"}</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="space-y-1">
               {accountNavItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className="flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors" activeClassName="bg-primary/10 text-primary">
-                      <item.icon className="h-5 w-5 flex-shrink-0" />
+                    <NavLink 
+                      to={item.url} 
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-all duration-200 group relative" 
+                      activeClassName="bg-primary/10 text-primary"
+                    >
+                      <item.icon className="h-5 w-5 flex-shrink-0 transition-transform group-hover:scale-110" />
                       {!isCollapsed && <span>{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
@@ -98,12 +106,16 @@ export function AppSidebar() {
           <SidebarGroup className="mt-6">
             <SidebarGroupLabel className="text-muted-foreground text-xs uppercase tracking-wider mb-2">{!isCollapsed && "Admin"}</SidebarGroupLabel>
             <SidebarGroupContent>
-              <SidebarMenu>
+              <SidebarMenu className="space-y-1">
                 {adminNavItems.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild>
-                      <NavLink to={item.url} className="flex items-center gap-3 px-3 py-2 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors" activeClassName="bg-primary/10 text-primary">
-                        <item.icon className="h-5 w-5 flex-shrink-0" />
+                      <NavLink 
+                        to={item.url} 
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-all duration-200 group relative" 
+                        activeClassName="bg-primary/10 text-primary"
+                      >
+                        <item.icon className="h-5 w-5 flex-shrink-0 transition-transform group-hover:scale-110" />
                         {!isCollapsed && <span>{item.title}</span>}
                       </NavLink>
                     </SidebarMenuButton>
@@ -116,8 +128,8 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-border">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-gradient-primary flex items-center justify-center text-xs font-semibold text-primary-foreground">
+        <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-secondary/50 transition-colors cursor-pointer">
+          <div className="w-9 h-9 rounded-full bg-gradient-primary flex items-center justify-center text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20">
             {profile?.full_name?.charAt(0) || "U"}
           </div>
           {!isCollapsed && (
@@ -133,8 +145,13 @@ export function AppSidebar() {
           )}
         </div>
         {!isCollapsed && (
-          <Button variant="ghost" size="sm" onClick={handleSignOut} className="w-full mt-3 justify-start text-muted-foreground hover:text-foreground">
-            <LogOut className="h-4 w-4 mr-2" />Sign Out
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleSignOut} 
+            className="w-full mt-3 justify-start text-muted-foreground hover:text-foreground hover:bg-destructive/10 hover:text-destructive transition-colors group"
+          >
+            <LogOut className="h-4 w-4 mr-2 transition-transform group-hover:scale-110" />Sign Out
           </Button>
         )}
       </SidebarFooter>

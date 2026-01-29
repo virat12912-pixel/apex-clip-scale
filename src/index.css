@@ -279,4 +279,172 @@
   .gradient-border:hover::before {
     opacity: 0.5;
   }
+
+  /* Glass morphism card */
+  .glass-card {
+    background: hsl(var(--card) / 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid hsl(var(--border) / 0.5);
+  }
+
+  /* Elevated card with layered shadow */
+  .elevated-card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    box-shadow: 
+      0 4px 6px -1px hsl(0 0% 0% / 0.3),
+      0 10px 20px -5px hsl(0 0% 0% / 0.2),
+      0 0 0 1px hsl(var(--border) / 0.5);
+  }
+  
+  .elevated-card:hover {
+    box-shadow: 
+      0 8px 12px -2px hsl(0 0% 0% / 0.4),
+      0 16px 32px -8px hsl(0 0% 0% / 0.3),
+      0 0 0 1px hsl(var(--primary) / 0.2);
+    transform: translateY(-2px);
+  }
+
+  /* Spotlight card - mouse following effect */
+  .spotlight-card {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .spotlight-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+      hsl(var(--primary) / 0.08),
+      transparent 40%
+    );
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  
+  .spotlight-card:hover::before {
+    opacity: 1;
+  }
+
+  /* Icon interactive hover effects */
+  .icon-interactive {
+    @apply transition-all duration-200 ease-out cursor-pointer;
+  }
+  
+  .icon-interactive:hover {
+    color: hsl(var(--primary));
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 8px hsl(var(--primary) / 0.4));
+  }
+
+  /* Icon bounce on hover */
+  .icon-bounce:hover {
+    animation: iconBounce 0.4s ease-out;
+  }
+  
+  @keyframes iconBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+  }
+
+  /* Icon glow effect */
+  .icon-glow {
+    @apply transition-all duration-200;
+  }
+  
+  .icon-glow:hover {
+    filter: drop-shadow(0 0 12px currentColor);
+  }
+
+  /* Enhanced input focus glow */
+  .input-focus-glow:focus {
+    box-shadow: 
+      0 0 0 2px hsl(var(--primary) / 0.3),
+      0 0 20px hsl(var(--primary) / 0.15);
+    border-color: hsl(var(--primary) / 0.5);
+  }
+
+  /* Button loading shimmer */
+  .btn-loading {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .btn-loading::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(var(--primary-foreground) / 0.2) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+    animation: btnShimmer 1.5s infinite;
+  }
+  
+  @keyframes btnShimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  /* Section header with accent line */
+  .section-header {
+    @apply relative pl-4;
+  }
+  
+  .section-header::before {
+    content: '';
+    @apply absolute left-0 top-0 bottom-0 w-1 rounded-full;
+    background: var(--gradient-primary);
+  }
+
+  /* Gradient text with animation */
+  .text-gradient-animated {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(
+      90deg,
+      hsl(var(--primary)) 0%,
+      hsl(280 90% 65%) 50%,
+      hsl(var(--primary)) 100%
+    );
+    background-size: 200% 100%;
+    animation: gradientFlow 3s ease infinite;
+  }
+  
+  @keyframes gradientFlow {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+
+  /* Stat value with counting animation placeholder */
+  .stat-value {
+    @apply text-3xl font-bold tracking-tight;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Interactive row hover */
+  .row-interactive {
+    @apply transition-colors duration-200;
+  }
+  
+  .row-interactive:hover {
+    background: hsl(var(--muted) / 0.5);
+  }
+
+  /* Focus visible ring for accessibility */
+  .focus-ring {
+    @apply outline-none;
+  }
+  
+  .focus-ring:focus-visible {
+    box-shadow: 
+      0 0 0 2px hsl(var(--background)),
+      0 0 0 4px hsl(var(--primary));
+  }
 }

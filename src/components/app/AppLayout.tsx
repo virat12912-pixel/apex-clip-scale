@@ -15,10 +15,10 @@ export function AppLayout({ children, title }: AppLayoutProps) {
         <AppSidebar />
         
         <div className="flex-1 flex flex-col min-w-0">
-          {/* Top bar */}
-          <header className="h-16 border-b border-border bg-card/50 backdrop-blur-sm flex items-center justify-between px-4 lg:px-6 sticky top-0 z-40">
+          {/* Top bar - Enhanced with glass effect */}
+          <header className="h-16 border-b border-border bg-card/60 backdrop-blur-md flex items-center justify-between px-4 lg:px-6 sticky top-0 z-40">
             <div className="flex items-center gap-4">
-              <SidebarTrigger className="lg:hidden">
+              <SidebarTrigger className="lg:hidden hover:bg-secondary/80 transition-colors rounded-lg p-2">
                 <Menu className="h-5 w-5" />
               </SidebarTrigger>
               {title && (
@@ -31,7 +31,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
           </header>
 
           {/* Main content */}
-          <main className="flex-1 p-4 lg:p-6 overflow-auto">
+          <main className="flex-1 p-4 lg:p-6 overflow-auto page-enter">
             {children}
           </main>
         </div>

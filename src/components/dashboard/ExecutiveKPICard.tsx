@@ -41,11 +41,11 @@ export function ExecutiveKPICard({
     <div className={cn(
       "relative overflow-hidden p-6 rounded-xl bg-gradient-to-br border",
       variantStyles[variant],
-      "transition-all duration-300 hover:scale-[1.02] hover:shadow-lg"
+      "transition-all duration-300 hover:scale-[1.02] hover:shadow-lg group"
     )}>
       {/* Background glow effect */}
       <div className={cn(
-        "absolute -top-12 -right-12 w-32 h-32 rounded-full blur-3xl opacity-30",
+        "absolute -top-12 -right-12 w-32 h-32 rounded-full blur-3xl opacity-30 transition-opacity group-hover:opacity-50",
         variant === "primary" && "bg-primary",
         variant === "success" && "bg-emerald-500",
         variant === "warning" && "bg-amber-500",
@@ -55,12 +55,12 @@ export function ExecutiveKPICard({
 
       <div className="relative">
         <div className="flex items-start justify-between mb-4">
-          <div className={cn("p-3 rounded-xl", iconStyles[variant])}>
+          <div className={cn("p-3 rounded-xl transition-transform group-hover:scale-110", iconStyles[variant])}>
             <Icon className="h-6 w-6" />
           </div>
           {trend && (
             <span className={cn(
-              "text-sm font-semibold px-2.5 py-1 rounded-full",
+              "text-sm font-semibold px-2.5 py-1 rounded-full transition-all",
               trend.positive 
                 ? "bg-emerald-500/10 text-emerald-400" 
                 : "bg-red-500/10 text-red-400"
@@ -70,7 +70,7 @@ export function ExecutiveKPICard({
           )}
         </div>
         
-        <div className="text-3xl font-bold mb-1 tracking-tight">{value}</div>
+        <div className="text-3xl font-bold mb-1 tracking-tight stat-value">{value}</div>
         <div className="text-sm text-muted-foreground">{label}</div>
         {subValue && (
           <div className="text-xs text-muted-foreground/70 mt-1">{subValue}</div>

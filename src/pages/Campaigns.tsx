@@ -28,6 +28,8 @@ import { Link } from "react-router-dom";
 import { useCampaigns, CampaignStatus } from "@/hooks/useCampaigns";
 import { useAuth } from "@/hooks/useAuth";
 import { CampaignFiltersModal, FilterValues } from "@/components/campaigns/CampaignFiltersModal";
+import { ElevatedCard, ElevatedCardContent } from "@/components/ui/elevated-card";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const categories = [
   { id: "all", label: "All", icon: Sparkles },
@@ -114,7 +116,7 @@ const Campaigns = () => {
       {isAdmin && (
         <div className="mb-6">
           <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as CampaignStatus | "all")}>
-            <TabsList>
+            <TabsList className="bg-secondary/50">
               <TabsTrigger value="active">Active</TabsTrigger>
               <TabsTrigger value="paused">Paused</TabsTrigger>
               <TabsTrigger value="completed">Completed</TabsTrigger>
@@ -178,30 +180,32 @@ const Campaigns = () => {
           ))}
         </div>
       ) : filteredCampaigns?.length === 0 ? (
-        <div className="text-center py-16">
-          <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-          <h3 className="text-lg font-semibold mb-2">No campaigns found</h3>
-          <p className="text-muted-foreground">
-            {searchQuery || hasActiveFilters
-              ? "Try adjusting your filters"
-              : "Check back later for new campaigns"
-            }
-          </p>
-        </div>
+        <EmptyState
+          icon={AlertCircle}
+          title="No campaigns found"
+          description={searchQuery || hasActiveFilters ? "Try adjusting your filters" : "Check back later for new campaigns"}
+          variant="gradient"
+          action={
+            (searchQuery || hasActiveFilters)
+              ? { label: "Clear Filters", onClick: () => { setSearchQuery(""); setFilters({ platforms: [], minRate: 0, maxRate: 500, minViews: 0 }); } }
+              : undefined
+          }
+        />
       ) : (
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6 stagger-enter">
           {filteredCampaigns?.map((campaign) => (
-            <div
+            <ElevatedCard
               key={campaign.id}
-              className="group rounded-2xl bg-card border border-border hover:border-primary/30 transition-all duration-300 overflow-hidden"
+              variant="spotlight"
+              className="group overflow-hidden"
             >
               {/* Campaign Image - Always shown as hero */}
-              <div className="relative w-full h-40 bg-secondary/50">
+              <div className="relative w-full h-40 bg-secondary/50 overflow-hidden">
                 {campaign.image_url ? (
                   <img 
                     src={campaign.image_url} 
                     alt={campaign.name} 
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
@@ -223,7 +227,7 @@ const Campaigns = () => {
                     {campaign.platforms.map((platform) => (
                       <div
                         key={platform}
-                        className="w-7 h-7 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center"
+                        className="w-7 h-7 rounded-full bg-background/90 backdrop-blur-sm flex items-center justify-center transition-transform hover:scale-110"
                       >
                         {platformIcons[platform]}
                       </div>
@@ -232,7 +236,7 @@ const Campaigns = () => {
                 )}
               </div>
 
-              <div className="p-6">
+              <ElevatedCardContent className="p-6">
                 {/* Campaign Name as Primary Title */}
                 <div className="mb-3">
                   <h3 className="font-semibold text-lg group-hover:text-primary transition-colors line-clamp-1">
@@ -251,15 +255,15 @@ const Campaigns = () => {
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="p-3 rounded-lg bg-secondary/50">
+                  <div className="p-3 rounded-lg bg-secondary/50 card-hover">
                     <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
-                      <DollarSign className="w-3 h-3" />Rate
+                      <DollarSign className="w-3 h-3 icon-interactive" />Rate
                     </div>
                     <div className="font-semibold text-primary">${campaign.rate_value}/{formatNumber(campaign.rate_unit)} views</div>
                   </div>
-                  <div className="p-3 rounded-lg bg-secondary/50">
+                  <div className="p-3 rounded-lg bg-secondary/50 card-hover">
                     <div className="flex items-center gap-1.5 text-muted-foreground text-xs mb-1">
-                      <Eye className="w-3 h-3" />Min Views
+                      <Eye className="w-3 h-3 icon-interactive" />Min Views
                     </div>
                     <div className="font-semibold">{formatNumber(campaign.min_views)}</div>
                   </div>
@@ -284,11 +288,11 @@ const Campaigns = () => {
                   </p>
                 )}
 
-                <Button asChild className="w-full bg-gradient-primary hover:opacity-90 glow-primary">
+                <Button asChild variant="glow" className="w-full">
                   <Link to={`/campaigns/${campaign.id}`}>View Campaign<ArrowRight className="ml-2 h-4 w-4" /></Link>
                 </Button>
-              </div>
-            </div>
+              </ElevatedCardContent>
+            </ElevatedCard>
           ))}
         </div>
       )}

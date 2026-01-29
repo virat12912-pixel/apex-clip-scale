@@ -8,6 +8,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
+import { ElevatedCard, ElevatedCardContent, ElevatedCardHeader, ElevatedCardTitle } from "@/components/ui/elevated-card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { SectionDivider } from "@/components/ui/section-divider";
 
 interface CampaignEarnings {
   campaign_id: string;
@@ -171,92 +174,103 @@ const Earnings = () => {
         <div className="grid lg:grid-cols-3 gap-6">
           {/* My Campaigns Section */}
           <div className="lg:col-span-2 space-y-6">
-            <div className="p-6 rounded-xl bg-card border border-border">
-              <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
-                <Film className="h-5 w-5" />
-                My Campaigns
-              </h3>
-              
-              {submissionsLoading ? (
-                <div className="space-y-4">
-                  {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-24" />)}
-                </div>
-              ) : campaignEarnings.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground mb-4">No campaigns joined yet</p>
-                  <Button asChild variant="outline">
-                    <Link to="/campaigns">Browse Campaigns</Link>
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {campaignEarnings.map((campaign) => (
-                    <div 
-                      key={campaign.campaign_id}
-                      className="p-4 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 transition-colors"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <h4 className="font-semibold">{campaign.campaign_name}</h4>
-                          <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-                            <span className="flex items-center gap-1">
-                              <CheckCircle className="h-4 w-4 text-emerald-400" />
-                              {campaign.approved_count} approved
-                            </span>
-                            {campaign.rejected_count > 0 && (
+            <ElevatedCard variant="elevated">
+              <ElevatedCardHeader>
+                <ElevatedCardTitle className="flex items-center gap-2 section-header">
+                  <Film className="h-5 w-5 icon-interactive" />
+                  My Campaigns
+                </ElevatedCardTitle>
+              </ElevatedCardHeader>
+              <ElevatedCardContent>
+                {submissionsLoading ? (
+                  <div className="space-y-4">
+                    {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-24" />)}
+                  </div>
+                ) : campaignEarnings.length === 0 ? (
+                  <EmptyState
+                    icon={Film}
+                    title="No campaigns joined yet"
+                    description="Start earning by joining a campaign and submitting clips"
+                    variant="gradient"
+                    action={{
+                      label: "Browse Campaigns",
+                      onClick: () => window.location.href = "/campaigns"
+                    }}
+                  />
+                ) : (
+                  <div className="space-y-4 stagger-enter">
+                    {campaignEarnings.map((campaign) => (
+                      <div 
+                        key={campaign.campaign_id}
+                        className="p-4 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 transition-all duration-200 card-hover"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <h4 className="font-semibold">{campaign.campaign_name}</h4>
+                            <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
                               <span className="flex items-center gap-1">
-                                <XCircle className="h-4 w-4 text-red-400" />
-                                {campaign.rejected_count} rejected
+                                <CheckCircle className="h-4 w-4 text-emerald-400" />
+                                {campaign.approved_count} approved
                               </span>
-                            )}
-                            {campaign.pending_count > 0 && (
-                              <span className="flex items-center gap-1">
-                                <Clock className="h-4 w-4 text-yellow-400" />
-                                {campaign.pending_count} pending
-                              </span>
-                            )}
+                              {campaign.rejected_count > 0 && (
+                                <span className="flex items-center gap-1">
+                                  <XCircle className="h-4 w-4 text-red-400" />
+                                  {campaign.rejected_count} rejected
+                                </span>
+                              )}
+                              {campaign.pending_count > 0 && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-4 w-4 text-yellow-400" />
+                                  {campaign.pending_count} pending
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xl font-bold text-primary stat-value">
+                              ${campaign.total_earnings.toFixed(2)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {formatNumber(campaign.total_views)} views
+                            </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-xl font-bold text-primary">
-                            ${campaign.total_earnings.toFixed(2)}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {formatNumber(campaign.total_views)} views
-                          </div>
+                        
+                        <SectionDivider variant="line" size="sm" />
+                        
+                        <div className="flex items-center justify-between">
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            campaign.is_eligible 
+                              ? "bg-emerald-500/10 text-emerald-400" 
+                              : "bg-secondary text-muted-foreground"
+                          }`}>
+                            {campaign.is_eligible ? "Eligible for payout" : "Not eligible yet"}
+                          </span>
+                          <Link 
+                            to={`/campaigns/${campaign.campaign_id}`}
+                            className="text-sm text-primary hover:underline flex items-center gap-1 group"
+                          >
+                            View Campaign <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                          </Link>
                         </div>
                       </div>
-                      
-                      <div className="flex items-center justify-between pt-3 border-t border-border">
-                        <span className={`px-2 py-1 rounded text-xs ${
-                          campaign.is_eligible 
-                            ? "bg-emerald-500/10 text-emerald-400" 
-                            : "bg-secondary text-muted-foreground"
-                        }`}>
-                          {campaign.is_eligible ? "Eligible for payout" : "Not eligible yet"}
-                        </span>
-                        <Link 
-                          to={`/campaigns/${campaign.campaign_id}`}
-                          className="text-sm text-primary hover:underline flex items-center gap-1"
-                        >
-                          View Campaign <ChevronRight className="h-4 w-4" />
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                    ))}
+                  </div>
+                )}
+              </ElevatedCardContent>
+            </ElevatedCard>
           </div>
 
           {/* Payout Section */}
           <div className="space-y-6">
-            <div className="p-6 rounded-xl bg-card border border-border">
-              <h3 className="text-lg font-semibold mb-6">Request Payout</h3>
-              <div className="space-y-4">
+            <ElevatedCard variant="glass">
+              <ElevatedCardHeader>
+                <ElevatedCardTitle>Request Payout</ElevatedCardTitle>
+              </ElevatedCardHeader>
+              <ElevatedCardContent className="space-y-4">
                 <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
                   <div className="text-sm text-muted-foreground">Available Balance</div>
-                  <div className="text-2xl font-bold text-primary">${(wallet?.pending_balance || 0).toFixed(2)}</div>
+                  <div className="text-2xl font-bold text-primary stat-value">${(wallet?.pending_balance || 0).toFixed(2)}</div>
                 </div>
 
                 {/* Pending Payout Warning */}
@@ -310,21 +324,24 @@ const Earnings = () => {
                 <Button 
                   onClick={handleRequestPayout} 
                   disabled={requestPayout.isPending || (wallet?.pending_balance || 0) < 10 || !hasPaymentDetails() || hasPendingPayout} 
-                  className="w-full bg-gradient-primary"
+                  variant="glow"
+                  className="w-full"
                 >
                   {requestPayout.isPending ? "Requesting..." : "Request Payout"}
                 </Button>
                 <p className="text-xs text-muted-foreground text-center">Minimum $10 required</p>
-              </div>
-            </div>
+              </ElevatedCardContent>
+            </ElevatedCard>
 
             {/* Recent Payouts */}
             {payouts && payouts.length > 0 && (
-              <div className="p-6 rounded-xl bg-card border border-border">
-                <h3 className="text-lg font-semibold mb-4">Recent Payouts</h3>
-                <div className="space-y-3">
+              <ElevatedCard variant="spotlight">
+                <ElevatedCardHeader>
+                  <ElevatedCardTitle>Recent Payouts</ElevatedCardTitle>
+                </ElevatedCardHeader>
+                <ElevatedCardContent className="space-y-3">
                   {payouts.slice(0, 5).map((payout) => (
-                    <div key={payout.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
+                    <div key={payout.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 row-interactive">
                       <div>
                         <p className="font-medium">${Number(payout.amount).toFixed(2)}</p>
                         <p className="text-xs text-muted-foreground">
@@ -341,8 +358,8 @@ const Earnings = () => {
                       </span>
                     </div>
                   ))}
-                </div>
-              </div>
+                </ElevatedCardContent>
+              </ElevatedCard>
             )}
           </div>
         </div>

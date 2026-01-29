@@ -11,6 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useCreatorStats } from "@/hooks/useStats";
 import { mapErrorToUserMessage, logError } from "@/lib/errorMapping";
+import { ElevatedCard, ElevatedCardContent, ElevatedCardHeader, ElevatedCardTitle } from "@/components/ui/elevated-card";
+import { SectionDivider } from "@/components/ui/section-divider";
 
 // Solana wallet address validation (Base58, 32-44 characters)
 const SOLANA_WALLET_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
@@ -161,12 +163,17 @@ const Profile = () => {
 
   return (
     <AppLayout title="My Profile">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-4xl mx-auto page-enter">
+        {/* Enhanced profile header with gradient */}
         <div className="relative mb-8">
-          <div className="h-32 sm:h-48 rounded-2xl bg-gradient-to-r from-primary/20 via-primary/10 to-transparent" />
+          <div className="h-32 sm:h-48 rounded-2xl bg-gradient-to-r from-primary/30 via-primary/10 to-transparent overflow-hidden">
+            {/* Animated background elements */}
+            <div className="absolute top-4 right-8 w-24 h-24 bg-primary/20 rounded-full blur-2xl animate-pulse" />
+            <div className="absolute bottom-4 left-16 w-16 h-16 bg-primary/10 rounded-full blur-xl float" />
+          </div>
           <div className="absolute -bottom-16 left-6 flex items-end gap-4">
             <div 
-              className="relative w-28 h-28 rounded-2xl bg-gradient-primary flex items-center justify-center text-3xl font-bold text-primary-foreground border-4 border-background overflow-hidden cursor-pointer group"
+              className="relative w-28 h-28 rounded-2xl bg-gradient-primary flex items-center justify-center text-3xl font-bold text-primary-foreground border-4 border-background overflow-hidden cursor-pointer group shadow-lg shadow-primary/20"
               onClick={() => fileInputRef.current?.click()}
             >
               {profile?.avatar_url ? (
@@ -175,7 +182,7 @@ const Profile = () => {
                 profile?.full_name?.charAt(0) || "U"
               )}
               <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <Upload className="h-6 w-6 text-white" />
+                <Upload className="h-6 w-6 text-white icon-interactive" />
               </div>
               {uploading && (
                 <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
@@ -192,17 +199,22 @@ const Profile = () => {
             />
           </div>
           <div className="absolute bottom-4 right-4">
-            <Button variant={isEditing ? "default" : "outline"} onClick={() => isEditing ? handleSave() : setIsEditing(true)} className={isEditing ? "bg-gradient-primary" : ""}>
+            <Button 
+              variant={isEditing ? "glow" : "outline"} 
+              onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+            >
               {isEditing ? <><Save className="h-4 w-4 mr-2" />Save</> : <><Edit className="h-4 w-4 mr-2" />Edit</>}
             </Button>
           </div>
         </div>
 
-        <div className="mt-20 grid lg:grid-cols-3 gap-6">
+        <div className="mt-20 grid lg:grid-cols-3 gap-6 stagger-enter">
           <div className="lg:col-span-2 space-y-6">
-            <div className="p-6 rounded-xl bg-card border border-border">
-              <h2 className="text-lg font-semibold mb-6">Profile Information</h2>
-              <div className="space-y-4">
+            <ElevatedCard variant="elevated">
+              <ElevatedCardHeader>
+                <ElevatedCardTitle className="section-header">Profile Information</ElevatedCardTitle>
+              </ElevatedCardHeader>
+              <ElevatedCardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>Full Name</Label>
                   <Input value={formData.full_name} onChange={(e) => setFormData({...formData, full_name: e.target.value})} disabled={!isEditing} className="h-12 bg-secondary" />
@@ -217,9 +229,10 @@ const Profile = () => {
                 </div>
                 
                 {/* Payment Details Section */}
-                <div className="pt-4 border-t border-border">
+                <SectionDivider variant="gradient" size="sm" />
+                <div>
                   <h3 className="font-medium mb-4 flex items-center gap-2">
-                    <Wallet className="h-4 w-4" />
+                    <Wallet className="h-4 w-4 icon-interactive text-primary" />
                     Payment Details
                   </h3>
                   <div className="space-y-4">
@@ -261,10 +274,10 @@ const Profile = () => {
                           onChange={(e) => handleWalletChange(e.target.value)} 
                           disabled={!isEditing} 
                           placeholder="Your Solana wallet address"
-                          className={`h-12 bg-secondary font-mono text-sm ${walletError ? "border-red-500" : ""}`}
+                          className={`h-12 bg-secondary font-mono text-sm ${walletError ? "border-destructive" : ""}`}
                         />
                         {walletError && (
-                          <p className="text-sm text-red-500 flex items-center gap-1">
+                          <p className="text-sm text-destructive flex items-center gap-1">
                             <AlertCircle className="h-3 w-3" />
                             {walletError}
                           </p>
@@ -273,42 +286,48 @@ const Profile = () => {
                     )}
                   </div>
                 </div>
-              </div>
-            </div>
+              </ElevatedCardContent>
+            </ElevatedCard>
 
-            <div className="p-6 rounded-xl bg-card border border-border">
-              <h2 className="text-lg font-semibold mb-6">Stats</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {statItems.map((stat) => (
-                  <div key={stat.label} className="text-center p-4 rounded-lg bg-secondary/50">
-                    <div className="text-2xl font-bold text-primary">{stat.value}</div>
-                    <div className="text-sm text-muted-foreground">{stat.label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <ElevatedCard variant="glass">
+              <ElevatedCardHeader>
+                <ElevatedCardTitle className="section-header">Stats</ElevatedCardTitle>
+              </ElevatedCardHeader>
+              <ElevatedCardContent>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {statItems.map((stat) => (
+                    <div key={stat.label} className="text-center p-4 rounded-lg bg-secondary/50 card-hover">
+                      <div className="text-2xl font-bold text-primary stat-value">{stat.value}</div>
+                      <div className="text-sm text-muted-foreground">{stat.label}</div>
+                    </div>
+                  ))}
+                </div>
+              </ElevatedCardContent>
+            </ElevatedCard>
           </div>
 
           <div className="space-y-6">
-            <div className="p-6 rounded-xl bg-card border border-border">
-              <h3 className="font-semibold mb-4">Account Info</h3>
-              <div className="space-y-4">
+            <ElevatedCard variant="spotlight">
+              <ElevatedCardHeader>
+                <ElevatedCardTitle>Account Info</ElevatedCardTitle>
+              </ElevatedCardHeader>
+              <ElevatedCardContent className="space-y-4">
                 <div className="flex items-center gap-3 text-sm">
-                  <div className="p-2 rounded-lg bg-primary/10"><User className="h-4 w-4 text-primary" /></div>
+                  <div className="p-2 rounded-lg bg-primary/10"><User className="h-4 w-4 text-primary icon-interactive" /></div>
                   <div>
                     <div className="text-muted-foreground">Role</div>
                     <div className="font-medium capitalize">{role}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3 text-sm">
-                  <div className="p-2 rounded-lg bg-primary/10"><Mail className="h-4 w-4 text-primary" /></div>
+                  <div className="p-2 rounded-lg bg-primary/10"><Mail className="h-4 w-4 text-primary icon-interactive" /></div>
                   <div>
                     <div className="text-muted-foreground">Email</div>
                     <div className="font-medium">{profile?.email}</div>
                   </div>
                 </div>
-              </div>
-            </div>
+              </ElevatedCardContent>
+            </ElevatedCard>
           </div>
         </div>
       </div>
