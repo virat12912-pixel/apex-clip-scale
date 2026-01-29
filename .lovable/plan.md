@@ -1,37 +1,34 @@
 
-
-# Plan: Update RapidAPI Keys for Bio Verification
+# Plan: Grant Admin Role to User
 
 ## Overview
-Update the TikTok and Instagram API keys with the new RapidAPI key you provided so the bio verification mechanism works.
+Update the role for user `virat12912@gmail.com` (ApexClipping) from `brand` to `admin`.
 
-## Steps
+## Current State
+| Field | Value |
+|-------|-------|
+| User ID | `a59ac4e9-fe22-47e3-bcd6-3569de2b7258` |
+| Email | virat12912@gmail.com |
+| Name | ApexClipping |
+| Current Role | brand |
 
-### 1. Update TIKTOK_API_KEY Secret
-Replace the current TikTok API key with the new key:
+## Action
+Update the `user_roles` table to change the role from `brand` to `admin`:
+
+```text
+UPDATE user_roles
+SET role = 'admin'
+WHERE user_id = 'a59ac4e9-fe22-47e3-bcd6-3569de2b7258'
 ```
-aa0adfaf90msh966f61f493a0d28p11f6afjsnff2a014bd89b
-```
 
-### 2. Update INSTAGRAM_API_KEY Secret
-If the same key is subscribed to both APIs, update the Instagram API key with the same value:
-```
-aa0adfaf90msh966f61f493a0d28p11f6afjsnff2a014bd89b
-```
+## Result
+After this change, the user will have full admin access including:
+- View and manage all campaigns
+- Approve/reject submissions
+- Process payouts
+- View all user profiles
+- Access admin dashboard and logs
 
-### 3. Test Verification Flow
-After updating the secrets:
-1. Go to Social Accounts page
-2. Add a TikTok or Instagram account
-3. Copy the verification code shown (e.g., `APEX12345678`)
-4. Add that code to your social media bio
-5. Click "Verify" button
-6. The system will fetch your bio and confirm the code is present
-
-## Prerequisites
-Ensure your RapidAPI account has active subscriptions to:
-- `tiktok-scraper7.p.rapidapi.com` (for TikTok verification)
-- `instagram-scraper21.p.rapidapi.com` (for Instagram verification)
-
-Both can use the same API key if subscribed under the same RapidAPI account.
-
+## Technical Notes
+- Uses the existing `upgrade_user_role` database function or direct UPDATE
+- No code changes required - role is checked via RLS policies and `has_role()` function
