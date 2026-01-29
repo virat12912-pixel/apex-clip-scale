@@ -19,6 +19,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { ElevatedCard, ElevatedCardContent, ElevatedCardHeader, ElevatedCardTitle } from "@/components/ui/elevated-card";
 
 const Settings = () => {
   const { signOut } = useAuth();
@@ -91,77 +92,81 @@ const Settings = () => {
 
   return (
     <AppLayout title="Settings">
-      <div className="max-w-2xl mx-auto space-y-8">
+      <div className="max-w-2xl mx-auto space-y-8 page-enter">
         {/* Change Password */}
-        <div className="p-6 rounded-xl bg-card border border-border">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Key className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h2 className="font-semibold">Change Password</h2>
-              <p className="text-sm text-muted-foreground">Update your account password</p>
-            </div>
-          </div>
-
-          <form onSubmit={handleChangePassword} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="newPassword">New Password</Label>
-              <div className="relative">
-                <Input
-                  id="newPassword"
-                  type={showPassword ? "text" : "password"}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="h-12 bg-secondary pr-12"
-                  placeholder="••••••••"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                </button>
+        <ElevatedCard variant="elevated">
+          <ElevatedCardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Key className="h-5 w-5 text-primary icon-interactive" />
+              </div>
+              <div>
+                <ElevatedCardTitle>Change Password</ElevatedCardTitle>
+                <p className="text-sm text-muted-foreground">Update your account password</p>
               </div>
             </div>
+          </ElevatedCardHeader>
+          <ElevatedCardContent>
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">New Password</Label>
+                <div className="relative">
+                  <Input
+                    id="newPassword"
+                    type={showPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="h-12 bg-secondary pr-12"
+                    placeholder="••••••••"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="h-5 w-5 icon-interactive" /> : <Eye className="h-5 w-5 icon-interactive" />}
+                  </button>
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm New Password</Label>
-              <Input
-                id="confirmPassword"
-                type={showPassword ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="h-12 bg-secondary"
-                placeholder="••••••••"
-              />
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type={showPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="h-12 bg-secondary"
+                  placeholder="••••••••"
+                />
+              </div>
 
-            <Button
-              type="submit"
-              disabled={isChangingPassword || !newPassword || !confirmPassword}
-              className="bg-gradient-primary"
-            >
-              {isChangingPassword ? "Updating..." : "Update Password"}
-            </Button>
-          </form>
-        </div>
+              <Button
+                type="submit"
+                disabled={isChangingPassword || !newPassword || !confirmPassword}
+                variant="glow"
+              >
+                {isChangingPassword ? "Updating..." : "Update Password"}
+              </Button>
+            </form>
+          </ElevatedCardContent>
+        </ElevatedCard>
 
         {/* Notifications */}
-        <div className="p-6 rounded-xl bg-card border border-border">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Bell className="h-5 w-5 text-primary" />
+        <ElevatedCard variant="glass">
+          <ElevatedCardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Bell className="h-5 w-5 text-primary icon-interactive" />
+              </div>
+              <div>
+                <ElevatedCardTitle>Notifications</ElevatedCardTitle>
+                <p className="text-sm text-muted-foreground">Manage your notification preferences</p>
+              </div>
             </div>
-            <div>
-              <h2 className="font-semibold">Notifications</h2>
-              <p className="text-sm text-muted-foreground">Manage your notification preferences</p>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
+          </ElevatedCardHeader>
+          <ElevatedCardContent className="space-y-4">
+            <div className="flex items-center justify-between p-3 rounded-lg hover:bg-secondary/50 transition-colors">
               <div>
                 <div className="font-medium">Email Notifications</div>
                 <div className="text-sm text-muted-foreground">Receive updates via email</div>
@@ -174,7 +179,7 @@ const Settings = () => {
               />
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between p-3 rounded-lg hover:bg-secondary/50 transition-colors">
               <div>
                 <div className="font-medium">Submission Updates</div>
                 <div className="text-sm text-muted-foreground">
@@ -189,7 +194,7 @@ const Settings = () => {
               />
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between p-3 rounded-lg hover:bg-secondary/50 transition-colors">
               <div>
                 <div className="font-medium">Payout Notifications</div>
                 <div className="text-sm text-muted-foreground">
@@ -203,47 +208,50 @@ const Settings = () => {
                 }
               />
             </div>
-          </div>
-        </div>
+          </ElevatedCardContent>
+        </ElevatedCard>
 
         {/* Danger Zone */}
-        <div className="p-6 rounded-xl bg-card border border-red-500/20">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 rounded-lg bg-red-500/10">
-              <Trash2 className="h-5 w-5 text-red-400" />
+        <ElevatedCard variant="elevated" className="border-destructive/20">
+          <ElevatedCardHeader>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-destructive/10">
+                <Trash2 className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <ElevatedCardTitle className="text-destructive">Danger Zone</ElevatedCardTitle>
+                <p className="text-sm text-muted-foreground">Irreversible actions</p>
+              </div>
             </div>
-            <div>
-              <h2 className="font-semibold text-red-400">Danger Zone</h2>
-              <p className="text-sm text-muted-foreground">Irreversible actions</p>
-            </div>
-          </div>
-
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" className="border-red-500/30 text-red-400 hover:bg-red-500/10">
-                Delete Account
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Account?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete your account and
-                  remove all your data from our servers.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDeleteAccount}
-                  className="bg-red-500 hover:bg-red-600"
-                >
+          </ElevatedCardHeader>
+          <ElevatedCardContent>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="border-destructive/30 text-destructive hover:bg-destructive/10">
                   Delete Account
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Account?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete your account and
+                    remove all your data from our servers.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDeleteAccount}
+                    className="bg-destructive hover:bg-destructive/90"
+                  >
+                    Delete Account
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </ElevatedCardContent>
+        </ElevatedCard>
       </div>
     </AppLayout>
   );
