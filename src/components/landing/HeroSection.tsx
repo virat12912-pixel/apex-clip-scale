@@ -26,10 +26,14 @@ const HeroSection = () => {
 
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden px-4 py-20">
-      {/* Background glow effect */}
+      {/* Background glow effect - Enhanced */}
       <div className="absolute inset-0 flex items-center justify-center gpu-accelerated">
-        <div className="w-[700px] h-[700px] rounded-full bg-primary/10 blur-[150px] animate-pulse-glow gpu-accelerated" />
+        <div className="w-[700px] h-[700px] rounded-full bg-primary/15 blur-[150px] pulse-glow gpu-accelerated" />
       </div>
+      
+      {/* Secondary glow orbs */}
+      <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-primary/10 rounded-full blur-3xl float" />
+      <div className="absolute bottom-1/4 right-1/4 w-48 h-48 bg-primary/5 rounded-full blur-2xl float" style={{ animationDelay: '1.5s' }} />
       
       {/* Grid pattern overlay */}
       <div 
@@ -42,16 +46,16 @@ const HeroSection = () => {
       />
 
       <div className="container relative z-10 text-center">
-        {/* Enterprise badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/30 bg-primary/5 backdrop-blur-sm mb-8 opacity-0 animate-fade-up" style={{ animationDelay: '0.1s' }}>
-          <Shield className="w-4 h-4 text-primary" />
+        {/* Enterprise badge - Enhanced with glass effect */}
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/30 glass-card mb-8 opacity-0 animate-fade-up" style={{ animationDelay: '0.1s' }}>
+          <Shield className="w-4 h-4 text-primary icon-interactive" />
           <span className="text-sm text-foreground font-medium">Enterprise-Grade Short-Form Growth Platform</span>
         </div>
 
         {/* Main headline */}
         <h1 className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight mb-6 opacity-0 animate-fade-up" style={{ animationDelay: '0.2s' }}>
           Scale Content.{" "}
-          <span className="text-gradient">Amplify Growth.</span>
+          <span className="text-gradient-animated">Amplify Growth.</span>
         </h1>
 
         {/* Subheadline */}
@@ -60,47 +64,47 @@ const HeroSection = () => {
           Launch campaigns, track performance, and scale your short-form content with confidence.
         </p>
 
-        {/* CTA Buttons */}
+        {/* CTA Buttons - Using new glow variant */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 opacity-0 animate-fade-up" style={{ animationDelay: '0.4s' }}>
-          <Button size="lg" className="w-full sm:w-auto bg-gradient-primary hover:opacity-90 transition-opacity text-lg px-8 py-6 glow-primary" onClick={() => navigate("/auth")}>
+          <Button size="lg" variant="glow" className="w-full sm:w-auto text-lg px-8 py-6" onClick={() => navigate("/auth")}>
             Start a Campaign
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
-          <Button size="lg" variant="outline" className="w-full sm:w-auto text-lg px-8 py-6 border-border hover:bg-secondary hover:border-primary/30" onClick={() => navigate("/auth")}>
+          <Button size="lg" variant="outline" className="w-full sm:w-auto text-lg px-8 py-6 border-border hover:bg-secondary hover:border-primary/30 transition-all duration-300" onClick={() => navigate("/auth")}>
             <Play className="mr-2 h-5 w-5" />
             View Examples
           </Button>
         </div>
 
-        {/* Trust indicators */}
+        {/* Trust indicators - Enhanced with icon animations */}
         <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-6 opacity-0 animate-fade-up" style={{ animationDelay: '0.5s' }}>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <TrendingUp className="w-4 h-4 text-primary" />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground group">
+            <TrendingUp className="w-4 h-4 text-primary icon-interactive" />
             <span>Budget-based pricing</span>
           </div>
           <div className="hidden sm:block w-1 h-1 rounded-full bg-muted-foreground" />
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Users className="w-4 h-4 text-primary" />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground group">
+            <Users className="w-4 h-4 text-primary icon-interactive" />
             <span>2,400+ vetted clippers</span>
           </div>
           <div className="hidden sm:block w-1 h-1 rounded-full bg-muted-foreground" />
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Shield className="w-4 h-4 text-primary" />
+          <div className="flex items-center gap-2 text-sm text-muted-foreground group">
+            <Shield className="w-4 h-4 text-primary icon-interactive" />
             <span>Full approval control</span>
           </div>
         </div>
 
-        {/* Platform icons */}
+        {/* Platform icons - Enhanced with spotlight effect */}
         <div className="mt-10 opacity-0 animate-fade-up" style={{ animationDelay: '0.6s' }}>
           <p className="text-sm text-muted-foreground mb-4">Distribute across all major platforms</p>
           <div className="flex items-center justify-center gap-4">
-            <div className="p-3 rounded-xl bg-card/50 border border-border hover:border-primary/30 transition-colors text-muted-foreground hover:text-foreground">
+            <div className="p-3 rounded-xl glass-card hover:border-primary/30 transition-all duration-300 text-muted-foreground hover:text-foreground hover:scale-110 hover:shadow-[0_0_20px_hsl(var(--primary)/0.2)] cursor-pointer">
               <TikTokIcon />
             </div>
-            <div className="p-3 rounded-xl bg-card/50 border border-border hover:border-primary/30 transition-colors text-muted-foreground hover:text-foreground">
+            <div className="p-3 rounded-xl glass-card hover:border-primary/30 transition-all duration-300 text-muted-foreground hover:text-foreground hover:scale-110 hover:shadow-[0_0_20px_hsl(var(--primary)/0.2)] cursor-pointer">
               <InstagramIcon />
             </div>
-            <div className="p-3 rounded-xl bg-card/50 border border-border hover:border-primary/30 transition-colors text-muted-foreground hover:text-foreground">
+            <div className="p-3 rounded-xl glass-card hover:border-primary/30 transition-all duration-300 text-muted-foreground hover:text-foreground hover:scale-110 hover:shadow-[0_0_20px_hsl(var(--primary)/0.2)] cursor-pointer">
               <YouTubeIcon />
             </div>
           </div>
