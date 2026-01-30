@@ -1,4 +1,5 @@
-import { Users, Eye, CheckCircle, Film, Building2, Globe } from "lucide-react";
+import { Users, Eye, CheckCircle, Building2 } from "lucide-react";
+import { ElevatedCard } from "@/components/ui/elevated-card";
 
 const metrics = [
   {
@@ -34,9 +35,9 @@ const MetricsSection = () => {
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
       
       <div className="container">
-        {/* Live community indicator */}
+        {/* Live community indicator - Enhanced with glass effect */}
         <div className="flex justify-center mb-8">
-          <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-card border border-border">
+          <div className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full glass-card">
             <div className="relative flex items-center justify-center">
               <span className="absolute w-3 h-3 rounded-full bg-emerald-500 animate-ping opacity-75" />
               <span className="relative w-3 h-3 rounded-full bg-emerald-500" />
@@ -49,27 +50,28 @@ const MetricsSection = () => {
 
         <div className="text-center mb-12">
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-            Built for <span className="text-gradient">Enterprise Scale</span>
+            Built for <span className="text-gradient-animated">Enterprise Scale</span>
           </h2>
           <p className="text-muted-foreground max-w-xl mx-auto">
             Real results from real brands. Our platform delivers measurable impact at any scale.
           </p>
         </div>
 
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 stagger-enter">
           {metrics.map((metric, index) => (
-            <div
+            <ElevatedCard
               key={metric.label}
-              className="group relative p-6 sm:p-8 rounded-2xl bg-card border border-border hover:border-primary/30 transition-all duration-300 card-shadow"
+              variant="spotlight"
+              className="group relative p-6 sm:p-8"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
               {/* Icon */}
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 text-primary mb-4 group-hover:scale-110 transition-transform">
-                <metric.icon className="w-6 h-6" />
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 text-primary mb-4 group-hover:scale-110 transition-transform duration-300">
+                <metric.icon className="w-6 h-6 icon-interactive" />
               </div>
               
               {/* Value */}
-              <div className="text-3xl sm:text-4xl font-bold text-foreground mb-1">
+              <div className="text-3xl sm:text-4xl font-bold text-foreground mb-1 stat-value">
                 {metric.value}
               </div>
               
@@ -84,8 +86,8 @@ const MetricsSection = () => {
               </div>
 
               {/* Hover glow effect */}
-              <div className="absolute inset-0 rounded-2xl bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-            </div>
+              <div className="absolute inset-0 rounded-xl bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+            </ElevatedCard>
           ))}
         </div>
       </div>

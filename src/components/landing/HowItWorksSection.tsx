@@ -1,4 +1,6 @@
 import { Upload, Scissors, CheckCircle, BarChart3 } from "lucide-react";
+import { ElevatedCard } from "@/components/ui/elevated-card";
+import { SectionDivider } from "@/components/ui/section-divider";
 
 const steps = [
   {
@@ -36,14 +38,14 @@ const HowItWorksSection = () => {
             How It Works
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-            Simple. Transparent. <span className="text-gradient">Professional.</span>
+            Simple. Transparent. <span className="text-gradient-animated">Professional.</span>
           </h2>
           <p className="text-muted-foreground max-w-xl mx-auto">
             From campaign launch to performance tracking—we've streamlined every step for enterprise needs.
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 stagger-enter">
           {steps.map((item, index) => (
             <div
               key={item.step}
@@ -51,35 +53,36 @@ const HowItWorksSection = () => {
             >
               {/* Connector line (hidden on mobile, visible on lg+) */}
               {index < steps.length - 1 && (
-                <div className="hidden lg:block absolute top-16 left-[60%] w-full h-px bg-gradient-to-r from-border to-transparent" />
+                <div className="hidden lg:block absolute top-16 left-[60%] w-full h-px bg-gradient-to-r from-primary/30 to-transparent" />
               )}
 
-              <div className="relative p-8 rounded-2xl bg-card border border-border hover:border-primary/30 transition-all duration-300 h-full">
+              <ElevatedCard variant="elevated" className="relative p-8 h-full">
                 {/* Step number */}
-                <span className="absolute top-6 right-6 text-5xl font-bold text-muted/30">
+                <span className="absolute top-6 right-6 text-5xl font-bold text-muted/30 group-hover:text-primary/20 transition-colors">
                   {item.step}
                 </span>
 
                 {/* Icon */}
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-primary text-primary-foreground mb-6 group-hover:scale-110 transition-transform">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-primary text-primary-foreground mb-6 group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-primary/20">
                   <item.icon className="w-7 h-7" />
                 </div>
 
                 {/* Title */}
-                <h3 className="text-xl font-semibold mb-3">{item.title}</h3>
+                <h3 className="text-xl font-semibold mb-3 group-hover:text-primary transition-colors">{item.title}</h3>
 
                 {/* Description */}
                 <p className="text-muted-foreground text-sm leading-relaxed">
                   {item.description}
                 </p>
-              </div>
+              </ElevatedCard>
             </div>
           ))}
         </div>
 
         {/* Enterprise note */}
         <div className="mt-12 text-center">
-          <p className="text-sm text-muted-foreground">
+          <SectionDivider variant="gradient" size="sm" />
+          <p className="text-sm text-muted-foreground mt-6">
             <span className="text-primary">Note:</span> No guaranteed views or sales. Results are organic and performance-based.
           </p>
         </div>

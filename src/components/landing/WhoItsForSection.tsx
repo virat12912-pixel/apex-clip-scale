@@ -1,4 +1,5 @@
-import { Check, Building2, DollarSign, Users, Shield, Clock, BarChart3 } from "lucide-react";
+import { Check, Building2, DollarSign } from "lucide-react";
+import { ElevatedCard } from "@/components/ui/elevated-card";
 
 const clientBenefits = [
   "Scale content without hiring a team",
@@ -27,7 +28,7 @@ const WhoItsForSection = () => {
             Who It's For
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-            Built for <span className="text-gradient">Both Sides</span>
+            Built for <span className="text-gradient-animated">Both Sides</span>
           </h2>
           <p className="text-muted-foreground max-w-xl mx-auto">
             Whether you're scaling content or earning from your skills, Amplify has you covered.
@@ -36,11 +37,11 @@ const WhoItsForSection = () => {
 
         <div className="grid md:grid-cols-2 gap-6 sm:gap-8 max-w-5xl mx-auto stagger-enter">
           {/* Clients Card */}
-          <div className="group relative p-8 rounded-2xl bg-card border border-border card-hover">
+          <ElevatedCard variant="spotlight" className="group relative p-8">
             {/* Header */}
             <div className="flex items-center gap-4 mb-6">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 text-primary transition-transform duration-300 group-hover:scale-110">
-                <Building2 className="w-6 h-6" />
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 text-primary transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)]">
+                <Building2 className="w-6 h-6 icon-interactive" />
               </div>
               <div>
                 <h3 className="text-xl font-semibold">For Brands & Enterprises</h3>
@@ -56,7 +57,7 @@ const WhoItsForSection = () => {
                   className="flex items-start gap-3 opacity-0 animate-fade-up"
                   style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'forwards' }}
                 >
-                  <div className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center mt-0.5">
+                  <div className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center mt-0.5 group-hover:bg-primary/30 transition-colors">
                     <Check className="w-3 h-3 text-primary" />
                   </div>
                   <span className="text-muted-foreground text-sm">{benefit}</span>
@@ -75,15 +76,15 @@ const WhoItsForSection = () => {
             </div>
 
             {/* Decorative gradient */}
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-          </div>
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+          </ElevatedCard>
 
           {/* Clippers Card */}
-          <div id="for-clippers" className="group relative p-8 rounded-2xl bg-card border border-border card-hover">
+          <ElevatedCard id="for-clippers" variant="spotlight" className="group relative p-8">
             {/* Header */}
             <div className="flex items-center gap-4 mb-6">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 text-primary transition-transform duration-300 group-hover:scale-110">
-                <DollarSign className="w-6 h-6" />
+              <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-primary/10 text-primary transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)]">
+                <DollarSign className="w-6 h-6 icon-interactive" />
               </div>
               <div>
                 <h3 className="text-xl font-semibold">For Clippers</h3>
@@ -99,7 +100,7 @@ const WhoItsForSection = () => {
                   className="flex items-start gap-3 opacity-0 animate-fade-up"
                   style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'forwards' }}
                 >
-                  <div className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center mt-0.5">
+                  <div className="flex-shrink-0 w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center mt-0.5 group-hover:bg-primary/30 transition-colors">
                     <Check className="w-3 h-3 text-primary" />
                   </div>
                   <span className="text-muted-foreground text-sm">{benefit}</span>
@@ -118,8 +119,8 @@ const WhoItsForSection = () => {
             </div>
 
             {/* Decorative gradient */}
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-          </div>
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+          </ElevatedCard>
         </div>
       </div>
     </section>

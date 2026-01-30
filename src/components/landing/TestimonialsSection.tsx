@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Star, ChevronLeft, ChevronRight, Quote, DollarSign, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ElevatedCard } from "@/components/ui/elevated-card";
 
 const testimonials = [
   {
@@ -81,7 +82,7 @@ const TestimonialsSection = () => {
     <section className="py-20 px-4 relative overflow-hidden">
       {/* Background glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl pulse-glow" />
       </div>
 
       <div className="container relative">
@@ -90,7 +91,7 @@ const TestimonialsSection = () => {
             Testimonials
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-            Trusted by <span className="text-gradient">Brands & Clippers</span>
+            Trusted by <span className="text-gradient-animated">Brands & Clippers</span>
           </h2>
           <p className="text-muted-foreground max-w-xl mx-auto">
             Join thousands of satisfied users who are already growing with Amplify.
@@ -104,18 +105,18 @@ const TestimonialsSection = () => {
             variant="outline"
             size="icon"
             onClick={goToPrev}
-            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 rounded-full bg-card/80 backdrop-blur-sm border-border hover:bg-card hover:border-primary/30 transition-all hidden md:flex"
+            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 rounded-full glass-card hover:border-primary/30 transition-all hidden md:flex group"
           >
-            <ChevronLeft className="h-5 w-5" />
+            <ChevronLeft className="h-5 w-5 group-hover:scale-110 transition-transform" />
           </Button>
           
           <Button
             variant="outline"
             size="icon"
             onClick={goToNext}
-            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 rounded-full bg-card/80 backdrop-blur-sm border-border hover:bg-card hover:border-primary/30 transition-all hidden md:flex"
+            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 rounded-full glass-card hover:border-primary/30 transition-all hidden md:flex group"
           >
-            <ChevronRight className="h-5 w-5" />
+            <ChevronRight className="h-5 w-5 group-hover:scale-110 transition-transform" />
           </Button>
 
           {/* Cards Container */}
@@ -132,9 +133,9 @@ const TestimonialsSection = () => {
                   key={index}
                   className="w-full flex-shrink-0 p-6"
                 >
-                  <div className="bg-card border border-border rounded-2xl p-8 relative overflow-hidden group card-hover">
+                  <ElevatedCard variant="glass" className="p-8 relative overflow-hidden group">
                     {/* Quote icon */}
-                    <Quote className="absolute top-6 right-6 h-12 w-12 text-primary/10 group-hover:text-primary/20 transition-colors" />
+                    <Quote className="absolute top-6 right-6 h-12 w-12 text-primary/10 group-hover:text-primary/30 transition-colors" />
                     
                     {/* Type badge and earnings */}
                     <div className="flex items-center justify-between mb-6">
@@ -180,7 +181,7 @@ const TestimonialsSection = () => {
 
                     {/* Author */}
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center text-lg font-bold text-primary-foreground">
+                      <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center text-lg font-bold text-primary-foreground shadow-lg shadow-primary/20">
                         {testimonial.avatar}
                       </div>
                       <div>
@@ -191,7 +192,7 @@ const TestimonialsSection = () => {
 
                     {/* Decorative gradient */}
                     <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                  </div>
+                  </ElevatedCard>
                 </div>
               ))}
             </div>
@@ -205,7 +206,7 @@ const TestimonialsSection = () => {
                 onClick={() => goToSlide(index)}
                 className={`h-2 rounded-full transition-all duration-300 ${
                   index === activeIndex 
-                    ? "w-8 bg-primary" 
+                    ? "w-8 bg-primary glow-primary-sm" 
                     : "w-2 bg-muted hover:bg-muted-foreground"
                 }`}
               />

@@ -8,11 +8,11 @@ const Navbar = () => {
   const navigate = useNavigate();
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
+    <nav className="fixed top-0 left-0 right-0 z-50 glass-card border-b border-border/50">
       <div className="container flex items-center justify-between h-16 px-4">
         {/* Logo */}
-        <a href="/" className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center glow-primary-sm">
+        <a href="/" className="flex items-center gap-2.5 group">
+          <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center glow-primary-sm transition-transform group-hover:scale-105">
             <Zap className="w-5 h-5 text-primary-foreground" />
           </div>
           <span className="font-display font-bold text-xl">Amplify</span>
@@ -20,26 +20,30 @@ const Navbar = () => {
 
         {/* Desktop Navigation */}
         <div className="hidden md:flex items-center gap-8">
-          <a href="#how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <a href="#how-it-works" className="text-sm text-muted-foreground hover:text-foreground transition-colors relative group">
             How It Works
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
           </a>
-          <a href="#for-clients" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <a href="#for-clients" className="text-sm text-muted-foreground hover:text-foreground transition-colors relative group">
             For Clients
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
           </a>
-          <a href="#for-clippers" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <a href="#for-clippers" className="text-sm text-muted-foreground hover:text-foreground transition-colors relative group">
             For Clippers
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
           </a>
-          <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <a href="#pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors relative group">
             Pricing
+            <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all group-hover:w-full" />
           </a>
         </div>
 
         {/* Desktop CTA */}
         <div className="hidden md:flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/auth")}>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/auth")} className="hover:bg-secondary">
             Log In
           </Button>
-          <Button size="sm" className="bg-gradient-primary hover:opacity-90 glow-primary-sm" onClick={() => navigate("/auth")}>
+          <Button size="sm" variant="glow" onClick={() => navigate("/auth")}>
             Start a Campaign
           </Button>
         </div>
@@ -57,7 +61,7 @@ const Navbar = () => {
 
       {/* Mobile Menu */}
       {isOpen && (
-        <div className="md:hidden border-t border-border bg-background/95 backdrop-blur-lg">
+        <div className="md:hidden border-t border-border glass-card">
           <div className="container px-4 py-4 space-y-4">
             <a href="#how-it-works" className="block text-sm text-muted-foreground hover:text-foreground transition-colors">
               How It Works
@@ -75,7 +79,7 @@ const Navbar = () => {
               <Button variant="ghost" className="w-full justify-center" onClick={() => navigate("/auth")}>
                 Log In
               </Button>
-              <Button className="w-full bg-gradient-primary hover:opacity-90" onClick={() => navigate("/auth")}>
+              <Button variant="glow" className="w-full" onClick={() => navigate("/auth")}>
                 Start a Campaign
               </Button>
             </div>
