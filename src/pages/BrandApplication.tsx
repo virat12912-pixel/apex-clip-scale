@@ -11,7 +11,7 @@ import { useMyBrandApplication, useCreateBrandApplication } from "@/hooks/useBra
 import { z } from "zod";
 
 const applicationSchema = z.object({
-  company_name: z.string().min(2, "Company name must be at least 2 characters"),
+  company_name: z.string().min(2, "Name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
   campaign_goals: z.string().min(20, "Please describe your goals in at least 20 characters"),
 });
@@ -146,10 +146,10 @@ const BrandApplication = () => {
         <div className="p-6 rounded-2xl bg-card/50 border border-border/30">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="company_name">Company / Brand Name</Label>
+              <Label htmlFor="company_name">Your Name</Label>
               <Input
                 id="company_name"
-                placeholder="Your company or brand name"
+                placeholder="Your full name"
                 value={formData.company_name}
                 onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                 className={`h-12 bg-card/50 border-border/30 rounded-xl ${errors.company_name ? "border-destructive" : ""}`}
