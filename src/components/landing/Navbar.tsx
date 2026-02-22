@@ -15,7 +15,7 @@ const Navbar = () => {
           <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center glow-primary-sm transition-transform group-hover:scale-105">
             <Zap className="w-5 h-5 text-primary-foreground" />
           </div>
-          <span className="font-display font-bold text-xl">Amplify</span>
+          <span className="font-display font-bold text-xl">Vyron</span>
         </a>
 
         {/* Desktop Navigation */}
