@@ -70,11 +70,11 @@ const BrandApplication = () => {
     );
   }
 
-  // Show status if already applied
   if (existingApplication) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="max-w-md w-full text-center">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,hsl(var(--primary)/0.08),transparent_50%)]" />
+        <div className="max-w-md w-full text-center relative z-10 page-enter">
           <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center mb-6 ${
             existingApplication.status === "approved"
               ? "bg-emerald-500/10"
@@ -91,7 +91,7 @@ const BrandApplication = () => {
             )}
           </div>
 
-          <h1 className="text-2xl font-bold mb-2">
+          <h1 className="text-2xl font-display font-bold mb-2">
             {existingApplication.status === "approved"
               ? "Application Approved!"
               : existingApplication.status === "rejected"
@@ -108,11 +108,11 @@ const BrandApplication = () => {
           </p>
 
           {existingApplication.status === "approved" ? (
-            <Button asChild className="bg-gradient-primary">
+            <Button asChild className="bg-gradient-primary rounded-xl font-display font-bold btn-shimmer">
               <Link to="/launch">Launch Your First Campaign</Link>
             </Button>
           ) : (
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" className="rounded-xl border-border/30">
               <Link to="/dashboard">Go to Dashboard</Link>
             </Button>
           )}
@@ -122,8 +122,9 @@ const BrandApplication = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="max-w-lg w-full">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,hsl(var(--primary)/0.08),transparent_50%)]" />
+      <div className="max-w-lg w-full relative z-10 page-enter">
         <Link
           to="/dashboard"
           className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8"
@@ -133,16 +134,16 @@ const BrandApplication = () => {
         </Link>
 
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-12 h-12 rounded-xl bg-gradient-primary flex items-center justify-center">
+          <div className="w-12 h-12 rounded-xl bg-gradient-primary glow-primary-sm flex items-center justify-center">
             <Building2 className="h-6 w-6 text-primary-foreground" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Brand Application</h1>
+            <h1 className="text-2xl font-display font-bold">Brand Application</h1>
             <p className="text-muted-foreground">Apply to launch campaigns</p>
           </div>
         </div>
 
-        <div className="p-6 rounded-xl bg-card border border-border">
+        <div className="p-6 rounded-2xl bg-card/50 border border-border/30">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="company_name">Company / Brand Name</Label>
@@ -151,7 +152,7 @@ const BrandApplication = () => {
                 placeholder="Your company or brand name"
                 value={formData.company_name}
                 onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                className={`h-12 bg-secondary ${errors.company_name ? "border-destructive" : ""}`}
+                className={`h-12 bg-card/50 border-border/30 rounded-xl ${errors.company_name ? "border-destructive" : ""}`}
               />
               {errors.company_name && (
                 <p className="text-xs text-destructive">{errors.company_name}</p>
@@ -166,7 +167,7 @@ const BrandApplication = () => {
                 placeholder="your@email.com"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className={`h-12 bg-secondary ${errors.email ? "border-destructive" : ""}`}
+                className={`h-12 bg-card/50 border-border/30 rounded-xl ${errors.email ? "border-destructive" : ""}`}
               />
               {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
             </div>
@@ -178,7 +179,7 @@ const BrandApplication = () => {
                 placeholder="Tell us about your brand and what you're looking to achieve with clip campaigns..."
                 value={formData.campaign_goals}
                 onChange={(e) => setFormData({ ...formData, campaign_goals: e.target.value })}
-                className={`min-h-[120px] bg-secondary resize-none ${
+                className={`min-h-[120px] bg-card/50 border-border/30 rounded-xl resize-none ${
                   errors.campaign_goals ? "border-destructive" : ""
                 }`}
               />
@@ -187,7 +188,7 @@ const BrandApplication = () => {
               )}
             </div>
 
-            <div className="p-4 rounded-lg bg-primary/5 border border-primary/10">
+            <div className="p-4 rounded-xl bg-primary/5 border border-primary/10">
               <p className="text-sm text-muted-foreground">
                 <strong className="text-foreground">What happens next?</strong>
                 <br />
@@ -198,7 +199,7 @@ const BrandApplication = () => {
 
             <Button
               type="submit"
-              className="w-full h-12 bg-gradient-primary hover:opacity-90"
+              className="w-full h-12 bg-gradient-primary hover:opacity-90 rounded-xl font-display font-bold btn-shimmer glow-primary-sm"
               disabled={createApplication.isPending}
             >
               {createApplication.isPending ? "Submitting..." : "Submit Application"}
