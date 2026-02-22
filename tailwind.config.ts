@@ -14,7 +14,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ["Space Grotesk", "system-ui", "sans-serif"],
+        display: ["Coolvetica", "Space Grotesk", "system-ui", "sans-serif"],
         sans: ["Inter", "system-ui", "sans-serif"],
       },
       colors: {
@@ -96,6 +96,12 @@ export default {
           "0%": { opacity: "0", transform: "translateY(30px) translateZ(0)" },
           "100%": { opacity: "1", transform: "translateY(0) translateZ(0)" },
         },
+        "word-fade": {
+          "0%": { opacity: "0", transform: "translateY(8px)" },
+          "15%": { opacity: "1", transform: "translateY(0)" },
+          "85%": { opacity: "1", transform: "translateY(0)" },
+          "100%": { opacity: "0", transform: "translateY(-8px)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.25s cubic-bezier(0.32, 0.72, 0, 1)",
@@ -105,6 +111,7 @@ export default {
         "pulse-glow": "pulse-glow 4s cubic-bezier(0.4, 0, 0.6, 1) infinite",
         "count-up": "count-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards",
         "slide-up": "slide-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards",
+        "word-fade": "word-fade 3s ease infinite",
       },
     },
   },

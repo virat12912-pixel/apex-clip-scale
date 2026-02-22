@@ -1,39 +1,21 @@
-import { useState } from "react";
-import { Check } from "lucide-react";
+import { BarChart3, Shield, Zap, DollarSign, TrendingUp, BookOpen } from "lucide-react";
+import { useScrollReveal } from "@/hooks/useScrollReveal";
 
 const brandBenefits = [
-  {
-    title: "Performance-Based",
-    subtitle: "Zero Risk Investment",
-    description: "No upfront risk. Pay only for performance. We manage everything, you watch results.",
-    features: ["No upfront costs or hidden fees", "Full campaign management included", "Real-time analytics and reporting"],
-  },
-  {
-    title: "Cost-Effective",
-    subtitle: "Higher ROI",
-    description: "Cheaper and more efficient than paid ads with better ROI and authentic engagement.",
-    features: ["Better ROI than traditional ads", "High-quality content creation", "Multi-platform reach and exposure"],
-  },
+  { icon: BarChart3, title: "Real-Time Analytics", desc: "Track views, clicks, and conversions live." },
+  { icon: Shield, title: "Zero Risk", desc: "Only pay for performance — no upfront costs." },
+  { icon: Zap, title: "Fast Matching", desc: "Get matched with the right creators instantly." },
 ];
 
 const creatorBenefits = [
-  {
-    title: "Training & Support",
-    subtitle: "Expert Guidance",
-    description: "Free expert training and support to help you succeed. Build recurring income with instant payouts.",
-    features: ["Free training by industry experts", "Access to viral brand partnerships", "Build sustainable recurring income"],
-  },
-  {
-    title: "Earnings & Analytics",
-    subtitle: "Maximize Revenue",
-    description: "High-paying deals with bonus rewards, instant payouts, and comprehensive analytics tracking.",
-    features: ["High-paying deals with bonus rewards", "Instant payouts and withdrawals", "Real-time analytics and performance tracking"],
-  },
+  { icon: DollarSign, title: "Get Paid Per View", desc: "Earn for every 1,000 views on your content." },
+  { icon: TrendingUp, title: "Grow Your Brand", desc: "Access campaigns that match your niche." },
+  { icon: BookOpen, title: "Free Training", desc: "Expert guidance to help you succeed." },
 ];
 
 const WhoItsForSection = () => {
-  const [activeTab, setActiveTab] = useState<"brands" | "creators">("brands");
-  const benefits = activeTab === "brands" ? brandBenefits : creatorBenefits;
+  const headerRef = useScrollReveal();
+  const contentRef = useScrollReveal();
 
   return (
     <section id="features" className="py-24 sm:py-32 px-4 relative">
@@ -41,60 +23,74 @@ const WhoItsForSection = () => {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-primary/3 rounded-full blur-[200px]" />
       </div>
 
-      <div className="container relative max-w-4xl">
-        <div className="text-center mb-14">
+      <div className="container relative max-w-5xl">
+        <div ref={headerRef} className="scroll-reveal text-center mb-16">
           <span className="text-primary text-xs font-semibold tracking-[0.2em] uppercase mb-4 block">
             Why Choose Us
           </span>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
-            Why Choose Amplify
+            Built for <span className="text-gradient">Everyone</span>
           </h2>
-          <p className="text-muted-foreground max-w-xl mx-auto text-sm sm:text-base mb-10">
-            Discover what makes Amplify the preferred platform for brands and creators worldwide.
+          <p className="text-muted-foreground max-w-lg mx-auto text-sm sm:text-base">
+            Whether you're scaling a brand or monetizing your creativity — Amplify has you covered.
           </p>
-
-          <div className="inline-flex items-center rounded-full border border-border/50 bg-card/50 p-1 gap-0.5">
-            {(["brands", "creators"] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
-                  activeTab === tab
-                    ? "bg-primary text-primary-foreground shadow-[0_0_15px_hsl(var(--primary)/0.3)]"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                For {tab === "brands" ? "Brands" : "Creators"}
-              </button>
-            ))}
-          </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-5" key={activeTab}>
-          {benefits.map((item, index) => (
-            <div
-              key={item.title}
-              className="group relative rounded-2xl border border-border/40 bg-card/30 p-7 sm:p-8 hover:border-primary/25 transition-all duration-300 animate-fade-in"
-              style={{ animationDelay: `${index * 80}ms` }}
-            >
-              <h3 className="text-lg sm:text-xl font-bold mb-1 group-hover:text-primary transition-colors">{item.title}</h3>
-              <p className="text-xs text-primary/50 font-medium mb-3 uppercase tracking-wider">{item.subtitle}</p>
-              <p className="text-sm text-muted-foreground leading-relaxed mb-6">{item.description}</p>
-
-              <div className="space-y-2.5">
-                {item.features.map((f) => (
-                  <div key={f} className="flex items-center gap-2.5 text-sm text-muted-foreground/80">
-                    <div className="w-3.5 h-3.5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Check className="w-2 h-2 text-primary" />
-                    </div>
-                    {f}
+        <div ref={contentRef} className="scroll-reveal grid md:grid-cols-2 gap-0 md:gap-0 rounded-2xl border border-border/30 overflow-hidden bg-card/20 backdrop-blur-sm">
+          {/* For Brands */}
+          <div className="p-8 sm:p-10 md:border-r border-b md:border-b-0 border-border/20">
+            <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+              <span className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Zap className="w-4 h-4 text-primary" />
+              </span>
+              For Brands
+            </h3>
+            <div className="space-y-5">
+              {brandBenefits.map((b) => (
+                <div
+                  key={b.title}
+                  className="group flex items-start gap-4 p-3 -mx-3 rounded-xl transition-all duration-300 hover:bg-primary/5"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 transition-all duration-300 group-hover:bg-primary/20 group-hover:shadow-[0_0_15px_hsl(var(--primary)/0.2)]">
+                    <b.icon className="w-4 h-4 text-primary" />
                   </div>
-                ))}
-              </div>
-
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                  <div>
+                    <p className="text-sm font-semibold mb-0.5 group-hover:text-primary transition-colors">{b.title}</p>
+                    <p className="text-xs text-muted-foreground">{b.desc}</p>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
+
+          {/* Glowing divider - desktop only */}
+          <div className="hidden md:block absolute left-1/2 top-[10%] bottom-[10%] w-px bg-gradient-to-b from-transparent via-primary/40 to-transparent -translate-x-1/2" />
+
+          {/* For Creators */}
+          <div className="p-8 sm:p-10 relative">
+            <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
+              <span className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                <DollarSign className="w-4 h-4 text-primary" />
+              </span>
+              For Creators
+            </h3>
+            <div className="space-y-5">
+              {creatorBenefits.map((b) => (
+                <div
+                  key={b.title}
+                  className="group flex items-start gap-4 p-3 -mx-3 rounded-xl transition-all duration-300 hover:bg-primary/5"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 transition-all duration-300 group-hover:bg-primary/20 group-hover:shadow-[0_0_15px_hsl(var(--primary)/0.2)]">
+                    <b.icon className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold mb-0.5 group-hover:text-primary transition-colors">{b.title}</p>
+                    <p className="text-xs text-muted-foreground">{b.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </section>
