@@ -35,6 +35,7 @@ export function AppSidebar() {
     { title: "Payouts", url: "/admin/payouts", icon: Wallet },
     { title: "Brand Applications", url: "/admin/brands", icon: Building2 },
     { title: "Verify Accounts", url: "/admin/social-accounts", icon: Users },
+    { title: "Manage Users", url: "/admin/users", icon: Crown },
   ] : [];
 
   const handleSignOut = async () => {
