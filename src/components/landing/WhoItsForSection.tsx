@@ -36,75 +36,63 @@ const WhoItsForSection = () => {
   const benefits = activeTab === "brands" ? brandBenefits : creatorBenefits;
 
   return (
-    <section id="features" className="py-28 px-4 relative">
-      {/* Background */}
+    <section id="features" className="py-24 sm:py-32 px-4 relative">
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-primary/5 rounded-full blur-[150px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-primary/3 rounded-full blur-[200px]" />
       </div>
 
-      <div className="container relative">
+      <div className="container relative max-w-4xl">
         <div className="text-center mb-14">
-          <span className="inline-block text-primary text-xs font-semibold tracking-[0.2em] uppercase mb-4">
+          <span className="text-primary text-xs font-semibold tracking-[0.2em] uppercase mb-4 block">
             Why Choose Us
           </span>
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-5">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
             Why Choose Amplify
           </h2>
-          <p className="text-muted-foreground max-w-2xl mx-auto text-base mb-10">
+          <p className="text-muted-foreground max-w-xl mx-auto text-sm sm:text-base mb-10">
             Discover what makes Amplify the preferred platform for brands and creators worldwide.
           </p>
 
-          {/* Tab Toggle */}
-          <div className="inline-flex items-center rounded-full border border-border bg-card p-1 gap-1">
-            <button
-              onClick={() => setActiveTab("brands")}
-              className={`px-7 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${
-                activeTab === "brands"
-                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              For Brands
-            </button>
-            <button
-              onClick={() => setActiveTab("creators")}
-              className={`px-7 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${
-                activeTab === "creators"
-                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              For Creators
-            </button>
+          <div className="inline-flex items-center rounded-full border border-border/50 bg-card/50 p-1 gap-0.5">
+            {(["brands", "creators"] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                  activeTab === tab
+                    ? "bg-primary text-primary-foreground shadow-[0_0_15px_hsl(var(--primary)/0.3)]"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                For {tab === "brands" ? "Brands" : "Creators"}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto" key={activeTab}>
+        <div className="grid md:grid-cols-2 gap-5" key={activeTab}>
           {benefits.map((item, index) => (
             <div
               key={item.title}
-              className="group rounded-2xl border border-border bg-card/50 p-8 hover:border-primary/30 transition-all duration-300 hover:shadow-lg hover:shadow-primary/5 opacity-0 animate-fade-up"
-              style={{ animationDelay: `${index * 100}ms` }}
+              className="group relative rounded-2xl border border-border/40 bg-card/30 p-7 sm:p-8 hover:border-primary/25 transition-all duration-300 animate-fade-in"
+              style={{ animationDelay: `${index * 80}ms` }}
             >
-              <h3 className="text-xl font-bold mb-1 group-hover:text-primary transition-colors">{item.title}</h3>
-              <p className="text-sm text-primary/70 font-medium mb-3">{item.subtitle}</p>
+              <h3 className="text-lg sm:text-xl font-bold mb-1 group-hover:text-primary transition-colors">{item.title}</h3>
+              <p className="text-xs text-primary/50 font-medium mb-3 uppercase tracking-wider">{item.subtitle}</p>
               <p className="text-sm text-muted-foreground leading-relaxed mb-6">{item.description}</p>
 
-              <div className="space-y-3">
-                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  {activeTab === "brands" ? "Benefits:" : "Features:"}
-                </span>
+              <div className="space-y-2.5">
                 {item.features.map((f) => (
-                  <div key={f} className="flex items-center gap-2.5 text-sm text-muted-foreground">
-                    <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Check className="w-2.5 h-2.5 text-primary" />
+                  <div key={f} className="flex items-center gap-2.5 text-sm text-muted-foreground/80">
+                    <div className="w-3.5 h-3.5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Check className="w-2 h-2 text-primary" />
                     </div>
                     {f}
                   </div>
                 ))}
               </div>
 
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/3 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-primary/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
             </div>
           ))}
         </div>
