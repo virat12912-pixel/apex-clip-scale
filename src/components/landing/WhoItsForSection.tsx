@@ -8,9 +8,9 @@ const brandBenefits = [
 ];
 
 const creatorBenefits = [
-  { icon: DollarSign, title: "Get Paid Per View", desc: "Earn for every 1,000 views on your content." },
-  { icon: TrendingUp, title: "Grow Your Brand", desc: "Access campaigns that match your niche." },
-  { icon: BookOpen, title: "Free Training", desc: "Expert guidance to help you succeed." },
+  { icon: DollarSign, title: "Get Paid Per View", desc: "Creators, streamers, and musicians earn for every 1,000 views." },
+  { icon: TrendingUp, title: "Grow Your Audience", desc: "Access campaigns that match your niche and content style." },
+  { icon: BookOpen, title: "Free Training", desc: "Expert guidance to help you succeed, no matter your platform." },
 ];
 
 const WhoItsForSection = () => {
@@ -32,7 +32,7 @@ const WhoItsForSection = () => {
             Built for <span className="text-gradient">Everyone</span>
           </h2>
           <p className="text-muted-foreground max-w-lg mx-auto text-sm sm:text-base">
-            Whether you're scaling a brand or monetizing your creativity — Amplify has you covered.
+            Whether you're a brand, creator, streamer, or musician — Amplify has you covered.
           </p>
         </div>
 
@@ -72,7 +72,7 @@ const WhoItsForSection = () => {
               <span className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                 <DollarSign className="w-4 h-4 text-primary" />
               </span>
-              For Creators
+              For Creators & Artists
             </h3>
             <div className="space-y-5">
               {creatorBenefits.map((b) => (
