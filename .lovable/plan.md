@@ -1,94 +1,137 @@
 
 
-# Unique Amplify Landing Page - Coolvetica Font, Gradients, Glows, and Animations
+# Complete Site-Wide Premium Redesign -- Virality.gg Inspired
 
 ## Overview
-Complete visual overhaul to make the landing page feel original and premium -- not a copy of any other site. Adding Coolvetica font, rich gradient effects, smooth animations throughout, and interactive element mechanisms.
+Apply the same premium dark aesthetic with Coolvetica font, gradients, glows, and smooth animations to EVERY remaining page that hasn't been fully updated yet. Taking inspiration from virality.gg's clean minimal dark design while keeping Amplify's unique identity.
 
-## What Changes
+## Pages to Update
 
-### 1. Coolvetica Font
-- Import Coolvetica font via `@font-face` in `src/index.css` (using a CDN or self-hosted woff2)
-- Apply as the display/heading font across all landing page headings
-- Update `tailwind.config.ts` to set `font-display` to Coolvetica
+### 1. CampaignDetail.tsx (Major overhaul)
+Currently uses basic `bg-card border border-border` styling without premium effects.
+- Add `font-display` to all headings
+- Replace basic cards with `rounded-2xl bg-card/50 border-border/30` glass style
+- Add `card-hover` effects on interactive sections
+- Gradient primary avatar/icon backgrounds with glow
+- `stagger-enter` on submission list items
+- `page-enter` animation on load
+- `btn-shimmer` on submit button
+- Platform selector buttons with glow when active
+- Status badges with backdrop-blur
+- Progress bars with `bg-gradient-primary`
+- Tabs with `bg-secondary/30 backdrop-blur-sm`
 
-### 2. Hero Section - Completely Unique
-- **Remove**: Typewriter effect, geometric SVG decorations, scrolling marquee, dashboard screenshot with browser chrome -- all of which are Vyron patterns
-- **New headline**: "Turn Views Into Revenue" with a gradient-animated keyword that morphs between "Revenue" / "Growth" / "Impact" using a smooth fade transition (not typewriter)
-- **Subtitle**: Single clean line: "The platform where brands and creators grow together"
-- **CTAs**: One primary gradient button "Get Started Free" with a shimmer sweep animation on hover, one outline/ghost button "See How It Works" with a border-glow effect on hover
-- **Floating stat cards**: 3 glassmorphism cards ("2.4M+ Views Delivered", "500+ Creators", "98% Payout Rate") that float with a subtle parallax/bob animation instead of a dashboard screenshot
-- **Background**: Animated gradient mesh (CSS animated radial gradients that slowly shift position) instead of static blobs
-- **Platform icons**: Simple static row with subtle glow on hover, no scrolling marquee
+### 2. Launch.tsx (Campaign creation wizard)
+Currently uses basic form styling.
+- Progress step circles: use `bg-gradient-primary` with `glow-primary-sm` for active/completed
+- Connecting lines: use `bg-primary` gradient
+- Form cards: `rounded-2xl bg-card/50 border-border/30` with glass effect
+- Input fields: `bg-card/50 border-border/30 rounded-xl` consistent with Auth page
+- Platform toggle buttons with glow effect on selected
+- Category buttons with hover effects
+- Image upload area: `rounded-2xl` with primary border-dashed on hover
+- Continue/Submit buttons: `bg-gradient-primary btn-shimmer glow-primary-sm`
+- Step labels with `font-display`
+- `page-enter` animation
+- Review step with clean stat cards
 
-### 3. How It Works - Vertical Timeline (Not Tabs)
-- **Remove**: Brands/Creators tab toggle (Vyron's signature pattern)
-- **New layout**: Vertical timeline with 4 steps (Sign Up, Browse Campaigns, Create Content, Get Paid)
-- Each step has a glowing numbered circle connected by a gradient vertical line
-- Steps animate in with a staggered slide-up as user scrolls into view (using Intersection Observer)
-- Alternating left/right layout on desktop for visual interest
+### 3. AdminDashboard.tsx
+Currently has basic styling, missing premium effects.
+- Add `font-display` to headings ("Platform Overview")
+- Campaign Health cards: `rounded-2xl` with hover lift effect
+- StatCard: add `font-display` on values, `group-hover:scale-110` on icons, `rounded-2xl`
+- QuickActionCard: `rounded-2xl`, `btn-glow` on hover, gradient icon backgrounds
+- Recent activity cards: `rounded-2xl bg-card/50 border-border/30`, hover effects
+- Submission/payout list items: smooth transition hover states
+- Header action buttons: `rounded-xl border-border/30` style
+- `stagger-enter` on KPI grid and stat cards
 
-### 4. Why Amplify - Split Screen (Not Tabs)
-- **Remove**: Tab toggle
-- **New layout**: Side-by-side "For Brands" (left) and "For Creators" (right) with a glowing gradient divider line between them
-- Each side has 3 benefit items with animated icons that glow on hover
-- Cards have a gradient border that animates on hover
+### 4. AdminSubmissions.tsx
+Basic list styling needs premium treatment.
+- Campaign list items: `rounded-2xl bg-card/50 border-border/30` with hover lift
+- Campaign avatar: gradient background with glow
+- Status badges: backdrop-blur pill style
+- Pending/approved count badges with glow
+- `font-display` on campaign names
+- `stagger-enter` on the list
+- `page-enter` on mount
+- Empty state with gradient variant
 
-### 5. Testimonials - Carousel (Not Grid)
-- **Remove**: Static 2x2 grid
-- **New layout**: Single large testimonial card that auto-rotates with smooth crossfade
-- Navigation dots at bottom with glow effect on active dot
-- Add 4-5 testimonials with varied content (quotes, earnings, roles)
+### 5. AdminPayouts.tsx
+Basic card layout needs upgrade.
+- Payout cards: `rounded-2xl bg-card/50 border-border/30` with hover effects
+- Amount display: `font-display font-bold text-gradient` for large amounts
+- Payment details section: `rounded-xl bg-secondary/20 border-border/15`
+- Code/wallet display: `bg-card/50 rounded-lg` monospace
+- Action buttons: approve = `bg-emerald-500 btn-shimmer`, reject = destructive, mark paid = `bg-gradient-primary btn-shimmer`
+- Status badges: consistent pill style with backdrop-blur
+- `stagger-enter` on list
+- `page-enter` on mount
 
-### 6. FAQ - Simple Accordion (No Tabs)
-- **Remove**: Creators/Brands tab toggle
-- Unified FAQ list mixing both audience questions
-- Accordion items have a gradient left border that appears on open
-- Smooth height animation on expand/collapse
+### 6. AdminBrands.tsx
+- Same premium card treatment with rounded-2xl, glass effect, hover lift
+- `font-display` on headings and names
+- Action buttons with glow effects
+- Status badges consistent styling
+- `stagger-enter` animation
 
-### 7. Final CTA - Gradient Banner
-- Full-width section with an animated gradient background (purple to blue shifting)
-- Animated dot grid pattern overlay
-- "Start Growing Today" headline with dual inline CTAs: "I'm a Creator" / "I'm a Brand"
-- Buttons have pulse-glow animation
+### 7. AdminUserDetail.tsx, AdminUserSubmissions.tsx, AdminCampaignSubmissions.tsx, AdminCampaignPayouts.tsx, AdminSocialAccounts.tsx
+- Apply same premium card/badge/button patterns
+- `font-display` on all headings
+- Consistent `rounded-2xl` cards with glass borders
+- Gradient accents on key metrics
+- Hover effects and stagger animations
 
-### 8. Global Animations and Effects
-- **Scroll-triggered animations**: All sections fade/slide in using Intersection Observer (no library needed)
-- **Button hover effects**: Gradient shimmer sweep, scale up, glow intensify
-- **Card hover effects**: Border gradient reveal, slight lift with shadow increase
-- **Smooth page transitions**: Elements animate on first paint with staggered delays
-- **Cursor glow**: Subtle radial gradient follows mouse on hero section
+### 8. BrandApplication.tsx
+- Form card: `rounded-2xl bg-card/50 border-border/30`
+- Inputs: `rounded-xl bg-card/50 border-border/30`
+- Submit button: `bg-gradient-primary btn-shimmer glow-primary-sm`
+- `font-display` headings
+- `page-enter` animation
 
-### 9. Navbar
-- Simplify links to: Features, How It Works, FAQ
-- "Get Started" button with gradient background and glow
-- Navbar blur backdrop with gradient top border
+### 9. ResetPassword.tsx
+- Match Auth page styling
+- Gradient mesh background on right side
+- Glass card form
+- `btn-shimmer` on reset button
+
+### 10. NotFound.tsx
+- Centered layout with mesh background
+- `font-display` on "404" and heading
+- Gradient text on "404"
+- CTA button with `bg-gradient-primary btn-shimmer`
 
 ## Technical Details
 
+### Consistent patterns to apply everywhere:
+- **Cards**: `rounded-2xl bg-card/50 border border-border/30` (replacing `bg-card border border-border`)
+- **Headings**: `font-display font-bold` class on all h1-h6
+- **Inputs**: `h-12 bg-card/50 border-border/30 rounded-xl` 
+- **Primary buttons**: `bg-gradient-primary hover:opacity-90 glow-primary-sm btn-shimmer rounded-xl font-display font-bold`
+- **Outline buttons**: `rounded-xl border-border/30 hover:border-primary/30`
+- **Status badges**: `backdrop-blur-sm rounded-lg` with color-coded backgrounds
+- **Page load**: `page-enter` class on main content wrapper
+- **List animations**: `stagger-enter` class on list containers
+- **Card hovers**: `hover:border-primary/15 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300`
+- **Icon containers**: `group-hover:scale-110 transition-all duration-300`
+- **Skeletons**: `rounded-2xl` to match cards
+
 ### Files to modify:
-- `src/index.css` -- Add Coolvetica `@font-face`, animated gradient mesh keyframes, scroll-reveal utility classes, button shimmer animations, dot grid pattern
-- `tailwind.config.ts` -- Update `font-display` to Coolvetica, add new keyframes for gradient-shift, float-card, shimmer-sweep
-- `src/components/landing/HeroSection.tsx` -- Complete rewrite: gradient word swap, floating stat cards, animated mesh background, static platform row
-- `src/components/landing/HowItWorksSection.tsx` -- Rewrite as vertical timeline with scroll-triggered animations
-- `src/components/landing/WhoItsForSection.tsx` -- Rewrite as split-screen layout with gradient divider
-- `src/components/landing/TestimonialsSection.tsx` -- Rewrite as auto-rotating carousel with crossfade
-- `src/components/landing/FAQSection.tsx` -- Remove tabs, unified list with gradient accents
-- `src/components/landing/FinalCTASection.tsx` -- Gradient banner with dot grid and dual CTAs
-- `src/components/landing/Navbar.tsx` -- Simplified links, gradient CTA button
-- `src/pages/Index.tsx` -- Minor reorder if needed
+1. `src/pages/CampaignDetail.tsx`
+2. `src/pages/Launch.tsx`
+3. `src/pages/AdminDashboard.tsx`
+4. `src/pages/AdminSubmissions.tsx`
+5. `src/pages/AdminPayouts.tsx`
+6. `src/pages/AdminBrands.tsx`
+7. `src/pages/AdminUserDetail.tsx`
+8. `src/pages/AdminUserSubmissions.tsx`
+9. `src/pages/AdminCampaignSubmissions.tsx`
+10. `src/pages/AdminCampaignPayouts.tsx`
+11. `src/pages/AdminSocialAccounts.tsx`
+12. `src/pages/BrandApplication.tsx`
+13. `src/pages/ResetPassword.tsx`
+14. `src/pages/NotFound.tsx`
 
-### New utilities/hooks:
-- `useScrollReveal` -- Custom hook using Intersection Observer to trigger animations when elements enter viewport (built inline or as a small hook)
-- CSS-only scroll animations using `animation-timeline: view()` with fallback
-
-### Key differentiators from Vyron:
-- Coolvetica font (Vyron uses different typography)
-- No typewriter effect (gradient word morph instead)
-- No tab toggles anywhere (timeline + split-screen + carousel instead)
-- No scrolling marquee (static icons)
-- No dashboard screenshot (floating stat cards)
-- No geometric SVG decorations (animated gradient mesh)
-- Unique button shimmer and glow effects
-- Scroll-triggered reveal animations throughout
+### No new dependencies needed
+All styling uses existing Tailwind classes, CSS utilities from `index.css`, and the Coolvetica font already imported.
 
