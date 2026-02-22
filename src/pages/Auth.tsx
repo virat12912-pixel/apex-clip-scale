@@ -30,14 +30,12 @@ const Auth = () => {
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || "/dashboard";
 
-  // Redirect if already logged in - use useEffect instead of during render
   useEffect(() => {
     if (user && !authLoading) {
       navigate(from, { replace: true });
     }
   }, [user, authLoading, from, navigate]);
 
-  // Show nothing while checking auth state
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -46,104 +44,52 @@ const Auth = () => {
     );
   }
 
-  // Don't render form if user is already logged in
-  if (user) {
-    return null;
-  }
+  if (user) return null;
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
-    
-    try {
-      emailSchema.parse(email);
-    } catch {
-      newErrors.email = "Invalid email address";
-    }
-
-    try {
-      passwordSchema.parse(password);
-    } catch {
-      newErrors.password = "Password must be at least 6 characters";
-    }
-
+    try { emailSchema.parse(email); } catch { newErrors.email = "Invalid email address"; }
+    try { passwordSchema.parse(password); } catch { newErrors.password = "Password must be at least 6 characters"; }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleForgotPassword = async () => {
     if (!email) {
-      toast({
-        title: "Enter your email",
-        description: "Please enter your email address first",
-        variant: "destructive",
-      });
+      toast({ title: "Enter your email", description: "Please enter your email address first", variant: "destructive" });
       return;
     }
-
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
-
       if (error) throw error;
-
-      toast({
-        title: "Check your email",
-        description: "We've sent you a password reset link.",
-      });
+      toast({ title: "Check your email", description: "We've sent you a password reset link." });
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
-    
     setIsLoading(true);
-
     try {
       if (isLogin) {
         const { error } = await signIn(email, password);
         if (error) {
-          toast({
-            title: "Error signing in",
-            description: error.message === "Invalid login credentials" 
-              ? "Invalid email or password. Please try again."
-              : error.message,
-            variant: "destructive",
-          });
+          toast({ title: "Error signing in", description: error.message === "Invalid login credentials" ? "Invalid email or password. Please try again." : error.message, variant: "destructive" });
           return;
         }
-        toast({
-          title: "Welcome back!",
-          description: "Redirecting to dashboard...",
-        });
+        toast({ title: "Welcome back!", description: "Redirecting to dashboard..." });
         navigate(from, { replace: true });
       } else {
         const { error } = await signUp(email, password, name, role);
         if (error) {
-          toast({
-            title: "Error creating account",
-            description: error.message.includes("already registered")
-              ? "This email is already registered. Please sign in instead."
-              : error.message,
-            variant: "destructive",
-          });
+          toast({ title: "Error creating account", description: error.message.includes("already registered") ? "This email is already registered. Please sign in instead." : error.message, variant: "destructive" });
           return;
         }
-        toast({
-          title: "Account created!",
-          description: role === "brand" 
-            ? "Redirecting to brand application..."
-            : "Redirecting to dashboard...",
-        });
-        // Redirect brands to application page
+        toast({ title: "Account created!", description: role === "brand" ? "Redirecting to brand application..." : "Redirecting to dashboard..." });
         navigate(role === "brand" ? "/brand-application" : "/dashboard", { replace: true });
       }
     } finally {
@@ -155,30 +101,30 @@ const Auth = () => {
     <div className="min-h-screen bg-background flex">
       {/* Left side - Form */}
       <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-20 xl:px-24">
-        <div className="mx-auto w-full max-w-sm">
+        <div className="mx-auto w-full max-w-sm animate-fade-up">
           {/* Back to home */}
           <Link 
             to="/" 
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mb-8"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground/60 hover:text-foreground transition-colors duration-200 mb-8 group"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-1" />
             Back to home
           </Link>
 
           {/* Logo */}
-          <div className="flex items-center gap-2.5 mb-8">
-            <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center glow-primary-sm">
+          <div className="flex items-center gap-2.5 mb-10">
+            <div className="w-11 h-11 rounded-xl bg-gradient-primary flex items-center justify-center glow-primary-sm">
               <Zap className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="font-bold text-2xl">Amplify</span>
+            <span className="font-display font-bold text-2xl tracking-tight">Amplify</span>
           </div>
 
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold mb-2">
+            <h1 className="text-3xl font-display font-bold mb-2 tracking-tight">
               {isLogin ? "Welcome back" : "Create your account"}
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground/60">
               {isLogin 
                 ? "Enter your credentials to access your account" 
                 : "Start earning or scaling your content today"
@@ -191,44 +137,36 @@ const Auth = () => {
             {!isLogin && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input
-                    id="name"
-                    type="text"
-                    placeholder="John Doe"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required={!isLogin}
-                    className="h-12 bg-secondary border-border"
-                  />
+                  <Label htmlFor="name" className="text-sm text-muted-foreground">Full Name</Label>
+                  <Input id="name" type="text" placeholder="John Doe" value={name} onChange={(e) => setName(e.target.value)} required={!isLogin} className="h-12 bg-card/50 border-border/30 rounded-xl focus:border-primary/40 focus:bg-card transition-all duration-200" />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>I want to...</Label>
+                  <Label className="text-sm text-muted-foreground">I want to...</Label>
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
                       onClick={() => setRole("creator")}
-                      className={`p-4 rounded-xl border-2 text-left transition-all ${
+                      className={`p-4 rounded-xl border-2 text-left transition-all duration-300 ${
                         role === "creator"
-                          ? "border-primary bg-primary/10"
-                          : "border-border hover:border-primary/50"
+                          ? "border-primary bg-primary/10 shadow-[0_0_20px_hsl(267_89%_59%/0.15)]"
+                          : "border-border/30 hover:border-primary/30 hover:bg-primary/5"
                       }`}
                     >
-                      <div className="font-semibold mb-1">Create Clips</div>
-                      <div className="text-xs text-muted-foreground">Earn money by clipping content</div>
+                      <div className="font-display font-bold mb-1">Create Clips</div>
+                      <div className="text-xs text-muted-foreground/60">Earn money by clipping content</div>
                     </button>
                     <button
                       type="button"
                       onClick={() => setRole("brand")}
-                      className={`p-4 rounded-xl border-2 text-left transition-all ${
+                      className={`p-4 rounded-xl border-2 text-left transition-all duration-300 ${
                         role === "brand"
-                          ? "border-primary bg-primary/10"
-                          : "border-border hover:border-primary/50"
+                          ? "border-primary bg-primary/10 shadow-[0_0_20px_hsl(267_89%_59%/0.15)]"
+                          : "border-border/30 hover:border-primary/30 hover:bg-primary/5"
                       }`}
                     >
-                      <div className="font-semibold mb-1">Launch Campaigns</div>
-                      <div className="text-xs text-muted-foreground">Scale your content reach</div>
+                      <div className="font-display font-bold mb-1">Launch Campaigns</div>
+                      <div className="text-xs text-muted-foreground/60">Scale your content reach</div>
                     </button>
                   </div>
                 </div>
@@ -236,42 +174,26 @@ const Auth = () => {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-sm text-muted-foreground">Email</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => {
-                  setEmail(e.target.value);
-                  setErrors(prev => ({ ...prev, email: undefined }));
-                }}
+                id="email" type="email" placeholder="you@example.com" value={email}
+                onChange={(e) => { setEmail(e.target.value); setErrors(prev => ({ ...prev, email: undefined })); }}
                 required
-                className={`h-12 bg-secondary border-border ${errors.email ? "border-destructive" : ""}`}
+                className={`h-12 bg-card/50 border-border/30 rounded-xl focus:border-primary/40 focus:bg-card transition-all duration-200 ${errors.email ? "border-destructive" : ""}`}
               />
               {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-sm text-muted-foreground">Password</Label>
               <div className="relative">
                 <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    setErrors(prev => ({ ...prev, password: undefined }));
-                  }}
+                  id="password" type={showPassword ? "text" : "password"} placeholder="••••••••" value={password}
+                  onChange={(e) => { setPassword(e.target.value); setErrors(prev => ({ ...prev, password: undefined })); }}
                   required
-                  className={`h-12 bg-secondary border-border pr-12 ${errors.password ? "border-destructive" : ""}`}
+                  className={`h-12 bg-card/50 border-border/30 rounded-xl pr-12 focus:border-primary/40 focus:bg-card transition-all duration-200 ${errors.password ? "border-destructive" : ""}`}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground transition-colors duration-200">
                   {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
               </div>
@@ -280,20 +202,15 @@ const Auth = () => {
 
             {isLogin && (
               <div className="flex justify-end">
-                <button 
-                  type="button" 
-                  onClick={handleForgotPassword}
-                  className="text-sm text-primary hover:underline"
-                >
+                <button type="button" onClick={handleForgotPassword} className="text-sm text-primary/70 hover:text-primary transition-colors duration-200">
                   Forgot password?
                 </button>
               </div>
             )}
 
             <Button
-              type="submit"
-              size="lg"
-              className="w-full h-12 bg-gradient-primary hover:opacity-90 transition-opacity glow-primary"
+              type="submit" size="lg"
+              className="w-full h-12 bg-gradient-primary hover:opacity-90 transition-all duration-300 glow-primary-sm btn-shimmer rounded-xl font-display font-bold text-base"
               disabled={isLoading}
             >
               {isLoading ? (
@@ -311,15 +228,12 @@ const Auth = () => {
           </form>
 
           {/* Toggle */}
-          <p className="mt-6 text-center text-muted-foreground">
+          <p className="mt-8 text-center text-muted-foreground/60">
             {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
             <button
               type="button"
-              onClick={() => {
-                setIsLogin(!isLogin);
-                setErrors({});
-              }}
-              className="text-primary hover:underline font-medium"
+              onClick={() => { setIsLogin(!isLogin); setErrors({}); }}
+              className="text-primary hover:underline font-semibold"
             >
               {isLogin ? "Sign up" : "Sign in"}
             </button>
@@ -328,52 +242,59 @@ const Auth = () => {
       </div>
 
       {/* Right side - Visual */}
-      <div className="hidden lg:flex flex-1 relative bg-gradient-dark overflow-hidden">
+      <div className="hidden lg:flex flex-1 relative overflow-hidden">
+        {/* Animated mesh background */}
+        <div className="absolute inset-0 mesh-bg" />
+        
         {/* Background glow */}
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="w-[500px] h-[500px] rounded-full bg-primary/20 blur-[120px]" />
+          <div className="w-[600px] h-[600px] rounded-full bg-primary/15 blur-[150px] animate-pulse-glow" />
         </div>
+
+        {/* Dot grid overlay */}
+        <div className="absolute inset-0 dot-grid opacity-30" />
 
         {/* Content */}
         <div className="relative z-10 flex flex-col justify-center px-16">
-          <h2 className="text-4xl font-bold mb-4">
-            <span className="text-gradient">Enterprise-Grade</span> Content Scaling
+          <h2 className="text-5xl font-display font-bold mb-5 leading-tight">
+            <span className="text-gradient">Enterprise-Grade</span><br />
+            Content Scaling
           </h2>
-          <p className="text-lg text-muted-foreground mb-8 max-w-md">
+          <p className="text-lg text-muted-foreground/60 mb-10 max-w-md">
             Connect with vetted clippers, scale content professionally, and track everything with enterprise analytics.
           </p>
 
           {/* Trust signals */}
-          <div className="space-y-4 mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+          <div className="space-y-5 mb-10">
+            <div className="flex items-center gap-4 group">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center transition-all duration-300 group-hover:bg-primary/20 group-hover:scale-110">
                 <Shield className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <div className="font-medium">Full Approval Control</div>
-                <div className="text-sm text-muted-foreground">Review every clip before it goes live</div>
+                <div className="font-display font-bold">Full Approval Control</div>
+                <div className="text-sm text-muted-foreground/50">Review every clip before it goes live</div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <div className="flex items-center gap-4 group">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center transition-all duration-300 group-hover:bg-primary/20 group-hover:scale-110">
                 <TrendingUp className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <div className="font-medium">Real-Time Analytics</div>
-                <div className="text-sm text-muted-foreground">Track performance across all platforms</div>
+                <div className="font-display font-bold">Real-Time Analytics</div>
+                <div className="text-sm text-muted-foreground/50">Track performance across all platforms</div>
               </div>
             </div>
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 gap-6">
-            <div className="p-4 rounded-xl bg-card/50 border border-border backdrop-blur-sm">
-              <div className="text-3xl font-bold text-primary mb-1">2,400+</div>
-              <div className="text-sm text-muted-foreground">Vetted Clippers</div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-5 rounded-2xl bg-card/30 border border-border/20 backdrop-blur-sm transition-all duration-300 hover:border-primary/20 hover:bg-card/50">
+              <div className="text-3xl font-display font-bold text-primary mb-1">2,400+</div>
+              <div className="text-sm text-muted-foreground/50">Vetted Clippers</div>
             </div>
-            <div className="p-4 rounded-xl bg-card/50 border border-border backdrop-blur-sm">
-              <div className="text-3xl font-bold text-primary mb-1">$890K+</div>
-              <div className="text-sm text-muted-foreground">Paid to Clippers</div>
+            <div className="p-5 rounded-2xl bg-card/30 border border-border/20 backdrop-blur-sm transition-all duration-300 hover:border-primary/20 hover:bg-card/50">
+              <div className="text-3xl font-display font-bold text-primary mb-1">$890K+</div>
+              <div className="text-sm text-muted-foreground/50">Paid to Clippers</div>
             </div>
           </div>
         </div>
