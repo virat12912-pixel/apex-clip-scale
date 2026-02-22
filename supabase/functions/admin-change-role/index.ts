@@ -43,12 +43,12 @@ Deno.serve(async (req) => {
     // Check caller is admin using service role
     const serviceClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: isAdmin } = await serviceClient.rpc("has_role", {
-      _user_id: adminId,
-      _role: "admin",
-    });
+    const [{ data: isAdmin }, { data: isPlatformAdmin }] = await Promise.all([
+      serviceClient.rpc("has_role", { _user_id: adminId, _role: "admin" }),
+      serviceClient.rpc("has_role", { _user_id: adminId, _role: "platform_admin" }),
+    ]);
 
-    if (!isAdmin) {
+    if (!isAdmin && !isPlatformAdmin) {
       return new Response(JSON.stringify({ error: "Forbidden: admin only" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
