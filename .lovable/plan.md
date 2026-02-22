@@ -1,137 +1,57 @@
 
 
-# Complete Site-Wide Premium Redesign -- Virality.gg Inspired
+# Admin Role Management Feature
 
 ## Overview
-Apply the same premium dark aesthetic with Coolvetica font, gradients, glows, and smooth animations to EVERY remaining page that hasn't been fully updated yet. Taking inspiration from virality.gg's clean minimal dark design while keeping Amplify's unique identity.
+Add the ability for admins to assign any role to any user directly from the Admin User Detail page. A role selector dropdown will appear in the user header card, showing the user's current role and allowing the admin to change it.
 
-## Pages to Update
+## What You'll See
+- On the Admin User Detail page, next to the user's name/email, there will be a **role badge** showing their current role (e.g., "creator", "brand", "admin")
+- A **"Change Role"** dropdown/select will let admins pick from all 8 available roles: creator, brand, admin, client_admin, client_manager, client_viewer, clipper, platform_admin
+- A confirmation dialog will appear before changing the role to prevent accidental changes
+- Success/error toast notifications after the action
 
-### 1. CampaignDetail.tsx (Major overhaul)
-Currently uses basic `bg-card border border-border` styling without premium effects.
-- Add `font-display` to all headings
-- Replace basic cards with `rounded-2xl bg-card/50 border-border/30` glass style
-- Add `card-hover` effects on interactive sections
-- Gradient primary avatar/icon backgrounds with glow
-- `stagger-enter` on submission list items
-- `page-enter` animation on load
-- `btn-shimmer` on submit button
-- Platform selector buttons with glow when active
-- Status badges with backdrop-blur
-- Progress bars with `bg-gradient-primary`
-- Tabs with `bg-secondary/30 backdrop-blur-sm`
-
-### 2. Launch.tsx (Campaign creation wizard)
-Currently uses basic form styling.
-- Progress step circles: use `bg-gradient-primary` with `glow-primary-sm` for active/completed
-- Connecting lines: use `bg-primary` gradient
-- Form cards: `rounded-2xl bg-card/50 border-border/30` with glass effect
-- Input fields: `bg-card/50 border-border/30 rounded-xl` consistent with Auth page
-- Platform toggle buttons with glow effect on selected
-- Category buttons with hover effects
-- Image upload area: `rounded-2xl` with primary border-dashed on hover
-- Continue/Submit buttons: `bg-gradient-primary btn-shimmer glow-primary-sm`
-- Step labels with `font-display`
-- `page-enter` animation
-- Review step with clean stat cards
-
-### 3. AdminDashboard.tsx
-Currently has basic styling, missing premium effects.
-- Add `font-display` to headings ("Platform Overview")
-- Campaign Health cards: `rounded-2xl` with hover lift effect
-- StatCard: add `font-display` on values, `group-hover:scale-110` on icons, `rounded-2xl`
-- QuickActionCard: `rounded-2xl`, `btn-glow` on hover, gradient icon backgrounds
-- Recent activity cards: `rounded-2xl bg-card/50 border-border/30`, hover effects
-- Submission/payout list items: smooth transition hover states
-- Header action buttons: `rounded-xl border-border/30` style
-- `stagger-enter` on KPI grid and stat cards
-
-### 4. AdminSubmissions.tsx
-Basic list styling needs premium treatment.
-- Campaign list items: `rounded-2xl bg-card/50 border-border/30` with hover lift
-- Campaign avatar: gradient background with glow
-- Status badges: backdrop-blur pill style
-- Pending/approved count badges with glow
-- `font-display` on campaign names
-- `stagger-enter` on the list
-- `page-enter` on mount
-- Empty state with gradient variant
-
-### 5. AdminPayouts.tsx
-Basic card layout needs upgrade.
-- Payout cards: `rounded-2xl bg-card/50 border-border/30` with hover effects
-- Amount display: `font-display font-bold text-gradient` for large amounts
-- Payment details section: `rounded-xl bg-secondary/20 border-border/15`
-- Code/wallet display: `bg-card/50 rounded-lg` monospace
-- Action buttons: approve = `bg-emerald-500 btn-shimmer`, reject = destructive, mark paid = `bg-gradient-primary btn-shimmer`
-- Status badges: consistent pill style with backdrop-blur
-- `stagger-enter` on list
-- `page-enter` on mount
-
-### 6. AdminBrands.tsx
-- Same premium card treatment with rounded-2xl, glass effect, hover lift
-- `font-display` on headings and names
-- Action buttons with glow effects
-- Status badges consistent styling
-- `stagger-enter` animation
-
-### 7. AdminUserDetail.tsx, AdminUserSubmissions.tsx, AdminCampaignSubmissions.tsx, AdminCampaignPayouts.tsx, AdminSocialAccounts.tsx
-- Apply same premium card/badge/button patterns
-- `font-display` on all headings
-- Consistent `rounded-2xl` cards with glass borders
-- Gradient accents on key metrics
-- Hover effects and stagger animations
-
-### 8. BrandApplication.tsx
-- Form card: `rounded-2xl bg-card/50 border-border/30`
-- Inputs: `rounded-xl bg-card/50 border-border/30`
-- Submit button: `bg-gradient-primary btn-shimmer glow-primary-sm`
-- `font-display` headings
-- `page-enter` animation
-
-### 9. ResetPassword.tsx
-- Match Auth page styling
-- Gradient mesh background on right side
-- Glass card form
-- `btn-shimmer` on reset button
-
-### 10. NotFound.tsx
-- Centered layout with mesh background
-- `font-display` on "404" and heading
-- Gradient text on "404"
-- CTA button with `bg-gradient-primary btn-shimmer`
+## Available Roles
+- **Creator** -- Default role, can submit clips
+- **Brand** -- Can create and manage campaigns
+- **Admin** -- Full platform access
+- **Client Admin** -- Elevated client access
+- **Client Manager** -- Mid-level client access
+- **Client Viewer** -- Read-only client access
+- **Clipper** -- Clip submission role
+- **Platform Admin** -- Platform-level admin
 
 ## Technical Details
 
-### Consistent patterns to apply everywhere:
-- **Cards**: `rounded-2xl bg-card/50 border border-border/30` (replacing `bg-card border border-border`)
-- **Headings**: `font-display font-bold` class on all h1-h6
-- **Inputs**: `h-12 bg-card/50 border-border/30 rounded-xl` 
-- **Primary buttons**: `bg-gradient-primary hover:opacity-90 glow-primary-sm btn-shimmer rounded-xl font-display font-bold`
-- **Outline buttons**: `rounded-xl border-border/30 hover:border-primary/30`
-- **Status badges**: `backdrop-blur-sm rounded-lg` with color-coded backgrounds
-- **Page load**: `page-enter` class on main content wrapper
-- **List animations**: `stagger-enter` class on list containers
-- **Card hovers**: `hover:border-primary/15 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300`
-- **Icon containers**: `group-hover:scale-110 transition-all duration-300`
-- **Skeletons**: `rounded-2xl` to match cards
+### Backend
+- The database already has an `upgrade_user_role` function (SECURITY DEFINER) that updates a user's role in `user_roles` table
+- Create a new edge function `admin-change-role` that:
+  - Validates the caller is an admin (checks auth token)
+  - Calls `upgrade_user_role` RPC with the target user_id and new role
+  - Logs the action in `admin_logs`
+- This ensures role changes go through server-side validation, not client-side
 
-### Files to modify:
-1. `src/pages/CampaignDetail.tsx`
-2. `src/pages/Launch.tsx`
-3. `src/pages/AdminDashboard.tsx`
-4. `src/pages/AdminSubmissions.tsx`
-5. `src/pages/AdminPayouts.tsx`
-6. `src/pages/AdminBrands.tsx`
-7. `src/pages/AdminUserDetail.tsx`
-8. `src/pages/AdminUserSubmissions.tsx`
-9. `src/pages/AdminCampaignSubmissions.tsx`
-10. `src/pages/AdminCampaignPayouts.tsx`
-11. `src/pages/AdminSocialAccounts.tsx`
-12. `src/pages/BrandApplication.tsx`
-13. `src/pages/ResetPassword.tsx`
-14. `src/pages/NotFound.tsx`
+### Frontend Changes
 
-### No new dependencies needed
-All styling uses existing Tailwind classes, CSS utilities from `index.css`, and the Coolvetica font already imported.
+**1. `src/hooks/useAdminUsers.ts`**
+- Add a `useUserRole(userId)` hook to fetch the user's current role from `user_roles`
+- Add a `useChangeUserRole()` mutation hook that invokes the `admin-change-role` edge function
+
+**2. `src/pages/AdminUserDetail.tsx`**
+- Add a role display badge next to the user's name
+- Add a Select dropdown with all 8 roles
+- Wrap the role change in an AlertDialog for confirmation
+- Show current role and selected new role in confirmation
+- Log the change via admin logs
+
+**3. `supabase/functions/admin-change-role/index.ts`** (new file)
+- Accepts `{ user_id, new_role }` in request body
+- Uses service role key to call `upgrade_user_role` RPC
+- Verifies the caller is an admin before proceeding
+- Inserts an admin log entry
+
+### Files to Create/Modify
+1. **Create**: `supabase/functions/admin-change-role/index.ts`
+2. **Modify**: `src/hooks/useAdminUsers.ts` -- add role fetch + change mutation
+3. **Modify**: `src/pages/AdminUserDetail.tsx` -- add role UI in the user header card
 
