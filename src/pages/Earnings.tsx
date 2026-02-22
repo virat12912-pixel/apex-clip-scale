@@ -32,99 +32,47 @@ const Earnings = () => {
   const requestPayout = useRequestPayout();
   const { toast } = useToast();
 
-  // Group submissions by campaign
   const campaignEarnings = useMemo(() => {
     if (!submissions) return [];
-    
     const grouped = new Map<string, CampaignEarnings>();
-    
     submissions.forEach((sub: any) => {
       const campaignId = sub.campaign_id;
       const campaignName = sub.campaign?.name || "Unknown Campaign";
-      
       if (!grouped.has(campaignId)) {
-        grouped.set(campaignId, {
-          campaign_id: campaignId,
-          campaign_name: campaignName,
-          approved_count: 0,
-          rejected_count: 0,
-          pending_count: 0,
-          total_views: 0,
-          total_earnings: 0,
-          min_payout_views: 1000,
-          is_eligible: false,
-        });
+        grouped.set(campaignId, { campaign_id: campaignId, campaign_name: campaignName, approved_count: 0, rejected_count: 0, pending_count: 0, total_views: 0, total_earnings: 0, min_payout_views: 1000, is_eligible: false });
       }
-      
       const entry = grouped.get(campaignId)!;
-      
       if (sub.status === "approved" || sub.status === "paid") {
         entry.approved_count += 1;
         entry.total_views += Number(sub.views || 0);
         entry.total_earnings += Number(sub.earnings || 0);
-      } else if (sub.status === "rejected") {
-        entry.rejected_count += 1;
-      } else if (sub.status === "pending") {
-        entry.pending_count += 1;
-      }
+      } else if (sub.status === "rejected") { entry.rejected_count += 1; }
+      else if (sub.status === "pending") { entry.pending_count += 1; }
     });
-    
-    // Determine eligibility - must have earnings > 0 and at least one approved submission
-    grouped.forEach((entry) => {
-      entry.is_eligible = entry.total_earnings >= 10 && entry.approved_count > 0;
-    });
-    
+    grouped.forEach((entry) => { entry.is_eligible = entry.total_earnings >= 10 && entry.approved_count > 0; });
     return Array.from(grouped.values()).sort((a, b) => b.total_earnings - a.total_earnings);
   }, [submissions]);
 
   const totalEarnings = submissions?.reduce((sum, s) => sum + Number(s.earnings || 0), 0) || 0;
   const paidSubmissions = submissions?.filter(s => s.status === "paid" || s.status === "approved") || [];
 
-  // Check if payment details are complete
   const hasPaymentDetails = () => {
     if (!profile) return false;
-    if (profile.payout_method === "paypal") {
-      return !!profile.payout_email;
-    }
-    if (profile.payout_method === "usdc_solana") {
-      return !!profile.solana_wallet_address;
-    }
+    if (profile.payout_method === "paypal") return !!profile.payout_email;
+    if (profile.payout_method === "usdc_solana") return !!profile.solana_wallet_address;
     return false;
   };
 
-  // Check for existing pending/approved payout
   const hasPendingPayout = payouts?.some(p => p.status === "pending" || p.status === "approved");
 
   const handleRequestPayout = async () => {
-    if (!wallet || wallet.pending_balance < 10) {
-      toast({ title: "Minimum $10 required", variant: "destructive" });
-      return;
-    }
-
-    if (!hasPaymentDetails()) {
-      toast({ 
-        title: "Payment details required", 
-        description: "Please add your payment details in your profile before requesting a payout",
-        variant: "destructive" 
-      });
-      return;
-    }
-
-    if (hasPendingPayout) {
-      toast({ 
-        title: "Payout in progress", 
-        description: "You already have a payout request pending",
-        variant: "destructive" 
-      });
-      return;
-    }
-
+    if (!wallet || wallet.pending_balance < 10) { toast({ title: "Minimum $10 required", variant: "destructive" }); return; }
+    if (!hasPaymentDetails()) { toast({ title: "Payment details required", description: "Please add your payment details in your profile before requesting a payout", variant: "destructive" }); return; }
+    if (hasPendingPayout) { toast({ title: "Payout in progress", description: "You already have a payout request pending", variant: "destructive" }); return; }
     try {
       await requestPayout.mutateAsync(wallet.pending_balance);
       toast({ title: "Payout requested" });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
+    } catch (error: any) { toast({ title: "Error", description: error.message, variant: "destructive" }); }
   };
 
   const formatNumber = (num: number) => {
@@ -133,124 +81,72 @@ const Earnings = () => {
     return num.toString();
   };
 
+  const statCards = [
+    { icon: DollarSign, label: "Total Earnings", value: `$${totalEarnings.toFixed(2)}`, color: "emerald", bg: "bg-emerald-500/10", text: "text-emerald-400" },
+    { icon: Clock, label: "Available", value: `$${(wallet?.pending_balance || 0).toFixed(2)}`, color: "yellow", bg: "bg-yellow-500/10", text: "text-yellow-400" },
+    { icon: Clock, label: "Processing", value: `$${(wallet?.locked_earnings || 0).toFixed(2)}`, color: "orange", bg: "bg-orange-500/10", text: "text-orange-400" },
+    { icon: TrendingUp, label: "Paid Out", value: `$${(wallet?.paid_balance || 0).toFixed(2)}`, color: "primary", bg: "bg-primary/10", text: "text-primary" },
+    { icon: Eye, label: "Paid Clips", value: paidSubmissions.length.toString(), color: "blue", bg: "bg-blue-500/10", text: "text-blue-400" },
+  ];
+
   return (
     <AppLayout title="Earnings">
       <div className="page-enter">
         {/* Stats Cards */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8 stagger-enter">
-          {walletLoading ? Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-32" />) : (
-            <>
-              <div className="p-5 rounded-xl bg-card border border-border card-hover">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="p-2 rounded-lg bg-emerald-500/10"><DollarSign className="h-5 w-5 text-emerald-400" /></div>
+          {walletLoading ? Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-32 rounded-2xl" />) : (
+            statCards.map((stat) => (
+              <div key={stat.label} className="p-5 rounded-2xl bg-card/50 border border-border/30 transition-all duration-300 hover:border-primary/15 hover:-translate-y-0.5 hover:shadow-lg group">
+                <div className={`p-2.5 rounded-xl ${stat.bg} w-fit mb-3 transition-transform duration-300 group-hover:scale-110`}>
+                  <stat.icon className={`h-5 w-5 ${stat.text}`} />
                 </div>
-                <div className="text-2xl font-bold mb-1">${totalEarnings.toFixed(2)}</div>
-                <div className="text-sm text-muted-foreground">Total Earnings</div>
+                <div className="text-2xl font-display font-bold mb-1">{stat.value}</div>
+                <div className="text-sm text-muted-foreground/60">{stat.label}</div>
               </div>
-              <div className="p-5 rounded-xl bg-card border border-border card-hover">
-                <div className="p-2 rounded-lg bg-yellow-500/10 w-fit mb-3"><Clock className="h-5 w-5 text-yellow-400" /></div>
-                <div className="text-2xl font-bold mb-1">${(wallet?.pending_balance || 0).toFixed(2)}</div>
-                <div className="text-sm text-muted-foreground">Available</div>
-              </div>
-              <div className="p-5 rounded-xl bg-card border border-border card-hover">
-                <div className="p-2 rounded-lg bg-orange-500/10 w-fit mb-3"><Clock className="h-5 w-5 text-orange-400" /></div>
-                <div className="text-2xl font-bold mb-1">${(wallet?.locked_earnings || 0).toFixed(2)}</div>
-                <div className="text-sm text-muted-foreground">Processing</div>
-              </div>
-              <div className="p-5 rounded-xl bg-card border border-border card-hover">
-                <div className="p-2 rounded-lg bg-primary/10 w-fit mb-3"><TrendingUp className="h-5 w-5 text-primary" /></div>
-                <div className="text-2xl font-bold mb-1">${(wallet?.paid_balance || 0).toFixed(2)}</div>
-                <div className="text-sm text-muted-foreground">Paid Out</div>
-              </div>
-              <div className="p-5 rounded-xl bg-card border border-border card-hover">
-                <div className="p-2 rounded-lg bg-blue-500/10 w-fit mb-3"><Eye className="h-5 w-5 text-blue-400" /></div>
-                <div className="text-2xl font-bold mb-1">{paidSubmissions.length}</div>
-                <div className="text-sm text-muted-foreground">Paid Clips</div>
-              </div>
-            </>
+            ))
           )}
         </div>
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* My Campaigns Section */}
           <div className="lg:col-span-2 space-y-6">
-            <ElevatedCard variant="elevated">
+            <ElevatedCard variant="elevated" className="rounded-2xl">
               <ElevatedCardHeader>
-                <ElevatedCardTitle className="flex items-center gap-2 section-header">
-                  <Film className="h-5 w-5 icon-interactive" />
+                <ElevatedCardTitle className="flex items-center gap-2 section-header font-display">
+                  <Film className="h-5 w-5 text-primary" />
                   My Campaigns
                 </ElevatedCardTitle>
               </ElevatedCardHeader>
               <ElevatedCardContent>
                 {submissionsLoading ? (
-                  <div className="space-y-4">
-                    {Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-24" />)}
-                  </div>
+                  <div className="space-y-4">{Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}</div>
                 ) : campaignEarnings.length === 0 ? (
-                  <EmptyState
-                    icon={Film}
-                    title="No campaigns joined yet"
-                    description="Start earning by joining a campaign and submitting clips"
-                    variant="gradient"
-                    action={{
-                      label: "Browse Campaigns",
-                      onClick: () => window.location.href = "/campaigns"
-                    }}
-                  />
+                  <EmptyState icon={Film} title="No campaigns joined yet" description="Start earning by joining a campaign and submitting clips" variant="gradient" action={{ label: "Browse Campaigns", onClick: () => window.location.href = "/campaigns" }} />
                 ) : (
-                  <div className="space-y-4 stagger-enter">
+                  <div className="space-y-3 stagger-enter">
                     {campaignEarnings.map((campaign) => (
-                      <div 
-                        key={campaign.campaign_id}
-                        className="p-4 rounded-xl bg-secondary/30 border border-border hover:border-primary/30 transition-all duration-200 card-hover"
-                      >
+                      <div key={campaign.campaign_id} className="p-4 rounded-xl bg-secondary/20 border border-border/20 hover:border-primary/15 transition-all duration-300 group">
                         <div className="flex items-start justify-between mb-3">
                           <div>
-                            <h4 className="font-semibold">{campaign.campaign_name}</h4>
-                            <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <CheckCircle className="h-4 w-4 text-emerald-400" />
-                                {campaign.approved_count} approved
-                              </span>
-                              {campaign.rejected_count > 0 && (
-                                <span className="flex items-center gap-1">
-                                  <XCircle className="h-4 w-4 text-red-400" />
-                                  {campaign.rejected_count} rejected
-                                </span>
-                              )}
-                              {campaign.pending_count > 0 && (
-                                <span className="flex items-center gap-1">
-                                  <Clock className="h-4 w-4 text-yellow-400" />
-                                  {campaign.pending_count} pending
-                                </span>
-                              )}
+                            <h4 className="font-display font-bold group-hover:text-primary transition-colors duration-200">{campaign.campaign_name}</h4>
+                            <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground/60">
+                              <span className="flex items-center gap-1"><CheckCircle className="h-3.5 w-3.5 text-emerald-400" />{campaign.approved_count} approved</span>
+                              {campaign.rejected_count > 0 && <span className="flex items-center gap-1"><XCircle className="h-3.5 w-3.5 text-red-400" />{campaign.rejected_count} rejected</span>}
+                              {campaign.pending_count > 0 && <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-yellow-400" />{campaign.pending_count} pending</span>}
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="text-xl font-bold text-primary stat-value">
-                              ${campaign.total_earnings.toFixed(2)}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {formatNumber(campaign.total_views)} views
-                            </div>
+                            <div className="text-xl font-display font-bold text-primary">${campaign.total_earnings.toFixed(2)}</div>
+                            <div className="text-xs text-muted-foreground/40">{formatNumber(campaign.total_views)} views</div>
                           </div>
                         </div>
-                        
                         <SectionDivider variant="line" size="sm" />
-                        
                         <div className="flex items-center justify-between">
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            campaign.is_eligible 
-                              ? "bg-emerald-500/10 text-emerald-400" 
-                              : "bg-secondary text-muted-foreground"
-                          }`}>
+                          <span className={`px-2.5 py-1 rounded-lg text-xs font-medium ${campaign.is_eligible ? "bg-emerald-500/10 text-emerald-400" : "bg-secondary/50 text-muted-foreground/50"}`}>
                             {campaign.is_eligible ? "Eligible for payout" : "Not eligible yet"}
                           </span>
-                          <Link 
-                            to={`/campaigns/${campaign.campaign_id}`}
-                            className="text-sm text-primary hover:underline flex items-center gap-1 group"
-                          >
-                            View Campaign <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                          <Link to={`/campaigns/${campaign.campaign_id}`} className="text-sm text-primary/70 hover:text-primary flex items-center gap-1 group/link transition-colors duration-200">
+                            View Campaign <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover/link:translate-x-0.5" />
                           </Link>
                         </div>
                       </div>
@@ -263,42 +159,36 @@ const Earnings = () => {
 
           {/* Payout Section */}
           <div className="space-y-6">
-            <ElevatedCard variant="glass">
+            <ElevatedCard variant="glass" className="rounded-2xl">
               <ElevatedCardHeader>
-                <ElevatedCardTitle>Request Payout</ElevatedCardTitle>
+                <ElevatedCardTitle className="font-display">Request Payout</ElevatedCardTitle>
               </ElevatedCardHeader>
               <ElevatedCardContent className="space-y-4">
-                <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
-                  <div className="text-sm text-muted-foreground">Available Balance</div>
-                  <div className="text-2xl font-bold text-primary stat-value">${(wallet?.pending_balance || 0).toFixed(2)}</div>
+                <div className="p-5 rounded-xl bg-primary/8 border border-primary/15">
+                  <div className="text-sm text-muted-foreground/60">Available Balance</div>
+                  <div className="text-3xl font-display font-bold text-primary">${(wallet?.pending_balance || 0).toFixed(2)}</div>
                 </div>
 
-                {/* Pending Payout Warning */}
                 {hasPendingPayout && (
-                  <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                  <div className="p-4 rounded-xl bg-yellow-500/8 border border-yellow-500/15">
                     <div className="flex items-start gap-3">
                       <Clock className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-sm font-medium text-yellow-500">Payout in progress</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          You already have a pending payout request.
-                        </p>
+                        <p className="text-sm font-semibold text-yellow-500">Payout in progress</p>
+                        <p className="text-xs text-muted-foreground/50 mt-1">You already have a pending payout request.</p>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Payment Details Warning */}
                 {!hasPaymentDetails() && !hasPendingPayout && (
-                  <div className="p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                  <div className="p-4 rounded-xl bg-yellow-500/8 border border-yellow-500/15">
                     <div className="flex items-start gap-3">
                       <AlertCircle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-sm font-medium text-yellow-500">Payment details required</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Add your payment details before requesting a payout.
-                        </p>
-                        <Button asChild size="sm" variant="outline" className="mt-2">
+                        <p className="text-sm font-semibold text-yellow-500">Payment details required</p>
+                        <p className="text-xs text-muted-foreground/50 mt-1">Add your payment details before requesting a payout.</p>
+                        <Button asChild size="sm" variant="outline" className="mt-3 rounded-lg border-yellow-500/20 hover:bg-yellow-500/10">
                           <Link to="/profile">Update Profile</Link>
                         </Button>
                       </div>
@@ -306,17 +196,14 @@ const Earnings = () => {
                   </div>
                 )}
 
-                {/* Current Payment Method */}
                 {hasPaymentDetails() && (
-                  <div className="p-3 rounded-lg bg-secondary/50">
-                    <div className="text-xs text-muted-foreground">Payment Method</div>
-                    <div className="font-medium capitalize">
+                  <div className="p-3.5 rounded-xl bg-secondary/30 border border-border/20">
+                    <div className="text-xs text-muted-foreground/50">Payment Method</div>
+                    <div className="font-display font-bold capitalize">
                       {profile?.payout_method === "usdc_solana" ? "USDC (Solana)" : "PayPal"}
                     </div>
-                    <div className="text-xs text-muted-foreground font-mono truncate mt-1">
-                      {profile?.payout_method === "usdc_solana" 
-                        ? profile?.solana_wallet_address 
-                        : profile?.payout_email}
+                    <div className="text-xs text-muted-foreground/40 font-mono truncate mt-1">
+                      {profile?.payout_method === "usdc_solana" ? profile?.solana_wallet_address : profile?.payout_email}
                     </div>
                   </div>
                 )}
@@ -324,31 +211,27 @@ const Earnings = () => {
                 <Button 
                   onClick={handleRequestPayout} 
                   disabled={requestPayout.isPending || (wallet?.pending_balance || 0) < 10 || !hasPaymentDetails() || hasPendingPayout} 
-                  variant="glow"
-                  className="w-full"
+                  className="w-full bg-gradient-primary hover:opacity-90 glow-primary-sm btn-shimmer rounded-xl font-display font-bold h-11"
                 >
                   {requestPayout.isPending ? "Requesting..." : "Request Payout"}
                 </Button>
-                <p className="text-xs text-muted-foreground text-center">Minimum $10 required</p>
+                <p className="text-xs text-muted-foreground/40 text-center">Minimum $10 required</p>
               </ElevatedCardContent>
             </ElevatedCard>
 
-            {/* Recent Payouts */}
             {payouts && payouts.length > 0 && (
-              <ElevatedCard variant="spotlight">
+              <ElevatedCard variant="spotlight" className="rounded-2xl">
                 <ElevatedCardHeader>
-                  <ElevatedCardTitle>Recent Payouts</ElevatedCardTitle>
+                  <ElevatedCardTitle className="font-display">Recent Payouts</ElevatedCardTitle>
                 </ElevatedCardHeader>
-                <ElevatedCardContent className="space-y-3">
+                <ElevatedCardContent className="space-y-2">
                   {payouts.slice(0, 5).map((payout) => (
-                    <div key={payout.id} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 row-interactive">
+                    <div key={payout.id} className="flex items-center justify-between p-3 rounded-xl bg-secondary/20 hover:bg-secondary/30 transition-all duration-200">
                       <div>
-                        <p className="font-medium">${Number(payout.amount).toFixed(2)}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {new Date(payout.created_at).toLocaleDateString()}
-                        </p>
+                        <p className="font-display font-bold">${Number(payout.amount).toFixed(2)}</p>
+                        <p className="text-xs text-muted-foreground/40">{new Date(payout.created_at).toLocaleDateString()}</p>
                       </div>
-                      <span className={`px-2 py-1 rounded-full text-xs capitalize ${
+                      <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold capitalize ${
                         payout.status === "paid" ? "bg-emerald-500/10 text-emerald-400" :
                         payout.status === "approved" ? "bg-blue-500/10 text-blue-400" :
                         payout.status === "pending" ? "bg-yellow-500/10 text-yellow-400" :
