@@ -15,7 +15,7 @@ const Footer = forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
             </div>
 
             <div className="flex items-center gap-6 text-xs text-muted-foreground/60 flex-wrap justify-center">
-              <a href="#launch-a-campaign" className="hover:text-foreground transition-colors">Launch a Campaign</a>
+              <a href="#how-it-works" className="hover:text-foreground transition-colors">How It Works</a>
               <a href="#features" className="hover:text-foreground transition-colors">Features</a>
               <a href="#testimonials" className="hover:text-foreground transition-colors">Testimonials</a>
               <a href="#faq" className="hover:text-foreground transition-colors">FAQ</a>
