@@ -7,49 +7,19 @@ import {
 } from "@/components/ui/accordion";
 
 const creatorFAQs = [
-  {
-    q: "How do I start earning on Amplify?",
-    a: "Sign up as a creator, browse available campaigns, and start submitting clips. Once approved and your content gains views, you'll earn based on the campaign's pay rate.",
-  },
-  {
-    q: "How much can I earn?",
-    a: "Earnings depend on your views and the campaign rate. Top creators earn $1,000–$5,000+ per month. The more views your content gets, the more you earn.",
-  },
-  {
-    q: "When do I get paid?",
-    a: "You can request a payout once your earnings reach the minimum threshold. Payouts are processed quickly via your chosen payment method.",
-  },
-  {
-    q: "Do I need a large following?",
-    a: "No! What matters is the quality of your content and the views it generates. Many successful creators started with small followings.",
-  },
-  {
-    q: "What platforms are supported?",
-    a: "Currently TikTok, Instagram Reels, and YouTube Shorts. We're always expanding to new platforms.",
-  },
+  { q: "Who can sign up as a creator?", a: "Anyone with a social media presence — from micro-influencers to full-time creators — is welcome. We support TikTok, Instagram, YouTube, and more." },
+  { q: "How do I get paid?", a: "You'll receive payouts via your preferred method once you hit the minimum payout threshold." },
+  { q: "Is there a fee to join?", a: "Nope. It's 100% free to join and apply to campaigns." },
+  { q: "Do I need a large following?", a: "Not necessarily. We work with creators of all sizes. Brands care about engagement and authenticity, not just follower count." },
+  { q: "Can I work with multiple brands?", a: "Yes! You can apply to and run multiple campaigns at the same time." },
 ];
 
 const brandFAQs = [
-  {
-    q: "How does pricing work?",
-    a: "Amplify uses budget-based pricing. You set a total campaign budget and a pay rate per views. You only pay for actual performance — no upfront fees or commitments.",
-  },
-  {
-    q: "Do I approve content before it goes live?",
-    a: "Yes, you have full approval control. Every submission is reviewed by you before any content is published. You can approve, reject, or request changes.",
-  },
-  {
-    q: "How many creators will work on my campaign?",
-    a: "It depends on your campaign's appeal and budget. Popular campaigns can attract hundreds of creators. You can also set requirements to filter for quality.",
-  },
-  {
-    q: "Are views guaranteed?",
-    a: "No. All views are organic — we never use bots or paid promotions. Results vary based on content quality and platform algorithms.",
-  },
-  {
-    q: "Can I track campaign performance?",
-    a: "Absolutely. Your dashboard shows real-time views, submissions, earnings spent, and per-creator breakdowns across all platforms.",
-  },
+  { q: "How much does it cost to run a campaign?", a: "You set your own budget. You only pay for results — whether it's posts, clicks, or conversions." },
+  { q: "Can I choose the creators I work with?", a: "Yes. You can hand-pick creators or let our system match you with the best fits based on your campaign goals." },
+  { q: "Is there a minimum budget?", a: "We recommend starting with at least $100 to attract quality creators, but there's no strict minimum." },
+  { q: "Can I track results in real time?", a: "Absolutely. Our dashboard gives you live insights into performance — views, engagement, and content stats." },
+  { q: "Do I need to sign a long-term contract?", a: "No. You can run one-off campaigns or scale over time — completely on your terms." },
 ];
 
 const FAQSection = () => {
@@ -57,26 +27,30 @@ const FAQSection = () => {
   const faqs = activeTab === "creators" ? creatorFAQs : brandFAQs;
 
   return (
-    <section id="faq" className="py-24 px-4">
-      <div className="container max-w-3xl">
-        <div className="text-center mb-12">
-          <span className="inline-block text-primary text-sm font-semibold tracking-wider uppercase mb-4">
+    <section id="faq" className="py-28 px-4 relative">
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-primary/5 rounded-full blur-[150px]" />
+      </div>
+
+      <div className="container max-w-3xl relative">
+        <div className="text-center mb-14">
+          <span className="inline-block text-primary text-xs font-semibold tracking-[0.2em] uppercase mb-4">
             FAQ
           </span>
-          <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-            Frequently Asked <span className="text-gradient-animated">Questions</span>
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-5">
+            Frequently Asked Questions
           </h2>
-          <p className="text-muted-foreground max-w-xl mx-auto mb-8">
-            Everything you need to know about Amplify.
+          <p className="text-muted-foreground max-w-xl mx-auto text-base mb-10">
+            Amplify is suitable for: apps / influencers / streamers / youtubers / software / SaaS / physical & digital products
           </p>
 
           {/* Tab Toggle */}
-          <div className="inline-flex items-center rounded-full border border-border bg-secondary/50 p-1">
+          <div className="inline-flex items-center rounded-full border border-border bg-card p-1 gap-1">
             <button
               onClick={() => setActiveTab("creators")}
-              className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+              className={`px-7 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${
                 activeTab === "creators"
-                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25"
+                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -84,9 +58,9 @@ const FAQSection = () => {
             </button>
             <button
               onClick={() => setActiveTab("brands")}
-              className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+              className={`px-7 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${
                 activeTab === "brands"
-                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25"
+                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -100,12 +74,13 @@ const FAQSection = () => {
             <AccordionItem
               key={i}
               value={`item-${i}`}
-              className="border border-border rounded-xl px-6 bg-card/50 hover:border-primary/30 transition-colors data-[state=open]:border-primary/30"
+              className="border border-border rounded-xl px-6 bg-card/50 hover:border-primary/30 transition-colors data-[state=open]:border-primary/30 opacity-0 animate-fade-up"
+              style={{ animationDelay: `${i * 50}ms` }}
             >
-              <AccordionTrigger className="text-left text-sm font-medium hover:no-underline py-4">
+              <AccordionTrigger className="text-left text-sm font-medium hover:no-underline py-5">
                 {faq.q}
               </AccordionTrigger>
-              <AccordionContent className="text-muted-foreground text-sm pb-4 leading-relaxed">
+              <AccordionContent className="text-muted-foreground text-sm pb-5 leading-relaxed">
                 {faq.a}
               </AccordionContent>
             </AccordionItem>
