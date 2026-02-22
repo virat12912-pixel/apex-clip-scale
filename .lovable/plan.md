@@ -1,57 +1,47 @@
 
 
-# Admin Role Management Feature
+## Landing Page Updates
 
-## Overview
-Add the ability for admins to assign any role to any user directly from the Admin User Detail page. A role selector dropdown will appear in the user header card, showing the user's current role and allowing the admin to change it.
+### Summary
+Update the landing page to be more inclusive for all users (creators, streamers, brands, musicians) and connect buttons to the right destinations.
 
-## What You'll See
-- On the Admin User Detail page, next to the user's name/email, there will be a **role badge** showing their current role (e.g., "creator", "brand", "admin")
-- A **"Change Role"** dropdown/select will let admins pick from all 8 available roles: creator, brand, admin, client_admin, client_manager, client_viewer, clipper, platform_admin
-- A confirmation dialog will appear before changing the role to prevent accidental changes
-- Success/error toast notifications after the action
+### Changes
 
-## Available Roles
-- **Creator** -- Default role, can submit clips
-- **Brand** -- Can create and manage campaigns
-- **Admin** -- Full platform access
-- **Client Admin** -- Elevated client access
-- **Client Manager** -- Mid-level client access
-- **Client Viewer** -- Read-only client access
-- **Clipper** -- Clip submission role
-- **Platform Admin** -- Platform-level admin
+**1. Replace "How It Works" section with "Launch a Campaign" section**
+- Remove the `HowItWorksSection` from the landing page
+- Replace it with a new section called "Launch a Campaign" that highlights campaign features in an inclusive way for all user types
+- Use welcoming language for creators, streamers, brands, and musicians
 
-## Technical Details
+**2. Update Hero Section buttons**
+- Change "Get Started Free" text to "Start Clipping"
+- Change "See How It Works" button to "Launch a Campaign" linking to `/brand-application` (requires login)
 
-### Backend
-- The database already has an `upgrade_user_role` function (SECURITY DEFINER) that updates a user's role in `user_roles` table
-- Create a new edge function `admin-change-role` that:
-  - Validates the caller is an admin (checks auth token)
-  - Calls `upgrade_user_role` RPC with the target user_id and new role
-  - Logs the action in `admin_logs`
-- This ensures role changes go through server-side validation, not client-side
+**3. Update Final CTA Section buttons**
+- "I'm a Creator" button: redirect to `/auth` (sign up / login)
+- "I'm a Brand" button: redirect to `/brand-application`
 
-### Frontend Changes
+**4. Update Footer links**
+- Add "I'm a Brand" link pointing to `/brand-application`
+- Add "I'm a Creator" link pointing to `/auth`
 
-**1. `src/hooks/useAdminUsers.ts`**
-- Add a `useUserRole(userId)` hook to fetch the user's current role from `user_roles`
-- Add a `useChangeUserRole()` mutation hook that invokes the `admin-change-role` edge function
+**5. Update wording across sections**
+- Make all copy inclusive: mention creators, streamers, musicians, and brands equally
+- Update `WhoItsForSection` to broaden language beyond just "brands" and "creators" -- include streamers and musicians
+- Update subtitles and descriptions to feel welcoming to all content creators
 
-**2. `src/pages/AdminUserDetail.tsx`**
-- Add a role display badge next to the user's name
-- Add a Select dropdown with all 8 roles
-- Wrap the role change in an AlertDialog for confirmation
-- Show current role and selected new role in confirmation
-- Log the change via admin logs
+### Technical Details
 
-**3. `supabase/functions/admin-change-role/index.ts`** (new file)
-- Accepts `{ user_id, new_role }` in request body
-- Uses service role key to call `upgrade_user_role` RPC
-- Verifies the caller is an admin before proceeding
-- Inserts an admin log entry
+**Files to modify:**
+- `src/pages/Index.tsx` -- remove HowItWorksSection import, add new LaunchCampaignSection
+- `src/components/landing/HeroSection.tsx` -- change button text and link targets
+- `src/components/landing/FinalCTASection.tsx` -- update button navigation routes
+- `src/components/landing/Footer.tsx` -- add "I'm a Brand" and "I'm a Creator" links
+- `src/components/landing/WhoItsForSection.tsx` -- broaden wording to include streamers, musicians
+- `src/components/landing/Navbar.tsx` -- update nav links to reflect new sections
 
-### Files to Create/Modify
-1. **Create**: `supabase/functions/admin-change-role/index.ts`
-2. **Modify**: `src/hooks/useAdminUsers.ts` -- add role fetch + change mutation
-3. **Modify**: `src/pages/AdminUserDetail.tsx` -- add role UI in the user header card
+**New file:**
+- `src/components/landing/LaunchCampaignSection.tsx` -- new section replacing How It Works, showcasing campaign launching for all user types
 
+**Routing:**
+- "Launch a Campaign" / "I'm a Brand" buttons will navigate to `/brand-application` (protected route, requires login)
+- "Start Clipping" / "I'm a Creator" buttons will navigate to `/auth`
