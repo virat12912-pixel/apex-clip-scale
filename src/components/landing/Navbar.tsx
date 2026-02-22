@@ -6,7 +6,7 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
 
-  const links = ["Features", "Launch a Campaign", "FAQ"];
+  const links = ["Features", "How It Works", "FAQ"];
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-border/20 bg-background/70 backdrop-blur-xl">
