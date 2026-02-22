@@ -22,7 +22,7 @@ const FinalCTASection = forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement
                 Start Growing Today
               </h2>
               <p className="text-sm sm:text-base text-muted-foreground mb-10 max-w-md mx-auto">
-                Join thousands of creators and brands already earning and collaborating on Amplify.
+                Join thousands of creators, streamers, musicians, and brands already earning and collaborating on Amplify.
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -33,7 +33,7 @@ const FinalCTASection = forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement
                   I'm a Creator →
                 </button>
                 <button
-                  onClick={() => navigate("/auth")}
+                  onClick={() => navigate("/brand-application")}
                   className="w-full sm:w-auto px-8 py-3.5 rounded-full border border-primary/40 text-foreground font-medium text-sm transition-all duration-300 hover:border-primary/70 hover:shadow-[0_0_20px_hsl(var(--primary)/0.2)] hover:scale-105 active:scale-[0.98]"
                 >
                   I'm a Brand →

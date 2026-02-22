@@ -14,11 +14,13 @@ const Footer = forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
               <span className="font-display font-bold text-base">Amplify</span>
             </div>
 
-            <div className="flex items-center gap-6 text-xs text-muted-foreground/60">
-              <a href="#how-it-works" className="hover:text-foreground transition-colors">How It Works</a>
+            <div className="flex items-center gap-6 text-xs text-muted-foreground/60 flex-wrap justify-center">
+              <a href="#launch-a-campaign" className="hover:text-foreground transition-colors">Launch a Campaign</a>
               <a href="#features" className="hover:text-foreground transition-colors">Features</a>
               <a href="#testimonials" className="hover:text-foreground transition-colors">Testimonials</a>
               <a href="#faq" className="hover:text-foreground transition-colors">FAQ</a>
+              <a href="/brand-application" className="hover:text-foreground transition-colors">I'm a Brand</a>
+              <a href="/auth" className="hover:text-foreground transition-colors">I'm a Creator</a>
             </div>
 
             <p className="text-xs text-muted-foreground/40">

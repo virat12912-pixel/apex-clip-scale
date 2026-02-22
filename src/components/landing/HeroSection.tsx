@@ -99,7 +99,7 @@ const HeroSection = () => {
           className="text-base sm:text-lg text-muted-foreground mb-12 max-w-lg mx-auto opacity-0 animate-fade-up"
           style={{ animationDelay: "150ms" }}
         >
-          The platform where brands and creators grow together.
+          The platform where creators, streamers, musicians, and brands grow together.
         </p>
 
         {/* CTAs */}
@@ -111,14 +111,14 @@ const HeroSection = () => {
             onClick={() => navigate("/auth")}
             className="btn-shimmer w-full sm:w-auto px-10 py-4 rounded-full bg-primary text-primary-foreground font-medium text-sm transition-all duration-300 hover:scale-105 active:scale-[0.98] shadow-[0_0_30px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_50px_hsl(var(--primary)/0.6)]"
           >
-            Get Started Free
+            Start Clipping
           </button>
-          <a
-            href="#how-it-works"
+          <button
+            onClick={() => navigate("/brand-application")}
             className="w-full sm:w-auto px-10 py-4 rounded-full border border-primary/30 text-foreground font-medium text-sm transition-all duration-300 hover:border-primary/60 hover:shadow-[0_0_20px_hsl(var(--primary)/0.2)] hover:scale-105 active:scale-[0.98]"
           >
-            See How It Works
-          </a>
+            Launch a Campaign →
+          </button>
         </div>
 
         {/* Floating stat cards */}
