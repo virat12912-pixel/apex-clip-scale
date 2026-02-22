@@ -1,13 +1,11 @@
-import { useState, useEffect, useRef } from "react";
-import { Star, ChevronLeft, ChevronRight, Quote, DollarSign, Building2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Star, DollarSign, Building2 } from "lucide-react";
 import { ElevatedCard } from "@/components/ui/elevated-card";
 
 const testimonials = [
   {
     type: "clipper",
     name: "Marcus Chen",
-    role: "Elite Clipper",
+    role: "Elite Creator",
     content: "I've made over $2,000 in my first month. The platform is intuitive and payments are always on time.",
     rating: 5,
     earnings: "$2,340",
@@ -24,7 +22,7 @@ const testimonials = [
   {
     type: "clipper",
     name: "Alex Rivera",
-    role: "Verified Clipper",
+    role: "Verified Creator",
     content: "Finally, a platform that values quality. The campaign variety keeps things interesting and profitable.",
     rating: 5,
     earnings: "$1,850",
@@ -38,180 +36,69 @@ const testimonials = [
     rating: 5,
     avatar: "D",
   },
-  {
-    type: "clipper",
-    name: "Jordan Lee",
-    role: "Elite Clipper",
-    content: "Turned my hobby into a full-time income. The flexibility to work on campaigns I love is amazing.",
-    rating: 5,
-    earnings: "$3,100",
-    avatar: "J",
-  },
 ];
 
 const TestimonialsSection = () => {
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!isAutoPlaying) return;
-    
-    const interval = setInterval(() => {
-      setActiveIndex((prev) => (prev + 1) % testimonials.length);
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [isAutoPlaying]);
-
-  const goToSlide = (index: number) => {
-    setActiveIndex(index);
-    setIsAutoPlaying(false);
-    setTimeout(() => setIsAutoPlaying(true), 10000);
-  };
-
-  const goToPrev = () => {
-    goToSlide(activeIndex === 0 ? testimonials.length - 1 : activeIndex - 1);
-  };
-
-  const goToNext = () => {
-    goToSlide((activeIndex + 1) % testimonials.length);
-  };
-
   return (
-    <section className="py-20 px-4 relative overflow-hidden">
-      {/* Background glow */}
+    <section id="testimonials" className="py-24 px-4 relative overflow-hidden bg-gradient-dark">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl pulse-glow" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/5 rounded-full blur-3xl" />
       </div>
 
       <div className="container relative">
         <div className="text-center mb-12">
           <span className="inline-block text-primary text-sm font-semibold tracking-wider uppercase mb-4">
-            Testimonials
+            Success Stories
           </span>
           <h2 className="text-3xl sm:text-4xl font-bold mb-4">
-            Trusted by <span className="text-gradient-animated">Brands & Clippers</span>
+            Trusted by <span className="text-gradient-animated">Brands & Creators</span>
           </h2>
           <p className="text-muted-foreground max-w-xl mx-auto">
-            Join thousands of satisfied users who are already growing with Amplify.
+            Real results from real users on the platform.
           </p>
         </div>
 
-        {/* Carousel */}
-        <div className="relative max-w-4xl mx-auto">
-          {/* Navigation Buttons */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={goToPrev}
-            className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 z-10 rounded-full glass-card hover:border-primary/30 transition-all hidden md:flex group"
-          >
-            <ChevronLeft className="h-5 w-5 group-hover:scale-110 transition-transform" />
-          </Button>
-          
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={goToNext}
-            className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 z-10 rounded-full glass-card hover:border-primary/30 transition-all hidden md:flex group"
-          >
-            <ChevronRight className="h-5 w-5 group-hover:scale-110 transition-transform" />
-          </Button>
+        <div className="grid sm:grid-cols-2 gap-6 max-w-4xl mx-auto stagger-enter">
+          {testimonials.map((t, i) => (
+            <ElevatedCard key={i} variant="glass" className="p-6 group relative overflow-hidden">
+              {/* Type badge */}
+              <div className="flex items-center justify-between mb-4">
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
+                  t.type === "clipper"
+                    ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                    : "bg-primary/10 text-primary border border-primary/20"
+                }`}>
+                  {t.type === "clipper" ? <><DollarSign className="w-3 h-3" /> Creator</> : <><Building2 className="w-3 h-3" /> Brand</>}
+                </span>
+                {t.earnings && (
+                  <span className="text-xs font-semibold text-emerald-400 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                    {t.earnings} earned
+                  </span>
+                )}
+              </div>
 
-          {/* Cards Container */}
-          <div 
-            ref={containerRef}
-            className="overflow-hidden rounded-2xl"
-          >
-            <div 
-              className="flex transition-transform duration-500 ease-out"
-              style={{ transform: `translateX(-${activeIndex * 100}%)` }}
-            >
-              {testimonials.map((testimonial, index) => (
-                <div 
-                  key={index}
-                  className="w-full flex-shrink-0 p-6"
-                >
-                  <ElevatedCard variant="glass" className="p-8 relative overflow-hidden group">
-                    {/* Quote icon */}
-                    <Quote className="absolute top-6 right-6 h-12 w-12 text-primary/10 group-hover:text-primary/30 transition-colors" />
-                    
-                    {/* Type badge and earnings */}
-                    <div className="flex items-center justify-between mb-6">
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
-                        testimonial.type === "clipper"
-                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                          : "bg-primary/10 text-primary border border-primary/20"
-                      }`}>
-                        {testimonial.type === "clipper" ? (
-                          <>
-                            <DollarSign className="w-3 h-3" />
-                            Clipper
-                          </>
-                        ) : (
-                          <>
-                            <Building2 className="w-3 h-3" />
-                            Brand
-                          </>
-                        )}
-                      </span>
-                      
-                      {testimonial.earnings && (
-                        <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                          <DollarSign className="w-3 h-3 text-emerald-400" />
-                          <span className="text-xs font-semibold text-emerald-400">
-                            {testimonial.earnings} earned
-                          </span>
-                        </div>
-                      )}
-                    </div>
+              {/* Stars */}
+              <div className="flex gap-0.5 mb-3">
+                {Array.from({ length: t.rating }).map((_, i) => (
+                  <Star key={i} className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+                ))}
+              </div>
 
-                    {/* Rating */}
-                    <div className="flex gap-1 mb-4">
-                      {Array.from({ length: testimonial.rating }).map((_, i) => (
-                        <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      ))}
-                    </div>
+              <p className="text-foreground mb-4 leading-relaxed text-sm">"{t.content}"</p>
 
-                    {/* Content */}
-                    <p className="text-lg text-foreground mb-6 leading-relaxed">
-                      "{testimonial.content}"
-                    </p>
-
-                    {/* Author */}
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-gradient-primary flex items-center justify-center text-lg font-bold text-primary-foreground shadow-lg shadow-primary/20">
-                        {testimonial.avatar}
-                      </div>
-                      <div>
-                        <p className="font-semibold">{testimonial.name}</p>
-                        <p className="text-sm text-muted-foreground">{testimonial.role}</p>
-                      </div>
-                    </div>
-
-                    {/* Decorative gradient */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
-                  </ElevatedCard>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-primary flex items-center justify-center text-sm font-bold text-primary-foreground">
+                  {t.avatar}
                 </div>
-              ))}
-            </div>
-          </div>
+                <div>
+                  <p className="font-semibold text-sm">{t.name}</p>
+                  <p className="text-xs text-muted-foreground">{t.role}</p>
+                </div>
+              </div>
 
-          {/* Dots */}
-          <div className="flex justify-center gap-2 mt-6">
-            {testimonials.map((_, index) => (
-              <button
-                key={index}
-                onClick={() => goToSlide(index)}
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  index === activeIndex 
-                    ? "w-8 bg-primary glow-primary-sm" 
-                    : "w-2 bg-muted hover:bg-muted-foreground"
-                }`}
-              />
-            ))}
-          </div>
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+            </ElevatedCard>
+          ))}
         </div>
       </div>
     </section>
