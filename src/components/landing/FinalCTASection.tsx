@@ -1,35 +1,46 @@
-import { Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { forwardRef } from "react";
+import { useScrollReveal } from "@/hooks/useScrollReveal";
 
 const FinalCTASection = forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
   (props, ref) => {
     const navigate = useNavigate();
+    const revealRef = useScrollReveal();
 
     return (
       <section ref={ref} className="py-24 sm:py-32 px-4 relative overflow-hidden" {...props}>
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-primary/10 rounded-full blur-[180px]" />
-        </div>
-
-        <div className="container relative z-10 text-center max-w-2xl">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-primary mb-8 shadow-[0_0_30px_hsl(var(--primary)/0.3)]">
-            <Zap className="w-7 h-7 text-primary-foreground" />
-          </div>
-
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
-            Ready to Monetize Your Content?
-          </h2>
-          <p className="text-sm sm:text-base text-muted-foreground mb-10 max-w-md mx-auto">
-            Join thousands of creators and brands already earning and collaborating through our platform.
-          </p>
-
-          <button
-            onClick={() => navigate("/auth")}
-            className="inline-flex items-center gap-2 px-10 py-3.5 rounded-full bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-all shadow-[0_0_25px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_40px_hsl(var(--primary)/0.5)]"
+        <div className="container relative z-10 max-w-4xl">
+          <div
+            ref={revealRef}
+            className="scroll-reveal cta-gradient rounded-3xl p-10 sm:p-16 text-center relative overflow-hidden border border-primary/20"
           >
-            Get Started →
-          </button>
+            {/* Dot grid overlay */}
+            <div className="absolute inset-0 dot-grid opacity-30 pointer-events-none" />
+
+            <div className="relative z-10">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
+                Start Growing Today
+              </h2>
+              <p className="text-sm sm:text-base text-muted-foreground mb-10 max-w-md mx-auto">
+                Join thousands of creators and brands already earning and collaborating on Amplify.
+              </p>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <button
+                  onClick={() => navigate("/auth")}
+                  className="btn-shimmer w-full sm:w-auto px-8 py-3.5 rounded-full bg-primary text-primary-foreground font-medium text-sm transition-all duration-300 hover:scale-105 active:scale-[0.98] shadow-[0_0_25px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_40px_hsl(var(--primary)/0.6)] pulse-glow"
+                >
+                  I'm a Creator →
+                </button>
+                <button
+                  onClick={() => navigate("/auth")}
+                  className="w-full sm:w-auto px-8 py-3.5 rounded-full border border-primary/40 text-foreground font-medium text-sm transition-all duration-300 hover:border-primary/70 hover:shadow-[0_0_20px_hsl(var(--primary)/0.2)] hover:scale-105 active:scale-[0.98]"
+                >
+                  I'm a Brand →
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
     );
