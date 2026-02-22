@@ -230,7 +230,8 @@ const AdminUserDetail = () => {
       </div>
 
       {/* User Header Card */}
-      <div className="p-6 rounded-xl bg-card border border-border mb-6">
+      <div className="page-enter">
+      <div className="p-6 rounded-2xl bg-card/50 border border-border/30 mb-6">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-4">
             <div className="relative">
@@ -252,7 +253,7 @@ const AdminUserDetail = () => {
               )}
             </div>
             <div>
-              <h2 className="text-xl font-bold flex items-center gap-2">
+              <h2 className="text-xl font-display font-bold flex items-center gap-2">
                 {user.full_name || "Anonymous"}
                 {user.is_banned && (
                   <span className="text-xs text-red-400">(Banned)</span>
@@ -318,9 +319,9 @@ const AdminUserDetail = () => {
         </div>
 
         {/* Campaign Stats */}
-        <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-border">
+        <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-border/30">
           <div className="text-center">
-            <div className="text-2xl font-bold">{submissions?.length || 0}</div>
+            <div className="text-2xl font-display font-bold">{submissions?.length || 0}</div>
             <div className="text-sm text-muted-foreground">Submissions</div>
           </div>
           <div className="text-center">
@@ -607,6 +608,7 @@ const AdminUserDetail = () => {
           )}
         </TabsContent>
       </Tabs>
+      </div>
     </AppLayout>
   );
 };

@@ -53,13 +53,13 @@ const AdminSocialAccounts = () => {
               placeholder="Search by username or email..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 bg-secondary"
+              className="pl-10 bg-card/50 border-border/30 rounded-xl"
             />
           </div>
         </div>
 
         {/* Info box */}
-        <div className="p-4 rounded-xl bg-blue-500/5 border border-blue-500/20 mb-6">
+        <div className="p-4 rounded-2xl bg-blue-500/5 border border-blue-500/20 mb-6">
           <p className="text-sm text-muted-foreground">
             Users self-verify their accounts by adding a verification code to their bio. 
             This page shows all linked social accounts across the platform.
@@ -69,20 +69,20 @@ const AdminSocialAccounts = () => {
         {isLoading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <Skeleton key={i} className="h-24" />
+              <Skeleton key={i} className="h-24 rounded-2xl" />
             ))}
           </div>
         ) : (
           <div className="space-y-8">
             {/* Pending Verification */}
             <div>
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <h2 className="text-lg font-display font-bold mb-4 flex items-center gap-2">
                 <Clock className="h-5 w-5 text-yellow-400" />
                 Pending Verification ({pendingAccounts.length})
               </h2>
               
               {pendingAccounts.length === 0 ? (
-                <div className="p-8 text-center rounded-xl bg-card border border-border">
+                <div className="p-8 text-center rounded-2xl bg-card/50 border border-border/30">
                   <CheckCircle className="h-12 w-12 mx-auto mb-3 text-emerald-400" />
                   <p className="text-muted-foreground">No pending verifications</p>
                 </div>
@@ -91,7 +91,7 @@ const AdminSocialAccounts = () => {
                   {pendingAccounts.map((account) => (
                     <div 
                       key={account.id}
-                      className="p-5 rounded-xl bg-card border border-border card-hover"
+                      className="p-5 rounded-2xl bg-card/50 border border-border/30 hover:border-primary/15 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
@@ -102,8 +102,8 @@ const AdminSocialAccounts = () => {
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="font-semibold">{account.username}</span>
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                              <span className="font-display font-bold">{account.username}</span>
+                              <span className="text-xs px-2 py-0.5 rounded-lg bg-secondary/50 text-muted-foreground backdrop-blur-sm">
                                 {platformLabels[account.platform]}
                               </span>
                             </div>
@@ -121,6 +121,7 @@ const AdminSocialAccounts = () => {
                               variant="outline"
                               size="sm"
                               asChild
+                              className="rounded-xl border-border/30"
                             >
                               <a href={account.profile_url} target="_blank" rel="noopener noreferrer">
                                 <ExternalLink className="h-4 w-4 mr-1" />
@@ -128,7 +129,7 @@ const AdminSocialAccounts = () => {
                               </a>
                             </Button>
                           )}
-                          <span className="text-xs text-yellow-400 flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-500/10">
+                          <span className="text-xs text-yellow-400 flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-500/10 backdrop-blur-sm">
                             <Clock className="h-3 w-3" />
                             Awaiting user verification
                           </span>
@@ -142,31 +143,31 @@ const AdminSocialAccounts = () => {
 
             {/* Verified Accounts */}
             <div>
-              <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <h2 className="text-lg font-display font-bold mb-4 flex items-center gap-2">
                 <CheckCircle className="h-5 w-5 text-emerald-400" />
                 Verified Accounts ({verifiedAccounts.length})
               </h2>
               
               {verifiedAccounts.length === 0 ? (
-                <div className="p-8 text-center rounded-xl bg-card border border-border">
+                <div className="p-8 text-center rounded-2xl bg-card/50 border border-border/30">
                   <p className="text-muted-foreground">No verified accounts yet</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-3 stagger-enter">
                   {verifiedAccounts.slice(0, 20).map((account) => (
                     <div 
                       key={account.id}
-                      className="p-4 rounded-xl bg-card border border-border"
+                      className="p-4 rounded-2xl bg-card/50 border border-border/30 hover:border-primary/15 transition-all duration-300"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-lg bg-emerald-500/10">
+                          <div className="p-2 rounded-xl bg-emerald-500/10">
                             <span className="text-emerald-400">
                               {platformIcons[account.platform]}
                             </span>
                           </div>
                           <div>
-                            <span className="font-medium">{account.username}</span>
+                            <span className="font-display font-bold">{account.username}</span>
                             <span className="text-sm text-muted-foreground ml-2">
                               ({account.profile?.full_name || account.profile?.email})
                             </span>
@@ -183,7 +184,7 @@ const AdminSocialAccounts = () => {
                               <ExternalLink className="h-3 w-3" />
                             </a>
                           )}
-                          <span className="text-xs text-emerald-400 flex items-center gap-1">
+                          <span className="text-xs text-emerald-400 flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-500/10 backdrop-blur-sm">
                             <CheckCircle className="h-3 w-3" />
                             Verified
                           </span>

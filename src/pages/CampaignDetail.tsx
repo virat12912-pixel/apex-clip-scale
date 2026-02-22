@@ -313,7 +313,7 @@ const CampaignDetail = () => {
         {/* Main content */}
         <div className="lg:col-span-2 space-y-6">
           {/* Header */}
-          <div className="p-6 rounded-xl bg-card border border-border card-hover">
+          <div className="p-6 rounded-2xl bg-card/50 border border-border/30 hover:border-primary/15 hover:shadow-lg transition-all duration-300">
             {/* Campaign Image */}
             {campaign.image_url && (
               <div className="w-full h-48 rounded-lg overflow-hidden mb-4">
@@ -331,7 +331,7 @@ const CampaignDetail = () => {
                   )}
                 </div>
                 <div>
-                  <h1 className="text-2xl font-bold">{campaign.name}</h1>
+                  <h1 className="text-2xl font-display font-bold">{campaign.name}</h1>
                   <p className="text-muted-foreground">
                     by {campaign.creator_profile?.full_name || "Creator"}
                   </p>
@@ -369,7 +369,7 @@ const CampaignDetail = () => {
 
             {/* Description */}
             <div className="mb-6">
-              <h3 className="font-semibold mb-2">Description</h3>
+              <h3 className="font-display font-bold mb-2">Description</h3>
               <p className="text-muted-foreground">
                 {campaign.description || "No description provided"}
               </p>
@@ -408,8 +408,8 @@ const CampaignDetail = () => {
             <TabsContent value="submit" className="space-y-6">
               {/* Submit clips (for creators) */}
               {role === "creator" && isActive && !isBudgetExhausted && (
-                <div className="p-6 rounded-xl bg-card border border-border card-hover">
-                  <h3 className="text-lg font-semibold mb-4">Submit Your Clips</h3>
+            <div className="p-6 rounded-2xl bg-card/50 border border-border/30">
+                  <h3 className="text-lg font-display font-bold mb-4">Submit Your Clips</h3>
 
                   <div className="space-y-4">
                     {/* Platform selector */}
@@ -541,8 +541,8 @@ const CampaignDetail = () => {
 
               {/* Submissions list (for brand/admin) */}
               {(role === "brand" || role === "admin") && submissions && submissions.length > 0 && (
-                <div className="p-6 rounded-xl bg-card border border-border">
-                  <h3 className="text-lg font-semibold mb-4">
+              <div className="p-6 rounded-2xl bg-card/50 border border-border/30">
+                  <h3 className="text-lg font-display font-bold mb-4">
                     Submissions ({submissions.length})
                   </h3>
                   <div className="space-y-3 stagger-enter">
@@ -615,8 +615,8 @@ const CampaignDetail = () => {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Stats */}
-          <div className="p-6 rounded-xl bg-card border border-border">
-            <h3 className="font-semibold mb-4">Campaign Stats</h3>
+          <div className="p-6 rounded-2xl bg-card/50 border border-border/30">
+            <h3 className="font-display font-bold mb-4">Campaign Stats</h3>
 
             <div className="space-y-4">
               <div className="flex items-center gap-3">
@@ -666,8 +666,8 @@ const CampaignDetail = () => {
           </div>
 
           {/* Budget */}
-          <div className="p-6 rounded-xl bg-card border border-border">
-            <h3 className="font-semibold mb-4">Budget</h3>
+          <div className="p-6 rounded-2xl bg-card/50 border border-border/30">
+            <h3 className="font-display font-bold mb-4">Budget</h3>
 
             <div className="space-y-4">
               <div>
