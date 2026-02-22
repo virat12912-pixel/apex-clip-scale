@@ -136,6 +136,53 @@ export function useCampaignParticipants(campaignId: string) {
   });
 }
 
+export function useUserRole(userId: string) {
+  const { role } = useAuth();
+
+  return useQuery({
+    queryKey: ["user_role", userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (error) throw error;
+      return (data?.role as string) || "creator";
+    },
+    enabled: role === "admin" && !!userId,
+  });
+}
+
+export function useChangeUserRole() {
+  const queryClient = useQueryClient();
+  const createLog = useCreateAdminLog();
+
+  return useMutation({
+    mutationFn: async ({
+      userId,
+      newRole,
+    }: {
+      userId: string;
+      newRole: string;
+    }) => {
+      const { data, error } = await supabase.functions.invoke(
+        "admin-change-role",
+        { body: { user_id: userId, new_role: newRole } }
+      );
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (_, { userId }) => {
+      queryClient.invalidateQueries({ queryKey: ["user_role", userId] });
+      queryClient.invalidateQueries({ queryKey: ["admin_logs"] });
+    },
+  });
+}
+
 export function useUserProfile(userId: string) {
   const { role } = useAuth();
 

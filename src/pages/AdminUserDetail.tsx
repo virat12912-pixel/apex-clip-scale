@@ -5,6 +5,8 @@ import {
   useUserProfile,
   useUserSubmissions,
   useUpdateUserStatus,
+  useUserRole,
+  useChangeUserRole,
 } from "@/hooks/useAdminUsers";
 import { useAdminLogs } from "@/hooks/useAdminLogs";
 import { useCampaign } from "@/hooks/useCampaigns";
@@ -12,6 +14,13 @@ import { useAllPayouts, useUpdatePayout } from "@/hooks/useWallet";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,8 +55,11 @@ const AdminUserDetail = () => {
     userId: string;
   }>();
   const { toast } = useToast();
+  const [pendingRole, setPendingRole] = useState<string | null>(null);
+  const [roleDialogOpen, setRoleDialogOpen] = useState(false);
 
   const { data: user, isLoading: userLoading } = useUserProfile(userId || "");
+  const { data: userRole, isLoading: roleLoading } = useUserRole(userId || "");
   const { data: submissions, isLoading: submissionsLoading } =
     useUserSubmissions(userId || "", campaignId);
   const { data: campaign } = useCampaign(campaignId || "");
@@ -56,6 +68,7 @@ const AdminUserDetail = () => {
 
   const updateUserStatus = useUpdateUserStatus();
   const updatePayout = useUpdatePayout();
+  const changeRole = useChangeUserRole();
 
   const userPayouts =
     allPayouts?.filter((p: any) => p.user_id === userId) || [];
@@ -70,6 +83,30 @@ const AdminUserDetail = () => {
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     toast({ title: "Copied", description: `${label} copied to clipboard` });
+  };
+
+  const ALL_ROLES = [
+    { value: "creator", label: "Creator" },
+    { value: "brand", label: "Brand" },
+    { value: "admin", label: "Admin" },
+    { value: "client_admin", label: "Client Admin" },
+    { value: "client_manager", label: "Client Manager" },
+    { value: "client_viewer", label: "Client Viewer" },
+    { value: "clipper", label: "Clipper" },
+    { value: "platform_admin", label: "Platform Admin" },
+  ];
+
+  const handleRoleChange = async () => {
+    if (!pendingRole || !userId) return;
+    try {
+      await changeRole.mutateAsync({ userId, newRole: pendingRole });
+      toast({ title: "Role updated", description: `User role changed to ${pendingRole.replace(/_/g, " ")}` });
+    } catch (error: any) {
+      toast({ title: "Error", description: error?.message || "Failed to change role", variant: "destructive" });
+    } finally {
+      setPendingRole(null);
+      setRoleDialogOpen(false);
+    }
   };
 
   const handleBan = async () => {
@@ -260,7 +297,7 @@ const AdminUserDetail = () => {
                 )}
               </h2>
               <p className="text-muted-foreground">{user.email}</p>
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
                 {user.payment_verified ? (
                   <span className="px-2 py-1 rounded text-xs bg-emerald-500/10 text-emerald-400 flex items-center gap-1">
                     <CheckCircle className="h-3 w-3" /> Payment Verified
@@ -270,6 +307,31 @@ const AdminUserDetail = () => {
                     <AlertCircle className="h-3 w-3" /> Payment Unverified
                   </span>
                 )}
+                {/* Role Badge & Selector */}
+                <div className="flex items-center gap-2">
+                  <Select
+                    value={userRole || "creator"}
+                    onValueChange={(val) => {
+                      if (val !== userRole) {
+                        setPendingRole(val);
+                        setRoleDialogOpen(true);
+                      }
+                    }}
+                    disabled={roleLoading || changeRole.isPending}
+                  >
+                    <SelectTrigger className="h-7 w-auto min-w-[120px] text-xs">
+                      <Shield className="h-3 w-3 mr-1" />
+                      <SelectValue placeholder="Role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ALL_ROLES.map((r) => (
+                        <SelectItem key={r.value} value={r.value} className="text-xs">
+                          {r.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           </div>
@@ -609,6 +671,30 @@ const AdminUserDetail = () => {
         </TabsContent>
       </Tabs>
       </div>
+
+      {/* Role Change Confirmation Dialog */}
+      <AlertDialog open={roleDialogOpen} onOpenChange={(open) => {
+        if (!open) setPendingRole(null);
+        setRoleDialogOpen(open);
+      }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change User Role?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will change <strong>{user?.full_name || user?.email}</strong>'s role from{" "}
+              <strong className="capitalize">{(userRole || "creator").replace(/_/g, " ")}</strong> to{" "}
+              <strong className="capitalize">{(pendingRole || "").replace(/_/g, " ")}</strong>.
+              This action takes effect immediately.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRoleChange} disabled={changeRole.isPending}>
+              {changeRole.isPending ? "Changing..." : "Confirm Change"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 };
