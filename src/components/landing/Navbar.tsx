@@ -1,6 +1,7 @@
-import { Menu, X, Zap } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import logo from "@/assets/logo.png";
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -13,9 +14,7 @@ const Navbar = () => {
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent" />
       <div className="container flex items-center justify-between h-16 px-4">
         <a href="/" className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 rounded-lg bg-gradient-primary flex items-center justify-center transition-transform group-hover:scale-105 shadow-[0_0_15px_hsl(var(--primary)/0.3)]">
-            <Zap className="w-5 h-5 text-primary-foreground" />
-          </div>
+          <img src={logo} alt="Amplify" className="w-9 h-9 rounded-lg transition-transform group-hover:scale-105" />
           <span className="font-display font-bold text-xl">Amplify</span>
         </a>
 

@@ -1,4 +1,5 @@
-import { LayoutDashboard, Search, Rocket, User, DollarSign, LogOut, Shield, Settings, Building2, FileText, Wallet, Smartphone, Users, Zap, BarChart3, Crown } from "lucide-react";
+import { LayoutDashboard, Search, Rocket, User, DollarSign, LogOut, Shield, Settings, Building2, FileText, Wallet, Smartphone, Users, BarChart3, Crown } from "lucide-react";
+import logo from "@/assets/logo.png";
 import { NavLink } from "@/components/NavLink";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
@@ -50,9 +51,7 @@ export function AppSidebar() {
       
       <SidebarHeader className="p-4 border-b border-border/50">
         <NavLink to="/dashboard" className="flex items-center gap-2.5 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center glow-primary-sm transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_30px_hsl(267_89%_59%/0.5)]">
-            <Zap className="w-5 h-5 text-primary-foreground" />
-          </div>
+          <img src={logo} alt="Amplify" className="w-10 h-10 rounded-xl transition-all duration-300 group-hover:scale-110" />
           {!isCollapsed && (
             <span className="font-display font-bold text-xl tracking-tight">Amplify</span>
           )}
