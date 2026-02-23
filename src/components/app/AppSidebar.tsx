@@ -1,4 +1,4 @@
-import { LayoutDashboard, Search, Rocket, User, DollarSign, LogOut, Shield, Settings, Building2, FileText, Wallet, Smartphone, Users, BarChart3, Crown } from "lucide-react";
+import { LayoutDashboard, Search, Rocket, User, DollarSign, LogOut, Shield, Settings, Building2, FileText, Wallet, Smartphone, Users, BarChart3, Crown, CreditCard } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { NavLink } from "@/components/NavLink";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar } from "@/components/ui/sidebar";
@@ -37,6 +37,7 @@ export function AppSidebar() {
     { title: "Brand Applications", url: "/admin/brands", icon: Building2 },
     { title: "Verify Accounts", url: "/admin/social-accounts", icon: Users },
     { title: "Manage Users", url: "/admin/users", icon: Crown },
+    { title: "Client Balances", url: "/admin/balances", icon: CreditCard },
   ] : [];
 
   const handleSignOut = async () => {
