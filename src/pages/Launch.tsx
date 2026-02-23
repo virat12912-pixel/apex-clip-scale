@@ -26,6 +26,9 @@ import { Database } from "@/integrations/supabase/types";
 import { mapErrorToUserMessage, logError } from "@/lib/errorMapping";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useClientBalance } from "@/hooks/useClientBalance";
+import { AlertTriangle } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
 type PlatformType = Database["public"]["Enums"]["platform_type"];
 
@@ -52,6 +55,7 @@ const Launch = () => {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
+  const { data: clientBalance } = useClientBalance();
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -153,6 +157,17 @@ const Launch = () => {
       toast({
         title: "Budget required",
         description: "Please enter a valid budget",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const budgetAmount = parseFloat(formData.total_budget);
+    const availableBalance = Number(clientBalance?.available_balance || 0);
+    if (availableBalance > 0 && budgetAmount > availableBalance) {
+      toast({
+        title: "Insufficient balance",
+        description: `Budget ($${budgetAmount}) exceeds your available balance ($${availableBalance.toFixed(2)})`,
         variant: "destructive",
       });
       return;
@@ -390,7 +405,26 @@ const Launch = () => {
                 <p className="text-sm text-muted-foreground">
                   Set your budget and submission requirements
                 </p>
-              </div>
+                    </div>
+                    {clientBalance && Number(clientBalance.available_balance) > 0 && (
+                      <div className="mt-2">
+                        <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+                          <span>Available Balance: <span className="font-bold text-foreground">${Number(clientBalance.available_balance).toFixed(2)}</span></span>
+                          {formData.total_budget && parseFloat(formData.total_budget) > Number(clientBalance.available_balance) && (
+                            <span className="flex items-center gap-1 text-destructive">
+                              <AlertTriangle className="h-3 w-3" />
+                              Exceeds balance
+                            </span>
+                          )}
+                        </div>
+                        {formData.total_budget && (
+                          <Progress 
+                            value={Math.min((parseFloat(formData.total_budget) / Number(clientBalance.available_balance)) * 100, 100)} 
+                            className="h-1.5"
+                          />
+                        )}
+                      </div>
+                    )}
 
               <div className="space-y-4">
                 <div className="grid sm:grid-cols-2 gap-4">

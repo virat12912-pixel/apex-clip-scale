@@ -44,6 +44,39 @@ export type Database = {
         }
         Relationships: []
       }
+      balance_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          notes: string | null
+          related_campaign_id: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          notes?: string | null
+          related_campaign_id?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          notes?: string | null
+          related_campaign_id?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       brand_applications: {
         Row: {
           admin_notes: string | null
@@ -209,6 +242,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      client_balances: {
+        Row: {
+          available_balance: number
+          created_at: string
+          id: string
+          pending_spend: number
+          total_funded: number
+          total_spent: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          available_balance?: number
+          created_at?: string
+          id?: string
+          pending_spend?: number
+          total_funded?: number
+          total_spent?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          available_balance?: number
+          created_at?: string
+          id?: string
+          pending_spend?: number
+          total_funded?: number
+          total_spent?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       clipper_stats: {
         Row: {

@@ -19,6 +19,7 @@ import { CampaignExportButton } from "@/components/campaigns/CampaignExportButto
 import { ElevatedCard, ElevatedCardContent, ElevatedCardHeader, ElevatedCardTitle } from "@/components/ui/elevated-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionDivider } from "@/components/ui/section-divider";
+import { ClientBalanceSection } from "@/components/dashboard/ClientBalanceSection";
 
 const Dashboard = () => {
   const { profile, role } = useAuth();
@@ -111,6 +112,18 @@ const Dashboard = () => {
         <div className="mb-8">
           <ViewsChart data={analyticsData} title="Your Performance (Last 30 Days)" showEarnings={true} />
         </div>
+      )}
+
+      {/* Client Balance Section - for brands/admins */}
+      {(role === "brand" || role === "admin") && (
+        <>
+          <SectionDivider variant="gradient" size="md" />
+          <div className="mb-2">
+            <h2 className="text-xl font-display font-bold tracking-tight mb-1">Client Balance</h2>
+            <p className="text-sm text-muted-foreground/60">Manage your campaign funding balance</p>
+          </div>
+          <ClientBalanceSection />
+        </>
       )}
 
       <SectionDivider variant="gradient" size="md" />
