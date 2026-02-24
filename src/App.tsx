@@ -28,6 +28,9 @@ import AdminUsers from "./pages/AdminUsers";
 import AdminBalances from "./pages/AdminBalances";
 import AdminAssignCampaign from "./pages/AdminAssignCampaign";
 import ClientDashboard from "./pages/ClientDashboard";
+import ClientSubmissions from "./pages/ClientSubmissions";
+import ClientCampaignSubmissions from "./pages/ClientCampaignSubmissions";
+import ClientUserSubmissions from "./pages/ClientUserSubmissions";
 import BrandApplication from "./pages/BrandApplication";
 import ResetPassword from "./pages/ResetPassword";
 import Settings from "./pages/Settings";
@@ -154,6 +157,21 @@ const App = () => (
             <Route path="/client" element={
               <ProtectedRoute allowedRoles={["client_admin", "client_manager", "client_viewer"]}>
                 <ClientDashboard />
+              </ProtectedRoute>
+            } />
+            <Route path="/client/submissions" element={
+              <ProtectedRoute allowedRoles={["client_admin", "client_manager", "client_viewer"]}>
+                <ClientSubmissions />
+              </ProtectedRoute>
+            } />
+            <Route path="/client/submissions/:campaignId" element={
+              <ProtectedRoute allowedRoles={["client_admin", "client_manager", "client_viewer"]}>
+                <ClientCampaignSubmissions />
+              </ProtectedRoute>
+            } />
+            <Route path="/client/submissions/:campaignId/user/:userId" element={
+              <ProtectedRoute allowedRoles={["client_admin", "client_manager", "client_viewer"]}>
+                <ClientUserSubmissions />
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />

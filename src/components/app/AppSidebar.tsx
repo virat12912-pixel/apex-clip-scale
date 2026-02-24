@@ -18,14 +18,19 @@ export function AppSidebar() {
   const isClipperRole = role === "creator" || role === "clipper";
   const isClientRole = role === "client_admin" || role === "client_manager" || role === "client_viewer";
 
-  const mainNavItems = [
-    ...(isClientRole ? [{ title: "Client Dashboard", url: "/client", icon: Monitor }] : []),
+  const mainNavItems = isClientRole ? [
+    { title: "Client Dashboard", url: "/client", icon: Monitor },
+    { title: "Manage Submissions", url: "/client/submissions", icon: FileText },
+  ] : [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
     { title: "Browse Campaigns", url: "/campaigns", icon: Search },
     ...(canLaunchCampaigns ? [{ title: "Launch Campaign", url: "/launch", icon: Rocket }] : []),
   ];
 
-  const accountNavItems = [
+  const accountNavItems = isClientRole ? [
+    { title: "My Profile", url: "/profile", icon: User },
+    { title: "Settings", url: "/settings", icon: Settings },
+  ] : [
     { title: "My Profile", url: "/profile", icon: User },
     { title: "Earnings", url: "/earnings", icon: DollarSign },
     { title: "Social Accounts", url: "/social-accounts", icon: Smartphone },
