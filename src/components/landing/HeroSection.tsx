@@ -124,17 +124,7 @@ const HeroSection = () => {
           </button>
         </div>
 
-        {/* Social proof strip */}
-        <div
-          className="mt-10 flex items-center justify-center gap-3 text-xs text-muted-foreground/50 opacity-0 animate-fade-up"
-          style={{ animationDelay: "400ms" }}
-        >
-          <span>Trusted by <strong className="text-muted-foreground/70">500+</strong> creators</span>
-          <span className="w-1 h-1 rounded-full bg-primary/50 shadow-[0_0_6px_hsl(var(--primary)/0.5)]" />
-          <span><strong className="text-muted-foreground/70">150+</strong> brands</span>
-          <span className="w-1 h-1 rounded-full bg-primary/50 shadow-[0_0_6px_hsl(var(--primary)/0.5)]" />
-          <span><strong className="text-muted-foreground/70">$120K+</strong> paid out</span>
-        </div>
+
 
         {/* Floating stat cards */}
         <div
