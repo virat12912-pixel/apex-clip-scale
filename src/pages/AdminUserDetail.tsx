@@ -268,17 +268,13 @@ const AdminUserDetail = () => {
 
       {/* User Header Card */}
       <div className="page-enter">
-      <div className="p-6 rounded-2xl bg-card/50 border border-border/30 mb-6">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <div className="w-16 h-16 rounded-xl bg-gradient-primary flex items-center justify-center text-2xl font-bold text-primary-foreground overflow-hidden">
+      <div className="p-4 sm:p-6 rounded-2xl bg-card/50 border border-border/30 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+            <div className="relative flex-shrink-0">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-gradient-primary flex items-center justify-center text-xl sm:text-2xl font-bold text-primary-foreground overflow-hidden">
                 {user.avatar_url ? (
-                  <img
-                    src={user.avatar_url}
-                    alt=""
-                    className="w-full h-full object-cover"
-                  />
+                  <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
                 ) : (
                   user.full_name?.charAt(0) || "?"
                 )}
@@ -289,14 +285,14 @@ const AdminUserDetail = () => {
                 </div>
               )}
             </div>
-            <div>
-              <h2 className="text-xl font-display font-bold flex items-center gap-2">
-                {user.full_name || "Anonymous"}
+            <div className="min-w-0">
+              <h2 className="text-lg sm:text-xl font-display font-bold flex items-center gap-2 flex-wrap">
+                <span className="truncate">{user.full_name || "Anonymous"}</span>
                 {user.is_banned && (
                   <span className="text-xs text-red-400">(Banned)</span>
                 )}
               </h2>
-              <p className="text-muted-foreground">{user.email}</p>
+              <p className="text-muted-foreground text-sm truncate">{user.email}</p>
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 {user.payment_verified ? (
                   <span className="px-2 py-1 rounded text-xs bg-emerald-500/10 text-emerald-400 flex items-center gap-1">
@@ -307,41 +303,38 @@ const AdminUserDetail = () => {
                     <AlertCircle className="h-3 w-3" /> Payment Unverified
                   </span>
                 )}
-                {/* Role Badge & Selector */}
-                <div className="flex items-center gap-2">
-                  <Select
-                    value={userRole || "creator"}
-                    onValueChange={(val) => {
-                      if (val !== userRole) {
-                        setPendingRole(val);
-                        setRoleDialogOpen(true);
-                      }
-                    }}
-                    disabled={roleLoading || changeRole.isPending}
-                  >
-                    <SelectTrigger className="h-7 w-auto min-w-[120px] text-xs">
-                      <Shield className="h-3 w-3 mr-1" />
-                      <SelectValue placeholder="Role" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ALL_ROLES.map((r) => (
-                        <SelectItem key={r.value} value={r.value} className="text-xs">
-                          {r.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                <Select
+                  value={userRole || "creator"}
+                  onValueChange={(val) => {
+                    if (val !== userRole) {
+                      setPendingRole(val);
+                      setRoleDialogOpen(true);
+                    }
+                  }}
+                  disabled={roleLoading || changeRole.isPending}
+                >
+                  <SelectTrigger className="h-7 w-auto min-w-[120px] text-xs">
+                    <Shield className="h-3 w-3 mr-1" />
+                    <SelectValue placeholder="Role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ALL_ROLES.map((r) => (
+                      <SelectItem key={r.value} value={r.value} className="text-xs">
+                        {r.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-shrink-0">
             {!user.payment_verified && (
               <Button size="sm" variant="outline" onClick={handleVerifyPayment}>
                 <Shield className="h-4 w-4 mr-1" />
-                Verify Payment
+                Verify
               </Button>
             )}
             {user.is_banned ? (
@@ -361,16 +354,12 @@ const AdminUserDetail = () => {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Ban User?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This will prevent the user from logging in and submitting
-                      clips. Pending payouts will be blocked.
+                      This will prevent the user from logging in and submitting clips. Pending payouts will be blocked.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleBan}
-                      className="bg-red-500 hover:bg-red-600"
-                    >
+                    <AlertDialogAction onClick={handleBan} className="bg-red-500 hover:bg-red-600">
                       Ban User
                     </AlertDialogAction>
                   </AlertDialogFooter>
@@ -381,24 +370,24 @@ const AdminUserDetail = () => {
         </div>
 
         {/* Campaign Stats */}
-        <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-border/30">
+        <div className="grid grid-cols-3 gap-3 sm:gap-4 mt-5 pt-5 border-t border-border/30">
           <div className="text-center">
-            <div className="text-2xl font-display font-bold">{submissions?.length || 0}</div>
-            <div className="text-sm text-muted-foreground">Submissions</div>
+            <div className="text-xl sm:text-2xl font-display font-bold">{submissions?.length || 0}</div>
+            <div className="text-xs sm:text-sm text-muted-foreground">Submissions</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold flex items-center justify-center gap-1">
-              <Eye className="h-5 w-5 text-muted-foreground" />
+            <div className="text-xl sm:text-2xl font-bold flex items-center justify-center gap-1">
+              <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
               {formatNumber(totalViews)}
             </div>
-            <div className="text-sm text-muted-foreground">Total Views</div>
+            <div className="text-xs sm:text-sm text-muted-foreground">Total Views</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-primary flex items-center justify-center gap-1">
-              <DollarSign className="h-5 w-5" />
+            <div className="text-xl sm:text-2xl font-bold text-primary flex items-center justify-center gap-1">
+              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />
               {totalEarnings.toFixed(2)}
             </div>
-            <div className="text-sm text-muted-foreground">Earnings</div>
+            <div className="text-xs sm:text-sm text-muted-foreground">Earnings</div>
           </div>
         </div>
       </div>
@@ -434,33 +423,33 @@ const AdminUserDetail = () => {
                   key={sub.id}
                   className="p-4 rounded-xl bg-card border border-border"
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-3">
-                        <a
-                          href={sub.clip_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline flex items-center gap-1"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                          {sub.clip_url.slice(0, 50)}...
-                        </a>
+                  <div className="space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <a
+                        href={sub.clip_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline flex items-center gap-1 text-sm break-all min-w-0"
+                      >
+                        <ExternalLink className="h-4 w-4 flex-shrink-0" />
+                        <span className="truncate">{sub.clip_url.replace(/https?:\/\/(www\.)?/, '').slice(0, 40)}...</span>
+                      </a>
+                      <div className="flex items-center gap-2 flex-shrink-0">
                         {getStatusBadge(sub.status)}
-                      </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span className="capitalize">{sub.platform}</span>
-                        <span className="flex items-center gap-1">
-                          <Eye className="h-4 w-4" /> {formatNumber(sub.views)}
-                        </span>
-                        <span className="flex items-center gap-1 text-primary">
-                          <DollarSign className="h-4 w-4" /> $
-                          {Number(sub.earnings).toFixed(2)}
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(sub.created_at).toLocaleDateString()}
                         </span>
                       </div>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(sub.created_at).toLocaleDateString()}
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
+                      <span className="capitalize">{sub.platform}</span>
+                      <span className="flex items-center gap-1">
+                        <Eye className="h-4 w-4" /> {formatNumber(sub.views)}
+                      </span>
+                      <span className="flex items-center gap-1 text-primary">
+                        <DollarSign className="h-4 w-4" /> $
+                        {Number(sub.earnings).toFixed(2)}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -573,63 +562,67 @@ const AdminUserDetail = () => {
                   key={payout.id}
                   className="p-5 rounded-xl bg-card border border-border"
                 >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <div className="text-2xl font-bold text-primary">
-                        ${Number(payout.amount).toFixed(2)}
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div>
+                        <div className="text-2xl font-bold text-primary">
+                          ${Number(payout.amount).toFixed(2)}
+                        </div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          Requested{" "}
+                          {new Date(payout.created_at).toLocaleDateString()}
+                        </div>
+                        <div className="mt-1">{getStatusBadge(payout.status)}</div>
                       </div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        Requested{" "}
-                        {new Date(payout.created_at).toLocaleDateString()}
-                      </div>
-                      {getStatusBadge(payout.status)}
-                    </div>
 
-                    {payout.status === "pending" && (
-                      <div className="flex gap-2">
-                        {!user.payment_verified ? (
-                          <div className="text-xs text-yellow-500 flex items-center gap-1">
-                            <AlertCircle className="h-4 w-4" />
-                            Verify payment first
-                          </div>
-                        ) : user.is_banned ? (
-                          <div className="text-xs text-red-500 flex items-center gap-1">
-                            <Ban className="h-4 w-4" />
-                            User is banned
-                          </div>
-                        ) : (
+                      <div className="flex gap-2 flex-wrap">
+                        {payout.status === "pending" && (
                           <>
-                            <Button
-                              size="sm"
-                              className="bg-emerald-500 hover:bg-emerald-600"
-                              onClick={() =>
-                                handlePayoutAction(payout.id, "approved")
-                              }
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" /> Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() =>
-                                handlePayoutAction(payout.id, "rejected")
-                              }
-                            >
-                              <XCircle className="h-4 w-4 mr-1" /> Reject
-                            </Button>
+                            {!user.payment_verified ? (
+                              <div className="text-xs text-yellow-500 flex items-center gap-1">
+                                <AlertCircle className="h-4 w-4" />
+                                Verify payment first
+                              </div>
+                            ) : user.is_banned ? (
+                              <div className="text-xs text-red-500 flex items-center gap-1">
+                                <Ban className="h-4 w-4" />
+                                User is banned
+                              </div>
+                            ) : (
+                              <>
+                                <Button
+                                  size="sm"
+                                  className="bg-emerald-500 hover:bg-emerald-600"
+                                  onClick={() =>
+                                    handlePayoutAction(payout.id, "approved")
+                                  }
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-1" /> Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() =>
+                                    handlePayoutAction(payout.id, "rejected")
+                                  }
+                                >
+                                  <XCircle className="h-4 w-4 mr-1" /> Reject
+                                </Button>
+                              </>
+                            )}
                           </>
                         )}
-                      </div>
-                    )}
 
-                    {payout.status === "approved" && (
-                      <Button
-                        size="sm"
-                        onClick={() => handlePayoutAction(payout.id, "paid")}
-                      >
-                        <DollarSign className="h-4 w-4 mr-1" /> Mark as Paid
-                      </Button>
-                    )}
+                        {payout.status === "approved" && (
+                          <Button
+                            size="sm"
+                            onClick={() => handlePayoutAction(payout.id, "paid")}
+                          >
+                            <DollarSign className="h-4 w-4 mr-1" /> Mark as Paid
+                          </Button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}

@@ -91,48 +91,46 @@ const AdminSocialAccounts = () => {
                   {pendingAccounts.map((account) => (
                     <div 
                       key={account.id}
-                      className="p-5 rounded-2xl bg-card/50 border border-border/30 hover:border-primary/15 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300"
+                      className="p-4 sm:p-5 rounded-2xl bg-card/50 border border-border/30 hover:border-primary/15 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="p-3 rounded-xl bg-yellow-500/10">
-                            <span className="text-yellow-400">
-                              {platformIcons[account.platform]}
+                      <div className="flex items-start gap-3 sm:gap-4">
+                        <div className="p-2.5 sm:p-3 rounded-xl bg-yellow-500/10 flex-shrink-0">
+                          <span className="text-yellow-400">
+                            {platformIcons[account.platform]}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-display font-bold truncate">{account.username}</span>
+                            <span className="text-xs px-2 py-0.5 rounded-lg bg-secondary/50 text-muted-foreground backdrop-blur-sm">
+                              {platformLabels[account.platform]}
                             </span>
                           </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-display font-bold">{account.username}</span>
-                              <span className="text-xs px-2 py-0.5 rounded-lg bg-secondary/50 text-muted-foreground backdrop-blur-sm">
-                                {platformLabels[account.platform]}
-                              </span>
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              {account.profile?.full_name || account.profile?.email}
-                            </p>
-                            <code className="text-xs text-primary">
-                              Code: {account.verification_code}
-                            </code>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {account.profile?.full_name || account.profile?.email}
+                          </p>
+                          <code className="text-xs text-primary">
+                            Code: {account.verification_code}
+                          </code>
+                          <div className="flex items-center gap-2 mt-2 flex-wrap">
+                            {account.profile_url && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                asChild
+                                className="rounded-xl border-border/30 h-7 text-xs"
+                              >
+                                <a href={account.profile_url} target="_blank" rel="noopener noreferrer">
+                                  <ExternalLink className="h-3 w-3 mr-1" />
+                                  View
+                                </a>
+                              </Button>
+                            )}
+                            <span className="text-xs text-yellow-400 flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-500/10 backdrop-blur-sm">
+                              <Clock className="h-3 w-3" />
+                              Awaiting verification
+                            </span>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {account.profile_url && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              asChild
-                              className="rounded-xl border-border/30"
-                            >
-                              <a href={account.profile_url} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="h-4 w-4 mr-1" />
-                                View Profile
-                              </a>
-                            </Button>
-                          )}
-                          <span className="text-xs text-yellow-400 flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-500/10 backdrop-blur-sm">
-                            <Clock className="h-3 w-3" />
-                            Awaiting user verification
-                          </span>
                         </div>
                       </div>
                     </div>
@@ -159,21 +157,21 @@ const AdminSocialAccounts = () => {
                       key={account.id}
                       className="p-4 rounded-2xl bg-card/50 border border-border/30 hover:border-primary/15 transition-all duration-300"
                     >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-xl bg-emerald-500/10">
-                            <span className="text-emerald-400">
-                              {platformIcons[account.platform]}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="font-display font-bold">{account.username}</span>
-                            <span className="text-sm text-muted-foreground ml-2">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-xl bg-emerald-500/10 flex-shrink-0">
+                          <span className="text-emerald-400">
+                            {platformIcons[account.platform]}
+                          </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-display font-bold truncate">{account.username}</span>
+                            <span className="text-sm text-muted-foreground truncate">
                               ({account.profile?.full_name || account.profile?.email})
                             </span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 flex-shrink-0">
                           {account.profile_url && (
                             <a 
                               href={account.profile_url} 
