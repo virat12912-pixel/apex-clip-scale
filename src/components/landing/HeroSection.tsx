@@ -65,7 +65,7 @@ const HeroSection = () => {
     <section
       ref={heroRef}
       onMouseMove={handleMouseMove}
-      className="relative min-h-[90vh] flex flex-col items-center justify-center overflow-hidden px-4 pt-24 pb-16"
+      className="relative min-h-[80vh] flex flex-col items-center justify-center overflow-hidden px-4 pt-20 pb-16"
     >
       {/* Animated mesh background */}
       <div className="mesh-bg" />

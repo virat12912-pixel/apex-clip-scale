@@ -1,7 +1,9 @@
-import { UserPlus, Search, Film, DollarSign } from "lucide-react";
+import { UserPlus, Search, Film, DollarSign, Megaphone, Users, BarChart3, Rocket } from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 
-const steps = [
+const creatorSteps = [
   {
     icon: UserPlus,
     title: "Sign Up Free",
@@ -24,7 +26,30 @@ const steps = [
   },
 ];
 
-const TimelineStep = ({ step, index }: { step: typeof steps[0]; index: number }) => {
+const brandSteps = [
+  {
+    icon: Rocket,
+    title: "Apply as a Brand",
+    description: "Tell us about your brand and campaign goals. We'll get you set up in no time.",
+  },
+  {
+    icon: Megaphone,
+    title: "Launch a Campaign",
+    description: "Set your budget, target audience, and creative direction. We handle the rest.",
+  },
+  {
+    icon: Users,
+    title: "Creators Promote You",
+    description: "Verified creators make content featuring your brand and post it to their audiences.",
+  },
+  {
+    icon: BarChart3,
+    title: "Track Results",
+    description: "Monitor views, engagement, and ROI in real-time from your dashboard.",
+  },
+];
+
+const TimelineStep = ({ step, index }: { step: typeof creatorSteps[0]; index: number }) => {
   const ref = useScrollReveal();
   const isEven = index % 2 === 0;
 
@@ -74,7 +99,10 @@ const TimelineStep = ({ step, index }: { step: typeof steps[0]; index: number })
 };
 
 const HowItWorksSection = () => {
+  const navigate = useNavigate();
   const headerRef = useScrollReveal();
+  const [activeTab, setActiveTab] = useState<"creators" | "brands">("creators");
+  const steps = activeTab === "creators" ? creatorSteps : brandSteps;
 
   return (
     <section id="how-it-works" className="py-24 sm:py-32 px-4 relative">
@@ -83,16 +111,40 @@ const HowItWorksSection = () => {
       </div>
 
       <div className="container relative max-w-4xl">
-        <div ref={headerRef} className="scroll-reveal text-center mb-20">
+        <div ref={headerRef} className="scroll-reveal text-center mb-12">
           <span className="text-primary text-xs font-semibold tracking-[0.2em] uppercase mb-4 block">
             How It Works
           </span>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4">
-            Start Earning in <span className="text-gradient">4 Steps</span>
+            Get Started in <span className="text-gradient">4 Steps</span>
           </h2>
           <p className="text-muted-foreground max-w-lg mx-auto text-sm sm:text-base">
-            From signup to payout — it's simple, fast, and free.
+            Whether you're creating or launching — it's simple, fast, and free.
           </p>
+        </div>
+
+        {/* Tab toggle */}
+        <div className="flex items-center justify-center gap-2 mb-16">
+          <button
+            onClick={() => setActiveTab("creators")}
+            className={`px-6 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 ${
+              activeTab === "creators"
+                ? "bg-gradient-to-r from-primary to-[hsl(280_90%_65%)] text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
+                : "bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary/80"
+            }`}
+          >
+            For Creators
+          </button>
+          <button
+            onClick={() => setActiveTab("brands")}
+            className={`px-6 py-2.5 rounded-full text-sm font-semibold transition-all duration-300 ${
+              activeTab === "brands"
+                ? "bg-gradient-to-r from-primary to-[hsl(280_90%_65%)] text-primary-foreground shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
+                : "bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary/80"
+            }`}
+          >
+            For Brands
+          </button>
         </div>
 
         {/* Timeline */}
@@ -104,9 +156,19 @@ const HowItWorksSection = () => {
 
           <div className="space-y-8 md:space-y-12">
             {steps.map((step, i) => (
-              <TimelineStep key={step.title} step={step} index={i} />
+              <TimelineStep key={`${activeTab}-${step.title}`} step={step} index={i} />
             ))}
           </div>
+        </div>
+
+        {/* CTA button */}
+        <div className="text-center mt-14">
+          <button
+            onClick={() => navigate(activeTab === "creators" ? "/auth" : "/brand-application")}
+            className="btn-shimmer px-10 py-4 rounded-full bg-gradient-to-r from-primary to-[hsl(280_90%_65%)] text-primary-foreground font-semibold text-sm tracking-wide transition-all duration-300 hover:scale-105 active:scale-[0.98] shadow-[0_0_30px_hsl(var(--primary)/0.4)]"
+          >
+            {activeTab === "creators" ? "Start Clipping" : "Launch a Campaign"}
+          </button>
         </div>
       </div>
     </section>
