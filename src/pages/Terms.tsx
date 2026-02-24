@@ -25,8 +25,8 @@ const Terms = () => {
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-lg font-display font-semibold text-foreground">2. No Guaranteed Results</h2>
-            <p>Amplify does not guarantee any specific number of views, followers, engagement, conversions, or revenue. Campaign performance depends on content quality, platform algorithms, audience behavior, and other factors outside our control. All projections or benchmarks shared are estimates based on historical data and are not promises of future performance.</p>
+            <h2 className="text-lg font-display font-semibold text-foreground">2. View Guarantees & Limitations</h2>
+            <p>Amplify guarantees the delivery of the agreed-upon number of views as specified in your campaign terms. However, Amplify does not guarantee any specific number of followers, engagement, conversions, sales, or revenue resulting from those views. Campaign outcomes beyond view delivery depend on content quality, audience behavior, market conditions, and other factors outside our control.</p>
           </section>
 
           <section className="space-y-3">
