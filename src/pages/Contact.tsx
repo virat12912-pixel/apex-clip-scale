@@ -37,7 +37,7 @@ const Contact = () => {
             <div className="flex items-start gap-3">
               <Mail className="w-4 h-4 text-primary mt-0.5 shrink-0" />
               <div>
-                <p className="text-sm text-foreground/90 font-medium">contact@amplifyclipping.com</p>
+                <p className="text-sm text-foreground/90 font-medium">clippingamplify@gmail.com</p>
                 <p className="text-xs text-muted-foreground/50 mt-1">For general inquiries, support requests, and partnership opportunities.</p>
               </div>
             </div>

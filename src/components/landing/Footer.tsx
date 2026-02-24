@@ -20,7 +20,7 @@ const Footer = forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
                 Performance-driven short-form growth for creators and brands.
               </p>
               <p className="text-xs text-muted-foreground/50">
-                contact@amplifyclipping.com
+                clippingamplify@gmail.com
               </p>
 
               {/* Social */}
@@ -30,18 +30,7 @@ const Footer = forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
                 </p>
                 <div className="flex items-center gap-3">
                   <a
-                    href="https://tiktok.com/@amplify"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-muted-foreground/50 hover:text-primary transition-colors"
-                    aria-label="TikTok"
-                  >
-                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
-                      <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9a6.33 6.33 0 0 0-.79-.05A6.34 6.34 0 0 0 3.15 15.3a6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.75a8.18 8.18 0 0 0 4.76 1.52V6.84a4.84 4.84 0 0 1-1-.15z" />
-                    </svg>
-                  </a>
-                  <a
-                    href="https://instagram.com/amplify"
+                    href="https://instagram.com/amplifyclipping"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-muted-foreground/50 hover:text-primary transition-colors"
@@ -52,7 +41,7 @@ const Footer = forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
                     </svg>
                   </a>
                   <a
-                    href="https://x.com/amplify"
+                    href="https://x.com/amplifyclipping"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-muted-foreground/50 hover:text-primary transition-colors"
