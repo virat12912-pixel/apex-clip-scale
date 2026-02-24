@@ -44,7 +44,7 @@ const AdminCampaignSubmissions = () => {
 
         {/* Campaign Stats */}
         {campaign && (
-          <div className="grid grid-cols-3 gap-4 mb-6 stagger-enter">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6 stagger-enter">
             <div className="p-4 rounded-2xl bg-card/50 border border-border/30 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300">
               <div className="text-sm text-muted-foreground">Total Budget</div>
               <div className="text-xl font-display font-bold">${Number(campaign.total_budget).toFixed(0)}</div>
@@ -53,7 +53,7 @@ const AdminCampaignSubmissions = () => {
               <div className="text-sm text-muted-foreground">Spent</div>
               <div className="text-xl font-display font-bold text-primary">${Number(campaign.spent_budget).toFixed(2)}</div>
             </div>
-            <div className="p-4 rounded-2xl bg-card/50 border border-border/30 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300">
+            <div className="p-4 rounded-2xl bg-card/50 border border-border/30 col-span-2 sm:col-span-1">
               <div className="text-sm text-muted-foreground">Status</div>
               <div className={`text-xl font-display font-bold capitalize ${
                 campaign.status === "active" ? "text-emerald-400" :
@@ -87,50 +87,44 @@ const AdminCampaignSubmissions = () => {
               <Link
                 key={participant.creator_id}
                 to={`/admin/submissions/${campaignId}/user/${participant.creator_id}`}
-                className="flex items-center justify-between p-5 rounded-2xl bg-card/50 border border-border/30 hover:border-primary/15 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300"
+                className="block p-4 sm:p-5 rounded-2xl bg-card/50 border border-border/30 hover:border-primary/15 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300"
               >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-gradient-primary glow-primary-sm flex items-center justify-center text-lg font-bold text-primary-foreground overflow-hidden">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-primary glow-primary-sm flex items-center justify-center text-base sm:text-lg font-bold text-primary-foreground overflow-hidden flex-shrink-0">
                     {participant.avatar_url ? (
                       <img src={participant.avatar_url} alt="" className="w-full h-full object-cover" />
                     ) : (
                       participant.full_name?.charAt(0) || "?"
                     )}
                   </div>
-                  <div>
-                    <h3 className="font-display font-bold">{participant.full_name || "Anonymous"}</h3>
-                    <p className="text-sm text-muted-foreground">{participant.email}</p>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-display font-bold truncate">{participant.full_name || "Anonymous"}</h3>
+                    <p className="text-sm text-muted-foreground truncate">{participant.email}</p>
                   </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground flex-shrink-0 hidden sm:block" />
                 </div>
 
-                <div className="flex items-center gap-6">
-                  <div className="flex items-center gap-3 text-sm">
-                    <span className="flex items-center gap-1 text-emerald-400" title="Approved">
-                      <CheckCircle className="h-4 w-4" />
-                      {participant.approved_count || 0}
-                    </span>
-                    <span className="flex items-center gap-1 text-red-400" title="Rejected">
-                      <XCircle className="h-4 w-4" />
-                      {participant.rejected_count || 0}
-                    </span>
-                    <span className="flex items-center gap-1 text-yellow-400" title="Pending">
-                      <Clock className="h-4 w-4" />
-                      {participant.pending_count || 0}
-                    </span>
-                  </div>
-
-                  <div className="text-right">
-                    <div className="flex items-center gap-1 text-sm">
-                      <Eye className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{formatNumber(participant.total_views)}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-sm text-primary">
-                      <DollarSign className="h-4 w-4" />
-                      <span className="font-display font-bold">${participant.total_earnings.toFixed(2)}</span>
-                    </div>
-                  </div>
-
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                <div className="mt-3 pt-3 border-t border-border/30 flex flex-wrap items-center gap-3 text-sm">
+                  <span className="flex items-center gap-1 text-emerald-400" title="Approved">
+                    <CheckCircle className="h-4 w-4" />
+                    {participant.approved_count || 0}
+                  </span>
+                  <span className="flex items-center gap-1 text-red-400" title="Rejected">
+                    <XCircle className="h-4 w-4" />
+                    {participant.rejected_count || 0}
+                  </span>
+                  <span className="flex items-center gap-1 text-yellow-400" title="Pending">
+                    <Clock className="h-4 w-4" />
+                    {participant.pending_count || 0}
+                  </span>
+                  <span className="ml-auto flex items-center gap-1">
+                    <Eye className="h-4 w-4 text-muted-foreground" />
+                    {formatNumber(participant.total_views)}
+                  </span>
+                  <span className="flex items-center gap-1 text-primary font-display font-bold">
+                    <DollarSign className="h-4 w-4" />
+                    ${participant.total_earnings.toFixed(2)}
+                  </span>
                 </div>
               </Link>
             ))}
