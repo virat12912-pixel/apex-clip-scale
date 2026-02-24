@@ -26,6 +26,8 @@ import AdminBrands from "./pages/AdminBrands";
 import AdminSocialAccounts from "./pages/AdminSocialAccounts";
 import AdminUsers from "./pages/AdminUsers";
 import AdminBalances from "./pages/AdminBalances";
+import AdminAssignCampaign from "./pages/AdminAssignCampaign";
+import ClientDashboard from "./pages/ClientDashboard";
 import BrandApplication from "./pages/BrandApplication";
 import ResetPassword from "./pages/ResetPassword";
 import Settings from "./pages/Settings";
@@ -142,6 +144,16 @@ const App = () => (
             <Route path="/admin/balances" element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <AdminBalances />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/assign-campaigns" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminAssignCampaign />
+              </ProtectedRoute>
+            } />
+            <Route path="/client" element={
+              <ProtectedRoute allowedRoles={["client_admin", "client_manager", "client_viewer"]}>
+                <ClientDashboard />
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />
