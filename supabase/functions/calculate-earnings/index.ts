@@ -126,6 +126,21 @@ Deno.serve(async (req) => {
       // Non-fatal, continue
     }
 
+    // Send approval notification to creator
+    try {
+      await supabase.functions.invoke("create-notification", {
+        body: {
+          user_id: submission.creator_id,
+          type: "submission_approved",
+          title: "Clip Approved! 🎉",
+          message: `Your clip for "${campaign.name}" has been approved. Earnings: $${earnings.toFixed(2)}`,
+          related_id: submission_id,
+        },
+      });
+    } catch (notifError) {
+      console.error("Failed to send approval notification:", notifError);
+    }
+
     console.log(`Successfully processed submission ${submission_id}`);
 
     return new Response(

@@ -92,7 +92,7 @@ export function useClientUserSubmissions(userId: string, campaignId: string) {
         .from("submissions")
         .select(`
           id, campaign_id, creator_id, clip_url, platform, views, likes, comments,
-          earnings, status, created_at, updated_at, submitted_views,
+          earnings, status, created_at, updated_at, submitted_views, rejection_reason,
           campaign:campaigns(id, name, rate_value, rate_unit)
         `)
         .eq("creator_id", userId)

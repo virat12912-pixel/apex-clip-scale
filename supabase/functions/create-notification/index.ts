@@ -7,7 +7,7 @@ const corsHeaders = {
 
 interface CreateNotificationRequest {
   user_id: string;
-  type: "submission_approved" | "submission_rejected" | "payout_approved" | "payout_paid" | "payout_rejected" | "campaign_ended" | "earnings_updated";
+  type: string;
   title: string;
   message: string;
   related_id?: string;
