@@ -497,6 +497,21 @@
     100% { transform: translate(40px, -30px) scale(1.15); }
   }
 
+  /* Extra mesh blob for hero depth */
+  .mesh-bg-extra::before {
+    content: '';
+    position: absolute;
+    width: 450px;
+    height: 450px;
+    top: 30%;
+    left: 10%;
+    border-radius: 50%;
+    filter: blur(140px);
+    background: hsl(220 80% 55% / 0.08);
+    animation: meshMove 10s ease-in-out infinite alternate-reverse;
+    pointer-events: none;
+  }
+
   /* Dot grid pattern */
   .dot-grid {
     background-image: radial-gradient(circle, hsl(var(--primary) / 0.15) 1px, transparent 1px);
