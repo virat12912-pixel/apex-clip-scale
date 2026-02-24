@@ -74,10 +74,10 @@ const SocialAccounts = () => {
     <AppLayout title="Social Accounts">
       <div className="max-w-4xl mx-auto page-enter">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-display font-bold">Linked Social Accounts</h1>
-            <p className="text-muted-foreground/60">Connect your social accounts to verify ownership</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-display font-bold">Linked Social Accounts</h1>
+            <p className="text-muted-foreground/60 text-sm">Connect your social accounts to verify ownership</p>
           </div>
           <Dialog open={isOpen} onOpenChange={setIsOpen}>
             <DialogTrigger asChild>
@@ -146,17 +146,17 @@ const SocialAccounts = () => {
         ) : (
           <div className="space-y-3 stagger-enter">
             {accounts?.map((account) => (
-              <div key={account.id} className="p-5 rounded-2xl bg-card/40 border border-border/20 transition-all duration-300 hover:border-primary/15 hover:shadow-lg group">
-                <div className="flex items-center justify-between flex-wrap gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className={`p-3 rounded-xl transition-all duration-300 group-hover:scale-110 ${account.verified ? "bg-emerald-500/10" : "bg-primary/10"}`}>
+              <div key={account.id} className="p-4 sm:p-5 rounded-2xl bg-card/40 border border-border/20 transition-all duration-300 hover:border-primary/15 hover:shadow-lg group">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                  <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                    <div className={`p-2.5 sm:p-3 rounded-xl transition-all duration-300 group-hover:scale-110 flex-shrink-0 ${account.verified ? "bg-emerald-500/10" : "bg-primary/10"}`}>
                       <span className={account.verified ? "text-emerald-400" : "text-primary"}>
                         {platformIcons[account.platform]}
                       </span>
                     </div>
-                    <div>
+                    <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-display font-bold">{account.username}</span>
+                        <span className="font-display font-bold truncate">{account.username}</span>
                         <span className="text-xs px-2 py-0.5 rounded-lg bg-secondary/50 text-muted-foreground/60 capitalize">{platformLabels[account.platform]}</span>
                         {account.verified ? (
                           <span className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg"><CheckCircle className="h-3 w-3" />Verified</span>

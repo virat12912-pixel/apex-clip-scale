@@ -248,22 +248,12 @@ const AdminUserDetail = () => {
   return (
     <AppLayout title={user.full_name || "User Details"}>
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-        <Link
-          to="/admin/payouts"
-          className="hover:text-foreground transition-colors"
-        >
-          Campaigns
-        </Link>
-        <ChevronRight className="h-4 w-4" />
-        <Link
-          to={`/admin/payouts/campaign/${campaignId}`}
-          className="hover:text-foreground transition-colors"
-        >
-          {campaign?.name}
-        </Link>
-        <ChevronRight className="h-4 w-4" />
-        <span className="text-foreground">{user.full_name || user.email}</span>
+      <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground mb-6 flex-wrap">
+        <Link to="/admin/payouts" className="hover:text-foreground transition-colors whitespace-nowrap">Campaigns</Link>
+        <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+        <Link to={`/admin/payouts/campaign/${campaignId}`} className="hover:text-foreground transition-colors truncate max-w-[120px] sm:max-w-none">{campaign?.name}</Link>
+        <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+        <span className="text-foreground truncate">{user.full_name || user.email}</span>
       </div>
 
       {/* User Header Card */}
@@ -393,13 +383,13 @@ const AdminUserDetail = () => {
       </div>
 
       <Tabs defaultValue="submissions" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="submissions">Submissions</TabsTrigger>
-          <TabsTrigger value="payment">Payment Details</TabsTrigger>
-          <TabsTrigger value="payouts">
+        <TabsList className="flex flex-wrap h-auto gap-1">
+          <TabsTrigger value="submissions" className="text-xs sm:text-sm">Submissions</TabsTrigger>
+          <TabsTrigger value="payment" className="text-xs sm:text-sm">Payment</TabsTrigger>
+          <TabsTrigger value="payouts" className="text-xs sm:text-sm">
             Payouts ({userPayouts.length})
           </TabsTrigger>
-          <TabsTrigger value="logs">Audit Logs</TabsTrigger>
+          <TabsTrigger value="logs" className="text-xs sm:text-sm">Audit Logs</TabsTrigger>
         </TabsList>
 
         {/* Submissions Tab */}

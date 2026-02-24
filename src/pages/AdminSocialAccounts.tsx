@@ -157,28 +157,25 @@ const AdminSocialAccounts = () => {
                       key={account.id}
                       className="p-4 rounded-2xl bg-card/50 border border-border/30 hover:border-primary/15 transition-all duration-300"
                     >
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 rounded-xl bg-emerald-500/10 flex-shrink-0">
-                          <span className="text-emerald-400">
-                            {platformIcons[account.platform]}
-                          </span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-display font-bold truncate">{account.username}</span>
-                            <span className="text-sm text-muted-foreground truncate">
-                              ({account.profile?.full_name || account.profile?.email})
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="p-2 rounded-xl bg-emerald-500/10 flex-shrink-0">
+                            <span className="text-emerald-400">
+                              {platformIcons[account.platform]}
                             </span>
                           </div>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-display font-bold truncate">{account.username}</span>
+                              <span className="text-xs sm:text-sm text-muted-foreground truncate">
+                                ({account.profile?.full_name || account.profile?.email})
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
+                        <div className="flex items-center gap-2 flex-shrink-0 pl-11 sm:pl-0">
                           {account.profile_url && (
-                            <a 
-                              href={account.profile_url} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-sm text-primary hover:underline flex items-center gap-1"
-                            >
+                            <a href={account.profile_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline flex items-center gap-1">
                               <ExternalLink className="h-3 w-3" />
                             </a>
                           )}
