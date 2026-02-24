@@ -166,10 +166,10 @@ const AdminCampaignPayouts = () => {
                 to={`/admin/payouts/campaign/${campaignId}/user/${participant.creator_id}`}
                 className="block p-5 rounded-2xl bg-card/50 border border-border/30 hover:border-primary/15 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <div className="w-12 h-12 rounded-full bg-gradient-primary glow-primary-sm flex items-center justify-center text-lg font-bold text-primary-foreground overflow-hidden">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="relative flex-shrink-0">
+                      <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-primary glow-primary-sm flex items-center justify-center text-base sm:text-lg font-bold text-primary-foreground overflow-hidden">
                         {participant.avatar_url ? (
                           <img src={participant.avatar_url} alt="" className="w-full h-full object-cover" />
                         ) : (
@@ -182,22 +182,22 @@ const AdminCampaignPayouts = () => {
                         </div>
                       )}
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-display font-bold">{participant.full_name || "Anonymous"}</h3>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-display font-bold truncate">{participant.full_name || "Anonymous"}</h3>
                         {!participant.payment_verified && (
                           <Badge variant="outline" className="text-yellow-500 border-yellow-500/30 text-xs">
                             Unverified
                           </Badge>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">{participant.email}</p>
+                      <p className="text-sm text-muted-foreground truncate">{participant.email}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {getPayoutStatusBadge(participant.payout_status)}
-                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                    <ChevronRight className="h-5 w-5 text-muted-foreground hidden sm:block" />
                   </div>
                 </div>
 

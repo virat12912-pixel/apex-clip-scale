@@ -47,36 +47,36 @@ const Dashboard = () => {
   return (
     <AppLayout title="Dashboard">
       {/* Welcome banner - Premium glass with animated glow */}
-      <div className="relative mb-8 p-8 rounded-2xl bg-card/50 backdrop-blur-sm border border-primary/10 overflow-hidden">
+      <div className="relative mb-8 p-5 sm:p-8 rounded-2xl bg-card/50 backdrop-blur-sm border border-primary/10 overflow-hidden">
         {/* Animated background blobs */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-primary/8 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/3 animate-pulse-glow" />
         <div className="absolute bottom-0 left-0 w-60 h-60 bg-primary/5 rounded-full blur-[80px] translate-y-1/2 -translate-x-1/4" />
         <div className="absolute top-1/2 left-1/2 w-40 h-40 bg-primary/3 rounded-full blur-[60px] -translate-x-1/2 -translate-y-1/2" />
         
         <div className="relative">
-          <div className="flex items-center gap-3 mb-3">
-            <h2 className="text-3xl font-display font-bold tracking-tight">
+          <div className="flex items-center gap-3 mb-3 flex-wrap">
+            <h2 className="text-2xl sm:text-3xl font-display font-bold tracking-tight">
               Welcome back, <span className="text-gradient">{profile?.full_name?.split(" ")[0] || "there"}</span>
             </h2>
             {role === "creator" && (
               <ClipperTierBadge tier={(profile as any)?.clipper_tier || "standard"} size="sm" />
             )}
           </div>
-          <p className="text-muted-foreground/70 mb-6 text-lg">
+          <p className="text-muted-foreground/70 mb-6 text-base sm:text-lg">
             {role === "creator" 
               ? `You have ${submissions?.filter(s => s.status === "pending").length || 0} pending submissions.`
               : `You have ${campaigns?.length || 0} active campaigns running.`
             }
           </p>
-          <div className="flex gap-3">
-            <Button asChild className="bg-gradient-primary hover:opacity-90 glow-primary-sm btn-shimmer h-11 px-6 rounded-xl">
+          <div className="flex flex-wrap gap-3">
+            <Button asChild className="bg-gradient-primary hover:opacity-90 glow-primary-sm btn-shimmer h-10 sm:h-11 px-4 sm:px-6 rounded-xl text-sm">
               <Link to="/campaigns">
                 Browse Campaigns
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
             {(role === "brand" || role === "admin") && (
-              <Button variant="outline" asChild className="h-11 px-6 rounded-xl border-primary/20 hover:border-primary/40 hover:bg-primary/5">
+              <Button variant="outline" asChild className="h-10 sm:h-11 px-4 sm:px-6 rounded-xl border-primary/20 hover:border-primary/40 hover:bg-primary/5 text-sm">
                 <Link to="/launch">Launch Campaign</Link>
               </Button>
             )}
