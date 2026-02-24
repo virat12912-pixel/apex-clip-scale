@@ -124,7 +124,7 @@ const SocialAccounts = () => {
 
   return (
     <AppLayout title="Social Accounts">
-      <div className="max-w-4xl mx-auto page-enter">
+      <div className="max-w-5xl mx-auto page-enter">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="min-w-0">
@@ -176,16 +176,17 @@ const SocialAccounts = () => {
           <div className="text-sm">
             <p className="font-display font-bold mb-1">How verification works</p>
             <p className="text-muted-foreground/60">
-              1. Add your account below<br />
-              2. Copy the verification code and add it to your bio<br />
-              3. Click the "Verify" button to automatically check your bio
+              1. Add your account below &bull; 2. Copy the verification code and add it to your bio &bull; 3. Click "Verify" to check
             </p>
           </div>
         </div>
 
         {/* Accounts */}
         {isLoading ? (
-          <div className="space-y-4">{[1, 2].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">{[1, 2].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
+            <div className="space-y-4">{[1, 2].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
+          </div>
         ) : accounts?.length === 0 ? (
           <div className="text-center py-16 px-4 rounded-2xl bg-card/30 border border-border/20">
             <Smartphone className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
@@ -196,14 +197,19 @@ const SocialAccounts = () => {
             </Button>
           </div>
         ) : (
-          <div className="space-y-6">
-            {/* Pending Accounts */}
-            {pendingAccounts.length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Clock className="h-4 w-4 text-yellow-400" />
-                  <h2 className="text-sm font-display font-bold text-yellow-400 uppercase tracking-wider">Pending Verification ({pendingAccounts.length})</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Pending Column */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <Clock className="h-4 w-4 text-yellow-400" />
+                <h2 className="text-sm font-display font-bold text-yellow-400 uppercase tracking-wider">Pending ({pendingAccounts.length})</h2>
+              </div>
+              {pendingAccounts.length === 0 ? (
+                <div className="p-8 text-center rounded-2xl bg-card/30 border border-border/20 border-dashed">
+                  <CheckCircle className="h-8 w-8 mx-auto mb-2 text-emerald-400/40" />
+                  <p className="text-sm text-muted-foreground/50">All accounts verified!</p>
                 </div>
+              ) : (
                 <div className="space-y-3 stagger-enter">
                   {pendingAccounts.map((account) => (
                     <AccountCard
@@ -217,16 +223,21 @@ const SocialAccounts = () => {
                     />
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
-            {/* Verified Accounts */}
-            {verifiedAccounts.length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <CheckCircle className="h-4 w-4 text-emerald-400" />
-                  <h2 className="text-sm font-display font-bold text-emerald-400 uppercase tracking-wider">Verified ({verifiedAccounts.length})</h2>
+            {/* Verified Column */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCircle className="h-4 w-4 text-emerald-400" />
+                <h2 className="text-sm font-display font-bold text-emerald-400 uppercase tracking-wider">Verified ({verifiedAccounts.length})</h2>
+              </div>
+              {verifiedAccounts.length === 0 ? (
+                <div className="p-8 text-center rounded-2xl bg-card/30 border border-border/20 border-dashed">
+                  <Clock className="h-8 w-8 mx-auto mb-2 text-yellow-400/40" />
+                  <p className="text-sm text-muted-foreground/50">No verified accounts yet</p>
                 </div>
+              ) : (
                 <div className="space-y-3 stagger-enter">
                   {verifiedAccounts.map((account) => (
                     <AccountCard
@@ -240,8 +251,8 @@ const SocialAccounts = () => {
                     />
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         )}
       </div>
