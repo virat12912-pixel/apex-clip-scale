@@ -10,19 +10,8 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { mapErrorToUserMessage, logError } from "@/lib/errorMapping";
 import { 
-  ChevronRight, 
-  ExternalLink,
-  Eye,
-  Heart,
-  MessageCircle,
-  DollarSign,
-  CheckCircle,
-  XCircle,
-  RefreshCw,
-  Smartphone,
-  Camera,
-  Play,
-  AlertCircle
+  ChevronRight, ExternalLink, Eye, Heart, MessageCircle, DollarSign,
+  CheckCircle, XCircle, RefreshCw, Smartphone, Camera, Play, AlertCircle
 } from "lucide-react";
 
 const platformIcons: Record<string, React.ReactNode> = {
@@ -135,11 +124,7 @@ const AdminUserSubmissions = () => {
   };
 
   if (userLoading) {
-    return (
-      <AppLayout title="User Submissions">
-        <Skeleton className="h-96 rounded-2xl" />
-      </AppLayout>
-    );
+    return <AppLayout title="User Submissions"><Skeleton className="h-96 rounded-2xl" /></AppLayout>;
   }
 
   if (!user) {
@@ -158,52 +143,52 @@ const AdminUserSubmissions = () => {
 
   return (
     <AppLayout title={`${user.full_name || "User"}'s Submissions`}>
-      <div className="page-enter">
+      <div className="max-w-4xl mx-auto page-enter">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
+        <div className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground mb-6 flex-wrap">
           <Link to="/admin/submissions" className="hover:text-foreground transition-colors">Campaigns</Link>
-          <ChevronRight className="h-4 w-4" />
-          <Link to={`/admin/submissions/${campaignId}`} className="hover:text-foreground transition-colors">
+          <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+          <Link to={`/admin/submissions/${campaignId}`} className="hover:text-foreground transition-colors truncate max-w-[120px] sm:max-w-none">
             {campaign?.name}
           </Link>
-          <ChevronRight className="h-4 w-4" />
-          <span className="text-foreground font-display">{user.full_name || user.email}</span>
+          <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+          <span className="text-foreground font-display truncate max-w-[120px] sm:max-w-none">{user.full_name || user.email}</span>
         </div>
 
         {/* User Header */}
-        <div className="p-6 rounded-2xl bg-card/50 border border-border/30 mb-6">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-14 h-14 rounded-xl bg-gradient-primary glow-primary-sm flex items-center justify-center text-xl font-bold text-primary-foreground overflow-hidden">
+        <div className="p-4 sm:p-6 rounded-2xl bg-card/50 border border-border/30 mb-6">
+          <div className="flex items-center gap-3 sm:gap-4 mb-4">
+            <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-xl bg-gradient-primary glow-primary-sm flex items-center justify-center text-lg sm:text-xl font-bold text-primary-foreground overflow-hidden flex-shrink-0">
               {user.avatar_url ? (
                 <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
               ) : (
                 user.full_name?.charAt(0) || "?"
               )}
             </div>
-            <div>
-              <h2 className="text-xl font-display font-bold">{user.full_name || "Anonymous"}</h2>
-              <p className="text-muted-foreground">{user.email}</p>
+            <div className="min-w-0">
+              <h2 className="text-lg sm:text-xl font-display font-bold truncate">{user.full_name || "Anonymous"}</h2>
+              <p className="text-sm text-muted-foreground truncate">{user.email}</p>
             </div>
           </div>
           
-          <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border/30">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 pt-4 border-t border-border/30">
             <div className="text-center">
-              <div className="text-2xl font-display font-bold">{submissions?.length || 0}</div>
-              <div className="text-sm text-muted-foreground">Clips</div>
+              <div className="text-lg sm:text-2xl font-display font-bold">{submissions?.length || 0}</div>
+              <div className="text-xs sm:text-sm text-muted-foreground">Clips</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-display font-bold flex items-center justify-center gap-1">
-                <Eye className="h-5 w-5 text-muted-foreground" />
+              <div className="text-lg sm:text-2xl font-display font-bold flex items-center justify-center gap-1">
+                <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
                 {formatNumber(totalViews)}
               </div>
-              <div className="text-sm text-muted-foreground">Total Views</div>
+              <div className="text-xs sm:text-sm text-muted-foreground">Total Views</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-display font-bold text-primary flex items-center justify-center gap-1">
-                <DollarSign className="h-5 w-5" />
+              <div className="text-lg sm:text-2xl font-display font-bold text-primary flex items-center justify-center gap-1">
+                <DollarSign className="h-4 w-4 sm:h-5 sm:w-5" />
                 {totalEarnings.toFixed(2)}
               </div>
-              <div className="text-sm text-muted-foreground">Earnings</div>
+              <div className="text-xs sm:text-sm text-muted-foreground">Earnings</div>
             </div>
           </div>
         </div>
@@ -225,10 +210,10 @@ const AdminUserSubmissions = () => {
               const currentViews = Number(sub.views) || Number(sub.submitted_views) || 0;
               
               return (
-                <div key={sub.id} className="p-5 rounded-2xl bg-card/50 border border-border/30 hover:border-primary/15 transition-all duration-300">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <span className={`p-2 rounded-xl ${
+                <div key={sub.id} className="p-4 sm:p-5 rounded-2xl bg-card/50 border border-border/30 hover:border-primary/15 transition-all duration-300">
+                  <div className="flex items-start justify-between gap-2 mb-4">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                      <span className={`p-1.5 sm:p-2 rounded-xl flex-shrink-0 ${
                         sub.status === "pending" 
                           ? "bg-yellow-500/10 text-yellow-400"
                           : sub.status === "approved" || sub.status === "paid"
@@ -237,17 +222,17 @@ const AdminUserSubmissions = () => {
                       }`}>
                         {platformIcons[sub.platform]}
                       </span>
-                      <div>
+                      <div className="min-w-0">
                         <a 
                           href={sub.clip_url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-primary hover:underline flex items-center gap-1 font-display font-bold"
+                          className="text-primary hover:underline flex items-center gap-1 font-display font-bold text-sm sm:text-base"
                         >
-                          <ExternalLink className="h-4 w-4" />
+                          <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
                           View Clip
                         </a>
-                        <p className="text-xs text-muted-foreground mt-1 max-w-md truncate">
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[200px] sm:max-w-md">
                           {sub.clip_url}
                         </p>
                       </div>
@@ -256,31 +241,31 @@ const AdminUserSubmissions = () => {
                   </div>
 
                   {/* Stats Grid */}
-                  <div className="grid grid-cols-4 gap-4 p-4 rounded-xl bg-secondary/20 border border-border/15 mb-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 p-3 sm:p-4 rounded-xl bg-secondary/20 border border-border/15 mb-4">
                     <div className="text-center">
-                      <div className="flex items-center justify-center gap-1 text-lg font-display font-bold">
-                        <Eye className="h-5 w-5 text-muted-foreground" />
+                      <div className="flex items-center justify-center gap-1 text-sm sm:text-lg font-display font-bold">
+                        <Eye className="h-4 w-4 text-muted-foreground" />
                         {currentViews.toLocaleString()}
                       </div>
                       <div className="text-xs text-muted-foreground">Views</div>
                     </div>
                     <div className="text-center">
-                      <div className="flex items-center justify-center gap-1 text-lg font-display font-bold">
-                        <Heart className="h-5 w-5 text-red-400" />
+                      <div className="flex items-center justify-center gap-1 text-sm sm:text-lg font-display font-bold">
+                        <Heart className="h-4 w-4 text-red-400" />
                         {Number(sub.likes || 0).toLocaleString()}
                       </div>
                       <div className="text-xs text-muted-foreground">Likes</div>
                     </div>
                     <div className="text-center">
-                      <div className="flex items-center justify-center gap-1 text-lg font-display font-bold">
-                        <MessageCircle className="h-5 w-5 text-blue-400" />
+                      <div className="flex items-center justify-center gap-1 text-sm sm:text-lg font-display font-bold">
+                        <MessageCircle className="h-4 w-4 text-blue-400" />
                         {Number(sub.comments || 0).toLocaleString()}
                       </div>
                       <div className="text-xs text-muted-foreground">Comments</div>
                     </div>
                     <div className="text-center">
-                      <div className="flex items-center justify-center gap-1 text-lg font-display font-bold text-primary">
-                        <DollarSign className="h-5 w-5" />
+                      <div className="flex items-center justify-center gap-1 text-sm sm:text-lg font-display font-bold text-primary">
+                        <DollarSign className="h-4 w-4" />
                         {Number(sub.earnings || 0).toFixed(2)}
                       </div>
                       <div className="text-xs text-muted-foreground">Earnings</div>
@@ -288,27 +273,27 @@ const AdminUserSubmissions = () => {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     {sub.status === "pending" && (
                       <>
                         <Button
                           size="sm"
-                          className="bg-emerald-500 hover:bg-emerald-600 rounded-xl btn-shimmer"
+                          className="bg-emerald-500 hover:bg-emerald-600 rounded-xl btn-shimmer text-xs sm:text-sm"
                           onClick={() => handleApprove(sub.id, currentViews)}
                           disabled={processing === sub.id}
                         >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          {processing === sub.id ? "Processing..." : "Approve"}
+                          <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                          {processing === sub.id ? "..." : "Approve"}
                         </Button>
                         <Button
                           size="sm"
                           variant="destructive"
-                          className="rounded-xl"
+                          className="rounded-xl text-xs sm:text-sm"
                           onClick={() => handleReject(sub.id, Number(sub.earnings || 0) > 0)}
                           disabled={processing === sub.id}
                         >
-                          <XCircle className="h-4 w-4 mr-1" />
-                          {processing === sub.id ? "Processing..." : "Reject"}
+                          <XCircle className="h-3.5 w-3.5 mr-1" />
+                          {processing === sub.id ? "..." : "Reject"}
                         </Button>
                       </>
                     )}
@@ -317,12 +302,12 @@ const AdminUserSubmissions = () => {
                       <Button
                         size="sm"
                         variant="destructive"
-                        className="rounded-xl"
+                        className="rounded-xl text-xs sm:text-sm"
                         onClick={() => handleReject(sub.id, Number(sub.earnings || 0) > 0)}
                         disabled={processing === sub.id}
                       >
-                        <XCircle className="h-4 w-4 mr-1" />
-                        {processing === sub.id ? "Reversing..." : "Reject & Reverse Earnings"}
+                        <XCircle className="h-3.5 w-3.5 mr-1" />
+                        {processing === sub.id ? "..." : "Reject & Reverse"}
                       </Button>
                     )}
                     
@@ -330,12 +315,12 @@ const AdminUserSubmissions = () => {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="rounded-xl border-border/30"
+                        className="rounded-xl border-border/30 text-xs sm:text-sm"
                         onClick={() => handleRefreshViews(sub.id, sub.clip_url, sub.platform)}
                         disabled={refreshing === sub.id}
                       >
-                        <RefreshCw className={`h-4 w-4 mr-1 ${refreshing === sub.id ? "animate-spin" : ""}`} />
-                        Refresh Views
+                        <RefreshCw className={`h-3.5 w-3.5 mr-1 ${refreshing === sub.id ? "animate-spin" : ""}`} />
+                        Refresh
                       </Button>
                     )}
                   </div>

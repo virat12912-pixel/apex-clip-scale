@@ -26,6 +26,55 @@ const platformLabels: Record<PlatformType, string> = {
   tiktok: "TikTok", instagram: "Instagram", youtube: "YouTube",
 };
 
+const AccountCard = ({ account, onVerify, onDelete, onCopy, copiedCode, verifyingId }: {
+  account: any;
+  onVerify: (account: any) => void;
+  onDelete: (id: string) => void;
+  onCopy: (code: string) => void;
+  copiedCode: string | null;
+  verifyingId: string | null;
+}) => (
+  <div className="p-4 rounded-2xl bg-card/40 border border-border/20 transition-all duration-300 hover:border-primary/15 hover:shadow-lg group">
+    <div className="flex items-center gap-3 mb-3">
+      <div className={`p-2.5 rounded-xl transition-all duration-300 group-hover:scale-110 flex-shrink-0 ${account.verified ? "bg-emerald-500/10" : "bg-primary/10"}`}>
+        <span className={account.verified ? "text-emerald-400" : "text-primary"}>
+          {platformIcons[account.platform as PlatformType]}
+        </span>
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-display font-bold truncate">{account.username}</span>
+          <span className="text-xs px-2 py-0.5 rounded-lg bg-secondary/50 text-muted-foreground/60 capitalize">{platformLabels[account.platform as PlatformType]}</span>
+        </div>
+        {account.profile_url && (
+          <a href={account.profile_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary/60 hover:text-primary flex items-center gap-1 mt-0.5 transition-colors duration-200 truncate">
+            View Profile <ExternalLink className="h-3 w-3 flex-shrink-0" />
+          </a>
+        )}
+      </div>
+      <Button variant="ghost" size="icon" onClick={() => onDelete(account.id)} className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-lg flex-shrink-0 h-8 w-8">
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </div>
+    
+    {!account.verified && (
+      <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-border/15">
+        <code className="px-2.5 py-1 rounded-lg bg-secondary/30 text-xs font-mono border border-border/20 truncate">{account.verification_code}</code>
+        <Button variant="outline" size="icon" onClick={() => onCopy(account.verification_code)} className="rounded-lg border-border/20 h-8 w-8 flex-shrink-0">
+          {copiedCode === account.verification_code ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+        </Button>
+        <Button
+          size="sm" onClick={() => onVerify(account)}
+          disabled={verifyingId === account.id}
+          className="bg-emerald-500 hover:bg-emerald-600 rounded-lg font-semibold text-xs ml-auto"
+        >
+          {verifyingId === account.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><ShieldCheck className="h-3.5 w-3.5 mr-1" />Verify</>}
+        </Button>
+      </div>
+    )}
+  </div>
+);
+
 const SocialAccounts = () => {
   const { data: accounts, isLoading } = useMySocialAccounts();
   const createAccount = useCreateSocialAccount();
@@ -36,6 +85,9 @@ const SocialAccounts = () => {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ platform: "tiktok" as PlatformType, username: "", profile_url: "" });
+
+  const verifiedAccounts = accounts?.filter(a => a.verified) || [];
+  const pendingAccounts = accounts?.filter(a => !a.verified) || [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,7 +171,7 @@ const SocialAccounts = () => {
         </div>
 
         {/* Info box */}
-        <div className="p-5 rounded-2xl bg-primary/5 border border-primary/15 mb-6 flex items-start gap-3">
+        <div className="p-4 sm:p-5 rounded-2xl bg-primary/5 border border-primary/15 mb-6 flex items-start gap-3">
           <Info className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
           <div className="text-sm">
             <p className="font-display font-bold mb-1">How verification works</p>
@@ -131,7 +183,7 @@ const SocialAccounts = () => {
           </div>
         </div>
 
-        {/* Accounts List */}
+        {/* Accounts */}
         {isLoading ? (
           <div className="space-y-4">{[1, 2].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
         ) : accounts?.length === 0 ? (
@@ -144,58 +196,52 @@ const SocialAccounts = () => {
             </Button>
           </div>
         ) : (
-          <div className="space-y-3 stagger-enter">
-            {accounts?.map((account) => (
-              <div key={account.id} className="p-4 sm:p-5 rounded-2xl bg-card/40 border border-border/20 transition-all duration-300 hover:border-primary/15 hover:shadow-lg group">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
-                    <div className={`p-2.5 sm:p-3 rounded-xl transition-all duration-300 group-hover:scale-110 flex-shrink-0 ${account.verified ? "bg-emerald-500/10" : "bg-primary/10"}`}>
-                      <span className={account.verified ? "text-emerald-400" : "text-primary"}>
-                        {platformIcons[account.platform]}
-                      </span>
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-display font-bold truncate">{account.username}</span>
-                        <span className="text-xs px-2 py-0.5 rounded-lg bg-secondary/50 text-muted-foreground/60 capitalize">{platformLabels[account.platform]}</span>
-                        {account.verified ? (
-                          <span className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg"><CheckCircle className="h-3 w-3" />Verified</span>
-                        ) : (
-                          <span className="flex items-center gap-1 text-xs text-yellow-400 bg-yellow-500/10 px-2 py-0.5 rounded-lg"><Clock className="h-3 w-3" />Pending</span>
-                        )}
-                      </div>
-                      {account.profile_url && (
-                        <a href={account.profile_url} target="_blank" rel="noopener noreferrer" className="text-sm text-primary/60 hover:text-primary flex items-center gap-1 mt-1 transition-colors duration-200">
-                          View Profile <ExternalLink className="h-3 w-3" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {!account.verified && (
-                      <>
-                        <div className="flex items-center gap-2">
-                          <code className="px-3 py-1.5 rounded-lg bg-secondary/30 text-sm font-mono border border-border/20">{account.verification_code}</code>
-                          <Button variant="outline" size="icon" onClick={() => copyCode(account.verification_code)} className="rounded-lg border-border/20">
-                            {copiedCode === account.verification_code ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
-                          </Button>
-                        </div>
-                        <Button
-                          size="sm" onClick={() => handleVerify({ id: account.id, platform: account.platform, username: account.username, verification_code: account.verification_code })}
-                          disabled={verifyingId === account.id}
-                          className="bg-emerald-500 hover:bg-emerald-600 rounded-lg font-semibold"
-                        >
-                          {verifyingId === account.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <><ShieldCheck className="h-4 w-4 mr-1" />Verify</>}
-                        </Button>
-                      </>
-                    )}
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(account.id)} className="text-destructive hover:text-destructive hover:bg-destructive/10 rounded-lg">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+          <div className="space-y-6">
+            {/* Pending Accounts */}
+            {pendingAccounts.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Clock className="h-4 w-4 text-yellow-400" />
+                  <h2 className="text-sm font-display font-bold text-yellow-400 uppercase tracking-wider">Pending Verification ({pendingAccounts.length})</h2>
+                </div>
+                <div className="space-y-3 stagger-enter">
+                  {pendingAccounts.map((account) => (
+                    <AccountCard
+                      key={account.id}
+                      account={account}
+                      onVerify={handleVerify}
+                      onDelete={handleDelete}
+                      onCopy={copyCode}
+                      copiedCode={copiedCode}
+                      verifyingId={verifyingId}
+                    />
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
+
+            {/* Verified Accounts */}
+            {verifiedAccounts.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <CheckCircle className="h-4 w-4 text-emerald-400" />
+                  <h2 className="text-sm font-display font-bold text-emerald-400 uppercase tracking-wider">Verified ({verifiedAccounts.length})</h2>
+                </div>
+                <div className="space-y-3 stagger-enter">
+                  {verifiedAccounts.map((account) => (
+                    <AccountCard
+                      key={account.id}
+                      account={account}
+                      onVerify={handleVerify}
+                      onDelete={handleDelete}
+                      onCopy={copyCode}
+                      copiedCode={copiedCode}
+                      verifyingId={verifyingId}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
