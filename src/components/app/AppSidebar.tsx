@@ -1,4 +1,4 @@
-import { LayoutDashboard, Search, Rocket, User, DollarSign, LogOut, Shield, Settings, Building2, FileText, Wallet, Smartphone, Users, BarChart3, Crown, CreditCard } from "lucide-react";
+import { LayoutDashboard, Search, Rocket, User, DollarSign, LogOut, Shield, Settings, Building2, FileText, Wallet, Smartphone, Users, BarChart3, Crown, CreditCard, Link2, Monitor } from "lucide-react";
 import logo from "@/assets/logo.png";
 import { NavLink } from "@/components/NavLink";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarHeader, SidebarFooter, useSidebar } from "@/components/ui/sidebar";
@@ -16,8 +16,10 @@ export function AppSidebar() {
   const hasAdminAccess = role === "admin" || role === "platform_admin";
   const canLaunchCampaigns = hasAdminAccess || role === "brand" || role === "client_admin";
   const isClipperRole = role === "creator" || role === "clipper";
+  const isClientRole = role === "client_admin" || role === "client_manager" || role === "client_viewer";
 
   const mainNavItems = [
+    ...(isClientRole ? [{ title: "Client Dashboard", url: "/client", icon: Monitor }] : []),
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
     { title: "Browse Campaigns", url: "/campaigns", icon: Search },
     ...(canLaunchCampaigns ? [{ title: "Launch Campaign", url: "/launch", icon: Rocket }] : []),
@@ -38,6 +40,7 @@ export function AppSidebar() {
     { title: "Verify Accounts", url: "/admin/social-accounts", icon: Users },
     { title: "Manage Users", url: "/admin/users", icon: Crown },
     { title: "Client Balances", url: "/admin/balances", icon: CreditCard },
+    { title: "Assign Campaigns", url: "/admin/assign-campaigns", icon: Link2 },
   ] : [];
 
   const handleSignOut = async () => {
