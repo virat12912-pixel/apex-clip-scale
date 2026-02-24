@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/app/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
-import { useChangeUserRole } from "@/hooks/useAdminUsers";
+import { useChangeUserRole, useUpdateUserStatus } from "@/hooks/useAdminUsers";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
@@ -24,8 +24,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, Search, Users, Mail } from "lucide-react";
+import { Shield, Search, Users, Mail, Ban, CheckCircle, Trash2, MoreVertical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const ALL_ROLES = [
   { value: "creator", label: "Creator" },
@@ -54,7 +61,6 @@ function useAllUsersWithRoles() {
   return useQuery({
     queryKey: ["admin_all_users_with_roles"],
     queryFn: async () => {
-      // Fetch profiles and roles in parallel
       const [profilesRes, rolesRes] = await Promise.all([
         supabase.from("profiles").select("id, email, full_name, avatar_url, is_banned, created_at").order("created_at", { ascending: false }),
         supabase.from("user_roles").select("user_id, role"),
@@ -71,7 +77,7 @@ function useAllUsersWithRoles() {
         role: roleMap.get(p.id) || "creator",
       })) as UserWithRole[];
     },
-    enabled: role === "admin",
+    enabled: role === "admin" || role === "platform_admin",
   });
 }
 
@@ -93,10 +99,13 @@ const AdminUsers = () => {
   const queryClient = useQueryClient();
   const { data: users, isLoading } = useAllUsersWithRoles();
   const changeRole = useChangeUserRole();
+  const updateUserStatus = useUpdateUserStatus();
 
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState<string>("all");
   const [pendingChange, setPendingChange] = useState<{ userId: string; userName: string; currentRole: string; newRole: string } | null>(null);
+  const [banDialog, setBanDialog] = useState<{ userId: string; userName: string; isBanned: boolean } | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{ userId: string; userName: string } | null>(null);
 
   const filteredUsers = users?.filter((u) => {
     const matchesSearch =
@@ -128,18 +137,51 @@ const AdminUsers = () => {
     }
   };
 
+  const handleBanToggle = async () => {
+    if (!banDialog) return;
+    try {
+      await updateUserStatus.mutateAsync({
+        userId: banDialog.userId,
+        updates: { is_banned: !banDialog.isBanned },
+        action: banDialog.isBanned ? "unban_user" : "ban_user",
+      });
+      queryClient.invalidateQueries({ queryKey: ["admin_all_users_with_roles"] });
+      toast({ title: banDialog.isBanned ? "User unbanned" : "User banned" });
+    } catch (error: any) {
+      toast({ title: "Error", description: error?.message || "Failed to update user", variant: "destructive" });
+    } finally {
+      setBanDialog(null);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteDialog) return;
+    try {
+      const { error } = await supabase.functions.invoke("admin-update-user", {
+        body: { user_id: deleteDialog.userId, action: "delete_user", updates: {} },
+      });
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["admin_all_users_with_roles"] });
+      toast({ title: "User deleted", description: `${deleteDialog.userName}'s account has been removed` });
+    } catch (error: any) {
+      toast({ title: "Error", description: error?.message || "Failed to delete user", variant: "destructive" });
+    } finally {
+      setDeleteDialog(null);
+    }
+  };
+
   return (
     <AppLayout title="User Management">
       <div className="space-y-6 page-enter">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-display font-bold flex items-center gap-2">
-              <Users className="h-6 w-6 text-primary" />
-              All Users
+            <h1 className="text-xl sm:text-2xl font-display font-bold flex items-center gap-2">
+              <Users className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+              User Management
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
-              {users?.length || 0} registered users
+              {users?.length || 0} registered users • Manage roles, ban, or delete accounts
             </p>
           </div>
         </div>
@@ -156,7 +198,7 @@ const AdminUsers = () => {
             />
           </div>
           <Select value={filterRole} onValueChange={setFilterRole}>
-            <SelectTrigger className="w-[160px]">
+            <SelectTrigger className="w-[140px] sm:w-[160px]">
               <Shield className="h-4 w-4 mr-1" />
               <SelectValue placeholder="Filter role" />
             </SelectTrigger>
@@ -187,10 +229,10 @@ const AdminUsers = () => {
             {filteredUsers?.map((user) => (
               <div
                 key={user.id}
-                className="flex items-center justify-between p-4 rounded-xl bg-card/50 border border-border/30 hover:bg-card/80 transition-colors"
+                className="flex items-center justify-between p-3 sm:p-4 rounded-xl bg-card/50 border border-border/30 hover:bg-card/80 transition-colors gap-2"
               >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
-                  <div className="w-10 h-10 rounded-lg bg-gradient-primary flex items-center justify-center text-sm font-bold text-primary-foreground flex-shrink-0 overflow-hidden">
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-primary flex items-center justify-center text-sm font-bold text-primary-foreground flex-shrink-0 overflow-hidden">
                     {user.avatar_url ? (
                       <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
                     ) : (
@@ -210,13 +252,13 @@ const AdminUsers = () => {
                     </div>
                     <div className="flex items-center gap-1 text-xs text-muted-foreground truncate">
                       <Mail className="h-3 w-3 flex-shrink-0" />
-                      {user.email}
+                      <span className="truncate">{user.email}</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <Badge variant={getRoleBadgeVariant(user.role)} className="text-xs capitalize hidden sm:inline-flex">
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <Badge variant={getRoleBadgeVariant(user.role)} className="text-[10px] sm:text-xs capitalize hidden sm:inline-flex">
                     {user.role.replace(/_/g, " ")}
                   </Badge>
                   <Select
@@ -226,7 +268,7 @@ const AdminUsers = () => {
                     }
                     disabled={changeRole.isPending}
                   >
-                    <SelectTrigger className="h-8 w-[140px] text-xs">
+                    <SelectTrigger className="h-8 w-[110px] sm:w-[140px] text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -237,6 +279,32 @@ const AdminUsers = () => {
                       ))}
                     </SelectContent>
                   </Select>
+
+                  {/* Actions dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={() => setBanDialog({ userId: user.id, userName: user.full_name || user.email, isBanned: user.is_banned })}
+                      >
+                        {user.is_banned ? (
+                          <><CheckCircle className="h-4 w-4 mr-2 text-emerald-400" />Unban User</>
+                        ) : (
+                          <><Ban className="h-4 w-4 mr-2 text-yellow-400" />Ban User</>
+                        )}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive focus:text-destructive"
+                        onClick={() => setDeleteDialog({ userId: user.id, userName: user.full_name || user.email })}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />Delete Account
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
             ))}
@@ -244,7 +312,7 @@ const AdminUsers = () => {
         )}
       </div>
 
-      {/* Confirmation Dialog */}
+      {/* Role Change Confirmation */}
       <AlertDialog open={!!pendingChange} onOpenChange={(open) => !open && setPendingChange(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -260,6 +328,47 @@ const AdminUsers = () => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmRoleChange}>
               Confirm Change
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Ban/Unban Confirmation */}
+      <AlertDialog open={!!banDialog} onOpenChange={(open) => !open && setBanDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{banDialog?.isBanned ? "Unban" : "Ban"} User?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {banDialog?.isBanned
+                ? `This will restore ${banDialog?.userName}'s access to the platform.`
+                : `This will prevent ${banDialog?.userName} from logging in and submitting clips. Pending payouts will be blocked.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBanToggle}
+              className={banDialog?.isBanned ? "" : "bg-destructive hover:bg-destructive/90"}
+            >
+              {banDialog?.isBanned ? "Unban User" : "Ban User"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteDialog} onOpenChange={(open) => !open && setDeleteDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User Account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete <span className="font-medium text-foreground">{deleteDialog?.userName}</span>'s account and all associated data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteUser} className="bg-destructive hover:bg-destructive/90">
+              Delete Account
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -8,7 +8,6 @@ import {
   useUserRole,
   useChangeUserRole,
 } from "@/hooks/useAdminUsers";
-import { useAdminLogs } from "@/hooks/useAdminLogs";
 import { useCampaign } from "@/hooks/useCampaigns";
 import { useAllPayouts, useUpdatePayout } from "@/hooks/useWallet";
 import { Button } from "@/components/ui/button";
@@ -35,7 +34,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import {
   ChevronRight,
-  Ban,
   Shield,
   CheckCircle,
   XCircle,
@@ -46,7 +44,6 @@ import {
   Clock,
   AlertCircle,
   Wallet,
-  FileText,
 } from "lucide-react";
 
 const AdminUserDetail = () => {
@@ -64,7 +61,7 @@ const AdminUserDetail = () => {
     useUserSubmissions(userId || "", campaignId);
   const { data: campaign } = useCampaign(campaignId || "");
   const { data: allPayouts } = useAllPayouts();
-  const { data: logs, isLoading: logsLoading } = useAdminLogs("user", userId);
+  
 
   const updateUserStatus = useUpdateUserStatus();
   const updatePayout = useUpdatePayout();
@@ -271,7 +268,7 @@ const AdminUserDetail = () => {
               </div>
               {user.is_banned && (
                 <div className="absolute -bottom-1 -right-1 bg-red-500 rounded-full p-1">
-                  <Ban className="h-3 w-3 text-white" />
+                  <XCircle className="h-3 w-3 text-white" />
                 </div>
               )}
             </div>
@@ -327,35 +324,6 @@ const AdminUserDetail = () => {
                 Verify
               </Button>
             )}
-            {user.is_banned ? (
-              <Button size="sm" variant="outline" onClick={handleUnban}>
-                <CheckCircle className="h-4 w-4 mr-1" />
-                Unban
-              </Button>
-            ) : (
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button size="sm" variant="destructive">
-                    <Ban className="h-4 w-4 mr-1" />
-                    Ban User
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Ban User?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will prevent the user from logging in and submitting clips. Pending payouts will be blocked.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleBan} className="bg-red-500 hover:bg-red-600">
-                      Ban User
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            )}
           </div>
         </div>
 
@@ -389,7 +357,6 @@ const AdminUserDetail = () => {
           <TabsTrigger value="payouts" className="text-xs sm:text-sm">
             Payouts ({userPayouts.length})
           </TabsTrigger>
-          <TabsTrigger value="logs" className="text-xs sm:text-sm">Audit Logs</TabsTrigger>
         </TabsList>
 
         {/* Submissions Tab */}
@@ -575,7 +542,7 @@ const AdminUserDetail = () => {
                               </div>
                             ) : user.is_banned ? (
                               <div className="text-xs text-red-500 flex items-center gap-1">
-                                <Ban className="h-4 w-4" />
+                                <AlertCircle className="h-4 w-4" />
                                 User is banned
                               </div>
                             ) : (
@@ -620,38 +587,6 @@ const AdminUserDetail = () => {
           )}
         </TabsContent>
 
-        {/* Audit Logs Tab */}
-        <TabsContent value="logs">
-          {logsLoading ? (
-            <Skeleton className="h-40" />
-          ) : logs?.length === 0 ? (
-            <div className="p-8 rounded-xl bg-card border border-border text-center text-muted-foreground">
-              <FileText className="h-10 w-10 mx-auto mb-2 opacity-50" />
-              No admin actions logged
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {logs?.map((log) => (
-                <div
-                  key={log.id}
-                  className="p-4 rounded-lg bg-card border border-border flex items-center gap-4"
-                >
-                  <div className="p-2 rounded-lg bg-secondary">
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium capitalize">
-                      {log.action.replace(/_/g, " ")}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(log.created_at).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </TabsContent>
       </Tabs>
       </div>
 
