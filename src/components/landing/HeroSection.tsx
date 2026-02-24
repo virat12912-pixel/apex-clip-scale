@@ -41,7 +41,6 @@ const HeroSection = () => {
   const heroRef = useRef<HTMLDivElement>(null);
   const [mousePos, setMousePos] = useState({ x: 50, y: 50 });
 
-  // Word morph cycle
   useEffect(() => {
     const interval = setInterval(() => {
       setIsVisible(false);
@@ -53,7 +52,6 @@ const HeroSection = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Cursor glow
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!heroRef.current) return;
     const rect = heroRef.current.getBoundingClientRect();
@@ -71,6 +69,11 @@ const HeroSection = () => {
     >
       {/* Animated mesh background */}
       <div className="mesh-bg" />
+      {/* Extra mesh blob for depth */}
+      <div className="mesh-bg-extra" />
+
+      {/* Dot grid overlay */}
+      <div className="absolute inset-0 dot-grid opacity-20 pointer-events-none" />
 
       {/* Cursor glow */}
       <div
@@ -121,9 +124,21 @@ const HeroSection = () => {
           </button>
         </div>
 
+        {/* Social proof strip */}
+        <div
+          className="mt-10 flex items-center justify-center gap-3 text-xs text-muted-foreground/50 opacity-0 animate-fade-up"
+          style={{ animationDelay: "400ms" }}
+        >
+          <span>Trusted by <strong className="text-muted-foreground/70">500+</strong> creators</span>
+          <span className="w-1 h-1 rounded-full bg-primary/50 shadow-[0_0_6px_hsl(var(--primary)/0.5)]" />
+          <span><strong className="text-muted-foreground/70">150+</strong> brands</span>
+          <span className="w-1 h-1 rounded-full bg-primary/50 shadow-[0_0_6px_hsl(var(--primary)/0.5)]" />
+          <span><strong className="text-muted-foreground/70">$120K+</strong> paid out</span>
+        </div>
+
         {/* Floating stat cards */}
         <div
-          className="mt-20 sm:mt-28 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 max-w-2xl mx-auto opacity-0 animate-fade-up"
+          className="mt-16 sm:mt-24 grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 max-w-2xl mx-auto opacity-0 animate-fade-up"
           style={{ animationDelay: "500ms" }}
         >
           {stats.map((stat, i) => (
