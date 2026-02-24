@@ -127,9 +127,6 @@ const Footer = forwardRef<HTMLElement, React.HTMLAttributes<HTMLElement>>(
               <Link to="/terms" className="hover:text-foreground transition-colors">Terms</Link>
               <Link to="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
             </div>
-            <p className="text-[10px] text-muted-foreground/30 text-center sm:text-right max-w-xs">
-              Managed growth. No guaranteed results — only proven systems.
-            </p>
           </div>
         </div>
       </footer>
