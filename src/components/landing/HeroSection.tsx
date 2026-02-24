@@ -112,15 +112,15 @@ const HeroSection = () => {
         >
           <button
             onClick={() => navigate("/auth")}
-            className="btn-shimmer w-full sm:w-auto px-10 py-4 rounded-full bg-primary text-primary-foreground font-medium text-sm transition-all duration-300 hover:scale-105 active:scale-[0.98] shadow-[0_0_30px_hsl(var(--primary)/0.4)] hover:shadow-[0_0_50px_hsl(var(--primary)/0.6)]"
+            className="btn-shimmer group w-full sm:w-auto px-10 py-4 rounded-full bg-gradient-to-r from-primary to-[hsl(280_90%_65%)] text-primary-foreground font-semibold text-sm tracking-wide transition-all duration-300 hover:scale-105 active:scale-[0.98] shadow-[0_0_30px_hsl(var(--primary)/0.4),_inset_0_1px_0_hsl(0_0%_100%/0.15)] hover:shadow-[0_0_50px_hsl(var(--primary)/0.6),_inset_0_1px_0_hsl(0_0%_100%/0.2)]"
           >
             Start Clipping
           </button>
           <button
             onClick={() => navigate("/brand-application")}
-            className="w-full sm:w-auto px-10 py-4 rounded-full border border-primary/30 text-foreground font-medium text-sm transition-all duration-300 hover:border-primary/60 hover:shadow-[0_0_20px_hsl(var(--primary)/0.2)] hover:scale-105 active:scale-[0.98]"
+            className="group w-full sm:w-auto px-10 py-4 rounded-full bg-secondary/50 border border-primary/20 text-foreground font-semibold text-sm tracking-wide transition-all duration-300 hover:bg-secondary/80 hover:border-primary/50 hover:shadow-[0_0_25px_hsl(var(--primary)/0.15)] hover:scale-105 active:scale-[0.98] backdrop-blur-sm"
           >
-            Launch a Campaign →
+            Launch a Campaign
           </button>
         </div>
 
