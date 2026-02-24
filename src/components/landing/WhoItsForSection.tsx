@@ -1,9 +1,10 @@
 import { BarChart3, Shield, Zap, DollarSign, TrendingUp, BookOpen } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useScrollReveal } from "@/hooks/useScrollReveal";
 
 const brandBenefits = [
   { icon: BarChart3, title: "Real-Time Analytics", desc: "Track views, clicks, and conversions live." },
-  { icon: Shield, title: "Zero Risk", desc: "Only pay for performance — no upfront costs." },
+  { icon: Shield, title: "Pay for Performance", desc: "Only pay when creators deliver real results." },
   { icon: Zap, title: "Fast Matching", desc: "Get matched with the right creators instantly." },
 ];
 
@@ -14,6 +15,7 @@ const creatorBenefits = [
 ];
 
 const WhoItsForSection = () => {
+  const navigate = useNavigate();
   const headerRef = useScrollReveal();
   const contentRef = useScrollReveal();
 
@@ -38,14 +40,14 @@ const WhoItsForSection = () => {
 
         <div ref={contentRef} className="scroll-reveal grid md:grid-cols-2 gap-0 md:gap-0 rounded-2xl border border-border/30 overflow-hidden bg-card/20 backdrop-blur-sm">
           {/* For Brands */}
-          <div className="p-8 sm:p-10 md:border-r border-b md:border-b-0 border-border/20">
+          <div className="p-8 sm:p-10 md:border-r border-b md:border-b-0 border-border/20 flex flex-col">
             <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
               <span className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Zap className="w-4 h-4 text-primary" />
               </span>
               For Brands
             </h3>
-            <div className="space-y-5">
+            <div className="space-y-5 flex-1">
               {brandBenefits.map((b) => (
                 <div
                   key={b.title}
@@ -61,20 +63,26 @@ const WhoItsForSection = () => {
                 </div>
               ))}
             </div>
+            <button
+              onClick={() => navigate("/brand-application")}
+              className="mt-6 w-full py-3 rounded-xl bg-secondary/50 border border-primary/20 text-foreground font-semibold text-sm tracking-wide transition-all duration-300 hover:bg-secondary/80 hover:border-primary/50 hover:shadow-[0_0_25px_hsl(var(--primary)/0.15)] active:scale-[0.98]"
+            >
+              Launch a Campaign
+            </button>
           </div>
 
           {/* Glowing divider - desktop only */}
           <div className="hidden md:block absolute left-1/2 top-[10%] bottom-[10%] w-px bg-gradient-to-b from-transparent via-primary/40 to-transparent -translate-x-1/2" />
 
           {/* For Creators */}
-          <div className="p-8 sm:p-10 relative">
+          <div className="p-8 sm:p-10 relative flex flex-col">
             <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
               <span className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
                 <DollarSign className="w-4 h-4 text-primary" />
               </span>
               For Creators & Artists
             </h3>
-            <div className="space-y-5">
+            <div className="space-y-5 flex-1">
               {creatorBenefits.map((b) => (
                 <div
                   key={b.title}
@@ -90,6 +98,12 @@ const WhoItsForSection = () => {
                 </div>
               ))}
             </div>
+            <button
+              onClick={() => navigate("/auth")}
+              className="btn-shimmer mt-6 w-full py-3 rounded-xl bg-gradient-to-r from-primary to-[hsl(280_90%_65%)] text-primary-foreground font-semibold text-sm tracking-wide transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_20px_hsl(var(--primary)/0.3)]"
+            >
+              Start Clipping
+            </button>
           </div>
         </div>
       </div>
