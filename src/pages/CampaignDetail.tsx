@@ -238,8 +238,10 @@ const CampaignDetail = () => {
   const isCompletedCreatorView = role === "creator" && campaign.status === "completed";
   const isFinalSubmissionApproved = finalSubmission?.status === "approved" || finalSubmission?.status === "paid";
   const hasFinalSubmission = !!finalSubmission;
-  // Show form only if campaign completed AND no final submission exists yet
-  const shouldShowFinalSubmissionOnly = isCompletedCreatorView && !hasFinalSubmission;
+  // Check if this creator has any submissions in this campaign
+  const hasSubmittedClips = submissions?.some((s) => s.creator_id === user?.id) ?? false;
+  // Show form only if campaign completed AND no final submission exists yet AND creator has submitted clips
+  const shouldShowFinalSubmissionOnly = isCompletedCreatorView && !hasFinalSubmission && hasSubmittedClips;
   // Show locked submission view if submitted but not yet approved (or rejected)
   const shouldShowLockedView = isCompletedCreatorView && hasFinalSubmission && !isFinalSubmissionApproved;
 
