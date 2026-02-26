@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { FinalSubmissionTimeline } from "@/components/campaigns/FinalSubmissionTimeline";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, ExternalLink, CheckCircle, XCircle, Users, BarChart3, Globe, ChevronDown, ChevronUp, Image, DollarSign } from "lucide-react";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 
 function ScreenshotGallery({ urls, labels }: { urls: (string | null)[]; labels: string[] }) {
@@ -26,6 +26,7 @@ function ScreenshotGallery({ urls, labels }: { urls: (string | null)[]; labels: 
             </button>
           </DialogTrigger>
           <DialogContent className="max-w-3xl p-2 bg-card">
+            <DialogTitle className="sr-only">{labels[i]}</DialogTitle>
             <img src={url} alt={labels[i]} className="w-full rounded-lg" />
             <p className="text-xs text-muted-foreground text-center mt-1">{labels[i]}</p>
           </DialogContent>
