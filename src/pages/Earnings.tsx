@@ -52,11 +52,21 @@ const Earnings = () => {
       } else if (sub.status === "rejected") { entry.rejected_count += 1; }
       else if (sub.status === "pending") { entry.pending_count += 1; }
     });
-    grouped.forEach((entry) => { entry.is_eligible = entry.total_earnings >= 10 && entry.approved_count > 0; });
-    return Array.from(grouped.values()).sort((a, b) => b.total_earnings - a.total_earnings);
-  }, [submissions]);
 
-  const totalEarnings = submissions?.reduce((sum, s) => sum + Number(s.earnings || 0), 0) || 0;
+    // Override with verified_views/final_earnings when final submission is approved
+    grouped.forEach((entry) => {
+      const fs = finalSubmissions?.find(f => f.campaign_id === entry.campaign_id);
+      if (fs && (fs.status === "approved" || fs.status === "paid") && fs.verified_views != null) {
+        entry.total_views = Number(fs.verified_views);
+        entry.total_earnings = Number(fs.final_earnings || 0);
+      }
+      entry.is_eligible = entry.total_earnings >= 10 && entry.approved_count > 0;
+    });
+
+    return Array.from(grouped.values()).sort((a, b) => b.total_earnings - a.total_earnings);
+  }, [submissions, finalSubmissions]);
+
+  const totalEarnings = campaignEarnings.reduce((sum, c) => sum + c.total_earnings, 0);
   const paidSubmissions = submissions?.filter(s => s.status === "paid" || s.status === "approved") || [];
 
   const hasPaymentDetails = () => {
