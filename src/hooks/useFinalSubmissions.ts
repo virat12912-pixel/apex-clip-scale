@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 
@@ -60,6 +61,28 @@ export interface FinalSubmissionReview {
 // Get a user's final submission for a specific campaign
 export function useFinalSubmission(campaignId: string) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Subscribe to realtime changes on the user's final submission
+  useEffect(() => {
+    if (!user || !campaignId) return;
+    const channel = supabase
+      .channel(`final-submission-${campaignId}-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "final_submissions",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["final-submission", campaignId, user.id] });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user, campaignId, queryClient]);
 
   return useQuery({
     queryKey: ["final-submission", campaignId, user?.id],
