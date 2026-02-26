@@ -237,7 +237,11 @@ const CampaignDetail = () => {
   const trackedViews = submissions?.filter((s) => s.status === "approved" || s.status === "paid").reduce((sum, s) => sum + Number(s.views || 0), 0) || 0;
   const isCompletedCreatorView = role === "creator" && campaign.status === "completed";
   const isFinalSubmissionApproved = finalSubmission?.status === "approved" || finalSubmission?.status === "paid";
-  const shouldShowFinalSubmissionOnly = isCompletedCreatorView && !isFinalSubmissionApproved;
+  const hasFinalSubmission = !!finalSubmission;
+  // Show form only if campaign completed AND no final submission exists yet
+  const shouldShowFinalSubmissionOnly = isCompletedCreatorView && !hasFinalSubmission;
+  // Show locked submission view if submitted but not yet approved (or rejected)
+  const shouldShowLockedView = isCompletedCreatorView && hasFinalSubmission && !isFinalSubmissionApproved;
 
   if (isCompletedCreatorView && isFinalSubmissionLoading) {
     return (
@@ -248,6 +252,32 @@ const CampaignDetail = () => {
   }
 
   if (shouldShowFinalSubmissionOnly) {
+    return (
+      <AppLayout title={campaign.name}>
+        <div className="mb-6">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/campaigns")}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Campaigns
+          </Button>
+        </div>
+
+        <div className="max-w-3xl">
+          <FinalSubmissionForm
+            campaignId={id || ""}
+            campaignStatus={campaign.status}
+            trackedViews={trackedViews}
+          />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // Show locked view (submitted/under_review/rejected) with status banner
+  if (shouldShowLockedView) {
     return (
       <AppLayout title={campaign.name}>
         <div className="mb-6">

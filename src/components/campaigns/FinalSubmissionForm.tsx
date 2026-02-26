@@ -242,15 +242,45 @@ export function FinalSubmissionForm({ campaignId, campaignStatus, trackedViews }
 }
 
 function LockedFinalSubmission({ submission }: { submission: FinalSubmission }) {
+  const isApproved = submission.status === "approved" || submission.status === "paid";
+  const isRejected = submission.status === "rejected";
+
   return (
-    <div className="p-6 rounded-2xl bg-card/50 border border-border/30 space-y-5">
+    <div className={`p-6 rounded-2xl bg-card/50 border space-y-5 ${isApproved ? "border-emerald-500/30" : isRejected ? "border-destructive/30" : "border-border/30"}`}>
+      {/* Approval / Rejection Banner */}
+      {isApproved && (
+        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3">
+          <CheckCircle className="h-5 w-5 text-emerald-400 mt-0.5 shrink-0" />
+          <div>
+            <h4 className="font-display font-bold text-emerald-400">Your submission has been approved!</h4>
+            <p className="text-sm text-emerald-400/70 mt-1">You are eligible for payouts. Your verified earnings are <span className="font-bold">${Number(submission.final_earnings || 0).toFixed(2)}</span>.</p>
+          </div>
+        </div>
+      )}
+      {isRejected && (
+        <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+          <div>
+            <h4 className="font-display font-bold text-destructive">Your submission has been rejected</h4>
+            {submission.admin_notes && <p className="text-sm text-destructive/70 mt-1">Reason: {submission.admin_notes}</p>}
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-3">
         <div className="p-2.5 rounded-xl bg-emerald-500/10">
           <Lock className="h-5 w-5 text-emerald-400" />
         </div>
         <div>
           <h3 className="text-lg font-display font-bold">Final Submission</h3>
-          <p className="text-sm text-muted-foreground/60">Submitted — {submission.status === "submitted" ? "awaiting review" : submission.status}</p>
+          <p className="text-sm text-muted-foreground/60">
+            {submission.status === "submitted" ? "Submitted — awaiting review" 
+              : submission.status === "under_review" ? "Under review by admin"
+              : submission.status === "approved" ? "Approved — eligible for payout"
+              : submission.status === "paid" ? "Paid out"
+              : submission.status === "rejected" ? "Rejected"
+              : submission.status}
+          </p>
         </div>
       </div>
 
