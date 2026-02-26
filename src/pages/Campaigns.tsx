@@ -46,7 +46,7 @@ const Campaigns = () => {
     minViews: 0,
   });
 
-  const effectiveStatus = isAdmin ? statusFilter : "active";
+  const effectiveStatus = isAdmin ? statusFilter : statusFilter;
 
   const { data: campaigns, isLoading } = useCampaigns({
     status: effectiveStatus,
@@ -87,19 +87,21 @@ const Campaigns = () => {
   return (
     <AppLayout title="Browse Campaigns">
       {/* Status Tabs - Admin Only */}
-      {isAdmin && (
-        <div className="mb-6">
-          <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as CampaignStatus | "all")}>
-            <TabsList className="bg-secondary/30 backdrop-blur-sm">
-              <TabsTrigger value="active">Active</TabsTrigger>
-              <TabsTrigger value="paused">Paused</TabsTrigger>
-              <TabsTrigger value="completed">Completed</TabsTrigger>
-              <TabsTrigger value="private">Private</TabsTrigger>
-              <TabsTrigger value="all">All</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-      )}
+      <div className="mb-6">
+        <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as CampaignStatus | "all")}>
+          <TabsList className="bg-secondary/30 backdrop-blur-sm">
+            <TabsTrigger value="active">Active</TabsTrigger>
+            <TabsTrigger value="completed">Completed</TabsTrigger>
+            {isAdmin && (
+              <>
+                <TabsTrigger value="paused">Paused</TabsTrigger>
+                <TabsTrigger value="private">Private</TabsTrigger>
+                <TabsTrigger value="all">All</TabsTrigger>
+              </>
+            )}
+          </TabsList>
+        </Tabs>
+      </div>
 
       {/* Search and filters */}
       <div className="mb-6 flex flex-col sm:flex-row gap-3">
