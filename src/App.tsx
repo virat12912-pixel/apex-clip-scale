@@ -34,6 +34,7 @@ import ClientUserSubmissions from "./pages/ClientUserSubmissions";
 import BrandApplication from "./pages/BrandApplication";
 import ResetPassword from "./pages/ResetPassword";
 import Settings from "./pages/Settings";
+import AdminFinalReviews from "./pages/AdminFinalReviews";
 import NotFound from "./pages/NotFound";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
@@ -158,6 +159,11 @@ const App = () => (
             <Route path="/admin/assign-campaigns" element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <AdminAssignCampaign />
+              </ProtectedRoute>
+            } />
+            <Route path="/admin/final-reviews" element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <AdminFinalReviews />
               </ProtectedRoute>
             } />
             <Route path="/client" element={

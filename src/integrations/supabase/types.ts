@@ -338,6 +338,158 @@ export type Database = {
         }
         Relationships: []
       }
+      final_submission_reviews: {
+        Row: {
+          action: string
+          created_at: string
+          final_submission_id: string
+          id: string
+          new_earnings: number | null
+          new_verified_views: number | null
+          notes: string | null
+          previous_earnings: number | null
+          previous_verified_views: number | null
+          reviewer_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          final_submission_id: string
+          id?: string
+          new_earnings?: number | null
+          new_verified_views?: number | null
+          notes?: string | null
+          previous_earnings?: number | null
+          previous_verified_views?: number | null
+          reviewer_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          final_submission_id?: string
+          id?: string
+          new_earnings?: number | null
+          new_verified_views?: number | null
+          notes?: string | null
+          previous_earnings?: number | null
+          previous_verified_views?: number | null
+          reviewer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "final_submission_reviews_final_submission_id_fkey"
+            columns: ["final_submission_id"]
+            isOneToOne: false
+            referencedRelation: "final_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      final_submissions: {
+        Row: {
+          account_analytics_screenshot: string | null
+          admin_notes: string | null
+          approved_at: string | null
+          campaign_id: string
+          client_payment_received: boolean
+          content_is_original: boolean
+          created_at: string
+          demographics_screenshot: string | null
+          final_earnings: number | null
+          followers_count: number
+          id: string
+          paid_at: string | null
+          ran_paid_ads: boolean
+          reviewed_at: string | null
+          status: Database["public"]["Enums"]["final_submission_status"]
+          submitted_at: string
+          tracked_views: number
+          updated_at: string
+          user_id: string
+          verified_views: number | null
+          video_link_1: string
+          video_link_2: string
+          video_link_3: string
+          video_screenshot_1: string | null
+          video_screenshot_2: string | null
+          video_screenshot_3: string | null
+          videos_deleted: boolean
+        }
+        Insert: {
+          account_analytics_screenshot?: string | null
+          admin_notes?: string | null
+          approved_at?: string | null
+          campaign_id: string
+          client_payment_received?: boolean
+          content_is_original?: boolean
+          created_at?: string
+          demographics_screenshot?: string | null
+          final_earnings?: number | null
+          followers_count?: number
+          id?: string
+          paid_at?: string | null
+          ran_paid_ads?: boolean
+          reviewed_at?: string | null
+          status?: Database["public"]["Enums"]["final_submission_status"]
+          submitted_at?: string
+          tracked_views?: number
+          updated_at?: string
+          user_id: string
+          verified_views?: number | null
+          video_link_1: string
+          video_link_2: string
+          video_link_3: string
+          video_screenshot_1?: string | null
+          video_screenshot_2?: string | null
+          video_screenshot_3?: string | null
+          videos_deleted?: boolean
+        }
+        Update: {
+          account_analytics_screenshot?: string | null
+          admin_notes?: string | null
+          approved_at?: string | null
+          campaign_id?: string
+          client_payment_received?: boolean
+          content_is_original?: boolean
+          created_at?: string
+          demographics_screenshot?: string | null
+          final_earnings?: number | null
+          followers_count?: number
+          id?: string
+          paid_at?: string | null
+          ran_paid_ads?: boolean
+          reviewed_at?: string | null
+          status?: Database["public"]["Enums"]["final_submission_status"]
+          submitted_at?: string
+          tracked_views?: number
+          updated_at?: string
+          user_id?: string
+          verified_views?: number | null
+          video_link_1?: string
+          video_link_2?: string
+          video_link_3?: string
+          video_screenshot_1?: string | null
+          video_screenshot_2?: string | null
+          video_screenshot_3?: string | null
+          videos_deleted?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "final_submissions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "final_submissions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -728,6 +880,12 @@ export type Database = {
         | "platform_admin"
       campaign_status: "active" | "paused" | "completed" | "private"
       clipper_tier: "standard" | "verified" | "elite"
+      final_submission_status:
+        | "submitted"
+        | "under_review"
+        | "approved"
+        | "rejected"
+        | "paid"
       payout_status: "pending" | "approved" | "paid" | "rejected"
       platform_type: "tiktok" | "instagram" | "youtube"
       submission_status: "pending" | "approved" | "rejected" | "paid"
@@ -870,6 +1028,13 @@ export const Constants = {
       ],
       campaign_status: ["active", "paused", "completed", "private"],
       clipper_tier: ["standard", "verified", "elite"],
+      final_submission_status: [
+        "submitted",
+        "under_review",
+        "approved",
+        "rejected",
+        "paid",
+      ],
       payout_status: ["pending", "approved", "paid", "rejected"],
       platform_type: ["tiktok", "instagram", "youtube"],
       submission_status: ["pending", "approved", "rejected", "paid"],

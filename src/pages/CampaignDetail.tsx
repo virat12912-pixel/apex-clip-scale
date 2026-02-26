@@ -4,8 +4,9 @@ import { AppLayout } from "@/components/app/AppLayout";
 import { CampaignLeaderboard } from "@/components/campaigns/CampaignLeaderboard";
 import { CampaignExportButton } from "@/components/campaigns/CampaignExportButton";
 import { CampaignHealthBadge } from "@/components/dashboard/CampaignHealthBadge";
-import { ViewsChart } from "@/components/dashboard/ViewsChart";
+import { FinalSubmissionForm } from "@/components/campaigns/FinalSubmissionForm";
 import { useCampaignAnalytics } from "@/hooks/useCampaignAnalytics";
+import { ViewsChart } from "@/components/dashboard/ViewsChart";
 import { 
   ArrowLeft,
   DollarSign, 
@@ -537,6 +538,15 @@ const CampaignDetail = () => {
                     </div>
                   </div>
                 </div>
+              )}
+
+              {/* Final Submission Form (when campaign ended) */}
+              {role === "creator" && (
+                <FinalSubmissionForm
+                  campaignId={id || ""}
+                  campaignStatus={campaign.status}
+                  trackedViews={submissions?.filter(s => s.status === "approved" || s.status === "paid").reduce((sum, s) => sum + Number(s.views || 0), 0) || 0}
+                />
               )}
 
               {/* Submissions list (for brand/admin) */}

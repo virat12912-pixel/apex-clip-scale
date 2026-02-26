@@ -46,6 +46,7 @@ export function AppSidebar() {
     { title: "Manage Users", url: "/admin/users", icon: Crown },
     { title: "Client Balances", url: "/admin/balances", icon: CreditCard },
     { title: "Assign Campaigns", url: "/admin/assign-campaigns", icon: Link2 },
+    { title: "Final Reviews", url: "/admin/final-reviews", icon: FileText },
   ] : [];
 
   const handleSignOut = async () => {
