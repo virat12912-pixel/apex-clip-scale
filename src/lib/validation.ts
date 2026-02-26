@@ -30,15 +30,13 @@ export const campaignSchema = z.object({
     .min(1, "At least one platform is required"),
   rate_value: z
     .number()
-    .positive("Rate must be greater than 0")
-    .min(0.01, "Rate must be at least $0.01")
-    .max(10000, "Rate cannot exceed $10,000"),
+    .positive("RPM must be greater than 0")
+    .min(0.01, "RPM must be at least $0.01")
+    .max(10000, "RPM cannot exceed $10,000"),
   rate_unit: z
     .number()
-    .int("Rate unit must be a whole number")
-    .positive("Rate unit must be greater than 0")
-    .min(1000, "Rate unit must be at least 1,000 views")
-    .max(100000000, "Rate unit cannot exceed 100,000,000 views"),
+    .optional()
+    .default(1000),
   min_views: z
     .number()
     .int("Minimum views must be a whole number")

@@ -231,7 +231,7 @@ const Campaigns = () => {
                   <div className="flex items-center gap-1.5">
                     <DollarSign className="w-3.5 h-3.5 text-primary/60" />
                     <span className="font-bold text-primary">${campaign.rate_value}</span>
-                    <span className="text-muted-foreground/50">/ {formatNumber(campaign.rate_unit)} views</span>
+                    <span className="text-muted-foreground/50">RPM</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-muted-foreground/60">
                     <Eye className="w-3.5 h-3.5" />
