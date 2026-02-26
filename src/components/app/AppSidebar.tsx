@@ -40,13 +40,13 @@ export function AppSidebar() {
   const adminNavItems = hasAdminAccess ? [
     { title: "Admin Panel", url: "/admin", icon: Shield },
     { title: "Submissions", url: "/admin/submissions", icon: FileText },
+    { title: "Final Reviews", url: "/admin/final-reviews", icon: FileText },
     { title: "Payouts", url: "/admin/payouts", icon: Wallet },
     { title: "Brand Applications", url: "/admin/brands", icon: Building2 },
     { title: "Verify Accounts", url: "/admin/social-accounts", icon: Users },
     { title: "Manage Users", url: "/admin/users", icon: Crown },
     { title: "Client Balances", url: "/admin/balances", icon: CreditCard },
     { title: "Assign Campaigns", url: "/admin/assign-campaigns", icon: Link2 },
-    { title: "Final Reviews", url: "/admin/final-reviews", icon: FileText },
   ] : [];
 
   const handleSignOut = async () => {
