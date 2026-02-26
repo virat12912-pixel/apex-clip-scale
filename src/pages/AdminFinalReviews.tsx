@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/app/AppLayout";
 import { useAllFinalSubmissions, useUpdateFinalSubmission, useCreateFinalSubmissionReview, FinalSubmission } from "@/hooks/useFinalSubmissions";
+import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,6 +78,16 @@ function ReviewCard({ submission }: { submission: FinalSubmission }) {
         approved_at: new Date().toISOString(),
         admin_notes: notes || submission.admin_notes,
       });
+      // Send notification to clipper
+      await supabase.functions.invoke("create-notification", {
+        body: {
+          user_id: submission.user_id,
+          type: "final_submission_approved",
+          title: "Final Submission Approved!",
+          message: `Your final submission for "${submission.campaign?.name}" has been approved. You earned $${earnings.toFixed(2)} and are eligible for payouts.`,
+          related_id: submission.id,
+        },
+      });
       toast({ title: "Submission approved" });
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -95,6 +106,16 @@ function ReviewCard({ submission }: { submission: FinalSubmission }) {
         status: "rejected",
         reviewed_at: new Date().toISOString(),
         admin_notes: notes || submission.admin_notes,
+      });
+      // Send notification to clipper
+      await supabase.functions.invoke("create-notification", {
+        body: {
+          user_id: submission.user_id,
+          type: "final_submission_rejected",
+          title: "Final Submission Rejected",
+          message: `Your final submission for "${submission.campaign?.name}" has been rejected.${notes ? ` Reason: ${notes}` : ""}`,
+          related_id: submission.id,
+        },
       });
       toast({ title: "Submission rejected" });
     } catch (err: any) {
