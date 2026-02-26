@@ -400,9 +400,25 @@ export function useCreateSubmission() {
 
       if (error) throw error;
 
-      // Submissions are now in "pending" status with views recorded.
-      // Earnings will only be calculated when admin approves.
-      // No processSubmission call here - that happens on admin approval.
+      // Immediately process each submission to calculate earnings, update wallet & budget
+      for (const sub of insertedSubmissions) {
+        const key = `${sub.platform}:${sub.clip_url}`;
+        const vd = viewDataByKey.get(key);
+        try {
+          await supabase.functions.invoke("process-submission", {
+            body: {
+              submission_id: sub.id,
+              views: Number(sub.views || 0),
+              likes: Number(sub.likes || 0),
+              comments: Number(sub.comments || 0),
+              set_status: "pending", // keep pending for admin review
+            },
+          });
+        } catch (processError) {
+          console.error("Failed to process submission:", processError);
+          // Non-fatal: submission is still created, just earnings not calculated yet
+        }
+      }
 
       return insertedSubmissions;
     },
