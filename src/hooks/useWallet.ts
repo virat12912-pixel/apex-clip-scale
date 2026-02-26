@@ -57,12 +57,12 @@ export function usePayouts() {
       // Explicitly exclude admin_notes for security
       const { data, error } = await supabase
         .from("payouts")
-        .select("id, user_id, amount, payout_method, payout_email, status, processed_at, created_at")
+        .select("id, user_id, amount, payout_method, payout_email, status, processed_at, created_at, campaign_id")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      return data as Omit<Payout, 'admin_notes'>[];
+      return data as (Omit<Payout, 'admin_notes'> & { campaign_id?: string })[];
     },
     enabled: !!user,
   });
@@ -102,7 +102,7 @@ export function useRequestPayout() {
   const { user, profile } = useAuth();
 
   return useMutation({
-    mutationFn: async (amount: number) => {
+    mutationFn: async ({ amount, campaign_id }: { amount: number; campaign_id?: string }) => {
       if (!user || !profile) throw new Error("Not authenticated");
 
       // Call the edge function to handle payout with locking
@@ -121,6 +121,7 @@ export function useRequestPayout() {
             payout_email: profile.payout_method === "usdc_solana" 
               ? profile.solana_wallet_address 
               : (profile.payout_email || profile.email),
+            campaign_id,
           }),
         }
       );

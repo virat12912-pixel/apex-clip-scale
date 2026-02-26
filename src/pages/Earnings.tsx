@@ -76,14 +76,16 @@ const Earnings = () => {
     return false;
   };
 
-  const hasPendingPayout = payouts?.some(p => p.status === "pending" || p.status === "approved");
+  const hasPendingPayoutForCampaign = (campaignId: string) => {
+    return payouts?.some(p => (p.status === "pending" || p.status === "approved") && (p as any).campaign_id === campaignId);
+  };
 
-  const handleRequestPayout = async () => {
-    if (!wallet || wallet.pending_balance < 10) { toast({ title: "Minimum $10 required", variant: "destructive" }); return; }
+  const handleRequestPayout = async (campaignId: string, amount: number) => {
+    if (amount < 10) { toast({ title: "Minimum $10 required", variant: "destructive" }); return; }
     if (!hasPaymentDetails()) { toast({ title: "Payment details required", description: "Please add your payment details in your profile before requesting a payout", variant: "destructive" }); return; }
-    if (hasPendingPayout) { toast({ title: "Payout in progress", description: "You already have a payout request pending", variant: "destructive" }); return; }
+    if (hasPendingPayoutForCampaign(campaignId)) { toast({ title: "Payout in progress", description: "You already have a payout request pending for this campaign", variant: "destructive" }); return; }
     try {
-      await requestPayout.mutateAsync(wallet.pending_balance);
+      await requestPayout.mutateAsync({ amount, campaign_id: campaignId });
       toast({ title: "Payout requested" });
     } catch (error: any) { toast({ title: "Error", description: error.message, variant: "destructive" }); }
   };
@@ -95,11 +97,11 @@ const Earnings = () => {
   };
 
   const statCards = [
-    { icon: DollarSign, label: "Total Earnings", value: `$${totalEarnings.toFixed(2)}`, color: "emerald", bg: "bg-emerald-500/10", text: "text-emerald-400" },
-    { icon: Clock, label: "Available", value: `$${(wallet?.pending_balance || 0).toFixed(2)}`, color: "yellow", bg: "bg-yellow-500/10", text: "text-yellow-400" },
-    { icon: Clock, label: "Processing", value: `$${(wallet?.locked_earnings || 0).toFixed(2)}`, color: "orange", bg: "bg-orange-500/10", text: "text-orange-400" },
-    { icon: TrendingUp, label: "Paid Out", value: `$${(wallet?.paid_balance || 0).toFixed(2)}`, color: "primary", bg: "bg-primary/10", text: "text-primary" },
-    { icon: Eye, label: "Paid Clips", value: paidSubmissions.length.toString(), color: "blue", bg: "bg-blue-500/10", text: "text-blue-400" },
+    { icon: DollarSign, label: "Total Earnings", value: `$${totalEarnings.toFixed(2)}`, bg: "bg-emerald-500/10", text: "text-emerald-400" },
+    { icon: Clock, label: "Available", value: `$${(wallet?.pending_balance || 0).toFixed(2)}`, bg: "bg-yellow-500/10", text: "text-yellow-400" },
+    { icon: Clock, label: "Processing", value: `$${(wallet?.locked_earnings || 0).toFixed(2)}`, bg: "bg-orange-500/10", text: "text-orange-400" },
+    { icon: TrendingUp, label: "Paid Out", value: `$${(wallet?.paid_balance || 0).toFixed(2)}`, bg: "bg-primary/10", text: "text-primary" },
+    { icon: Eye, label: "Paid Clips", value: paidSubmissions.length.toString(), bg: "bg-blue-500/10", text: "text-blue-400" },
   ];
 
   return (
@@ -119,6 +121,22 @@ const Earnings = () => {
             ))
           )}
         </div>
+
+        {/* Payment details warning */}
+        {!hasPaymentDetails() && (
+          <div className="p-4 rounded-xl bg-yellow-500/8 border border-yellow-500/15 mb-6">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-yellow-500">Payment details required</p>
+                <p className="text-xs text-muted-foreground/50 mt-1">Add your payment details before requesting payouts.</p>
+                <Button asChild size="sm" variant="outline" className="mt-3 rounded-lg border-yellow-500/20 hover:bg-yellow-500/10">
+                  <Link to="/profile">Update Profile</Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* My Campaigns Section */}
@@ -140,7 +158,8 @@ const Earnings = () => {
                     {campaignEarnings.map((campaign) => {
                       const fs = finalSubmissions?.find(f => f.campaign_id === campaign.campaign_id);
                       const fsStatus = fs?.status;
-                      const canRequestPayout = fs?.status === "approved" && !fs?.client_payment_received === false;
+                      const hasPending = hasPendingPayoutForCampaign(campaign.campaign_id);
+                      const canRequestPayout = fs?.status === "approved" && campaign.total_earnings >= 10 && hasPaymentDetails() && !hasPending;
                       const statusLabel = !fs ? "Posting" : fsStatus === "submitted" ? "Under Review" : fsStatus === "approved" ? "Approved" : fsStatus === "paid" ? "Paid" : fsStatus === "rejected" ? "Rejected" : "Posting";
                       const statusColor = !fs ? "bg-blue-500/10 text-blue-400" : fsStatus === "submitted" || fsStatus === "under_review" ? "bg-yellow-500/10 text-yellow-400" : fsStatus === "approved" ? "bg-emerald-500/10 text-emerald-400" : fsStatus === "paid" ? "bg-primary/10 text-primary" : "bg-red-500/10 text-red-400";
 
@@ -182,9 +201,28 @@ const Earnings = () => {
                             <span className={`px-2.5 py-1 rounded-lg text-xs font-medium ${statusColor}`}>
                               {statusLabel}
                             </span>
-                            <Link to={`/campaigns/${campaign.campaign_id}`} className="text-sm text-primary/70 hover:text-primary flex items-center gap-1 group/link transition-colors duration-200">
-                              View Campaign <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover/link:translate-x-0.5" />
-                            </Link>
+                            <div className="flex items-center gap-2">
+                              {/* Per-campaign payout button */}
+                              {canRequestPayout && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleRequestPayout(campaign.campaign_id, campaign.total_earnings)}
+                                  disabled={requestPayout.isPending}
+                                  className="bg-gradient-primary hover:opacity-90 rounded-lg text-xs font-display font-bold h-8 px-3"
+                                >
+                                  <DollarSign className="h-3.5 w-3.5 mr-1" />
+                                  Request Payout
+                                </Button>
+                              )}
+                              {hasPending && (
+                                <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-orange-500/10 text-orange-400 flex items-center gap-1">
+                                  <Lock className="h-3 w-3" /> Payout Pending
+                                </span>
+                              )}
+                              <Link to={`/campaigns/${campaign.campaign_id}`} className="text-sm text-primary/70 hover:text-primary flex items-center gap-1 group/link transition-colors duration-200">
+                                View <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover/link:translate-x-0.5" />
+                              </Link>
+                            </div>
                           </div>
                         </div>
                       );
@@ -195,65 +233,38 @@ const Earnings = () => {
             </ElevatedCard>
           </div>
 
-          {/* Payout Section */}
+          {/* Payout History Section */}
           <div className="space-y-6">
             <ElevatedCard variant="glass" className="rounded-2xl">
               <ElevatedCardHeader>
-                <ElevatedCardTitle className="font-display">Request Payout</ElevatedCardTitle>
+                <ElevatedCardTitle className="font-display">Wallet Summary</ElevatedCardTitle>
               </ElevatedCardHeader>
-              <ElevatedCardContent className="space-y-4">
-                <div className="p-5 rounded-xl bg-primary/8 border border-primary/15">
+              <ElevatedCardContent className="space-y-3">
+                <div className="p-4 rounded-xl bg-primary/8 border border-primary/15">
                   <div className="text-sm text-muted-foreground/60">Available Balance</div>
                   <div className="text-3xl font-display font-bold text-primary">${(wallet?.pending_balance || 0).toFixed(2)}</div>
                 </div>
-
-                {hasPendingPayout && (
-                  <div className="p-4 rounded-xl bg-yellow-500/8 border border-yellow-500/15">
-                    <div className="flex items-start gap-3">
-                      <Clock className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-semibold text-yellow-500">Payout in progress</p>
-                        <p className="text-xs text-muted-foreground/50 mt-1">You already have a pending payout request.</p>
-                      </div>
-                    </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="p-3 rounded-xl bg-secondary/30 border border-border/20">
+                    <div className="text-xs text-muted-foreground/50">Processing</div>
+                    <div className="font-display font-bold text-orange-400">${(wallet?.locked_earnings || 0).toFixed(2)}</div>
                   </div>
-                )}
-
-                {!hasPaymentDetails() && !hasPendingPayout && (
-                  <div className="p-4 rounded-xl bg-yellow-500/8 border border-yellow-500/15">
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-semibold text-yellow-500">Payment details required</p>
-                        <p className="text-xs text-muted-foreground/50 mt-1">Add your payment details before requesting a payout.</p>
-                        <Button asChild size="sm" variant="outline" className="mt-3 rounded-lg border-yellow-500/20 hover:bg-yellow-500/10">
-                          <Link to="/profile">Update Profile</Link>
-                        </Button>
-                      </div>
-                    </div>
+                  <div className="p-3 rounded-xl bg-secondary/30 border border-border/20">
+                    <div className="text-xs text-muted-foreground/50">Paid Out</div>
+                    <div className="font-display font-bold text-primary">${(wallet?.paid_balance || 0).toFixed(2)}</div>
                   </div>
-                )}
-
+                </div>
                 {hasPaymentDetails() && (
-                  <div className="p-3.5 rounded-xl bg-secondary/30 border border-border/20">
+                  <div className="p-3 rounded-xl bg-secondary/30 border border-border/20">
                     <div className="text-xs text-muted-foreground/50">Payment Method</div>
-                    <div className="font-display font-bold capitalize">
+                    <div className="font-display font-bold capitalize text-sm">
                       {profile?.payout_method === "usdc_solana" ? "USDC (Solana)" : "PayPal"}
                     </div>
-                    <div className="text-xs text-muted-foreground/40 font-mono truncate mt-1">
+                    <div className="text-xs text-muted-foreground/40 font-mono truncate mt-0.5">
                       {profile?.payout_method === "usdc_solana" ? profile?.solana_wallet_address : profile?.payout_email}
                     </div>
                   </div>
                 )}
-
-                <Button 
-                  onClick={handleRequestPayout} 
-                  disabled={requestPayout.isPending || (wallet?.pending_balance || 0) < 10 || !hasPaymentDetails() || hasPendingPayout} 
-                  className="w-full bg-gradient-primary hover:opacity-90 glow-primary-sm btn-shimmer rounded-xl font-display font-bold h-11"
-                >
-                  {requestPayout.isPending ? "Requesting..." : "Request Payout"}
-                </Button>
-                <p className="text-xs text-muted-foreground/40 text-center">Minimum $10 required</p>
               </ElevatedCardContent>
             </ElevatedCard>
 

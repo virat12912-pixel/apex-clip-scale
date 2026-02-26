@@ -10,6 +10,7 @@ interface RequestPayoutBody {
   amount: number;
   payout_method: string;
   payout_email: string;
+  campaign_id?: string;
 }
 
 Deno.serve(async (req) => {
@@ -22,7 +23,7 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { user_id, amount, payout_method, payout_email }: RequestPayoutBody = await req.json();
+    const { user_id, amount, payout_method, payout_email, campaign_id }: RequestPayoutBody = await req.json();
 
     if (!user_id || !amount || !payout_method || !payout_email) {
       return new Response(
@@ -31,14 +32,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Processing payout request for user ${user_id}: $${amount}`);
+    console.log(`Processing payout request for user ${user_id}: $${amount} campaign: ${campaign_id || "global"}`);
 
-    // Check for existing pending or approved payout (prevent multiple requests)
-    const { data: existingPayouts, error: checkError } = await supabase
+    // Check for existing pending or approved payout for same campaign (prevent duplicates)
+    let existingQuery = supabase
       .from("payouts")
       .select("id, amount, status")
       .eq("user_id", user_id)
       .in("status", ["pending", "approved"]);
+
+    if (campaign_id) {
+      existingQuery = existingQuery.eq("campaign_id", campaign_id);
+    }
+
+    const { data: existingPayouts, error: checkError } = await existingQuery;
 
     if (checkError) {
       console.error("Error checking existing payouts:", checkError);
@@ -48,7 +55,7 @@ Deno.serve(async (req) => {
     if (existingPayouts && existingPayouts.length > 0) {
       const status = existingPayouts[0].status;
       return new Response(
-        JSON.stringify({ error: `You already have a ${status} payout request in progress` }),
+        JSON.stringify({ error: `You already have a ${status} payout request for this campaign` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -76,7 +83,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Minimum payout check - reduced to $10 for per-campaign payouts
+    // Minimum payout check
     if (amount < 10) {
       return new Response(
         JSON.stringify({ error: "Minimum payout is $10" }),
@@ -103,7 +110,7 @@ Deno.serve(async (req) => {
 
     console.log(`Locked $${amount} for user ${user_id}`);
 
-    // Create the payout request
+    // Create the payout request with campaign_id
     const { data: payout, error: payoutError } = await supabase
       .from("payouts")
       .insert({
@@ -112,6 +119,7 @@ Deno.serve(async (req) => {
         payout_method,
         payout_email,
         status: "pending",
+        campaign_id: campaign_id || null,
       })
       .select()
       .single();
@@ -132,13 +140,24 @@ Deno.serve(async (req) => {
 
     console.log(`Payout request created: ${payout.id}`);
 
+    // Get campaign name for notification
+    let campaignName = "";
+    if (campaign_id) {
+      const { data: campaign } = await supabase
+        .from("campaigns")
+        .select("name")
+        .eq("id", campaign_id)
+        .single();
+      campaignName = campaign?.name || "";
+    }
+
     // Create notification
     await supabase.functions.invoke("create-notification", {
       body: {
         user_id,
         type: "payout_requested",
         title: "Payout Requested",
-        message: `Your payout request for $${amount.toFixed(2)} has been submitted and is pending review.`,
+        message: `Your payout request for $${amount.toFixed(2)}${campaignName ? ` from "${campaignName}"` : ""} has been submitted and is pending review.`,
         related_id: payout.id,
       },
     });
