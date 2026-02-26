@@ -52,7 +52,11 @@ const Earnings = () => {
         entry.total_views += Number(sub.views || 0);
         entry.total_earnings += Number(sub.earnings || 0);
       } else if (sub.status === "rejected") { entry.rejected_count += 1; }
-      else if (sub.status === "pending") { entry.pending_count += 1; }
+      else if (sub.status === "pending") {
+        entry.pending_count += 1;
+        entry.total_views += Number(sub.views || 0);
+        entry.total_earnings += Number(sub.earnings || 0);
+      }
     });
 
     // Override with verified_views/final_earnings when final submission is approved
