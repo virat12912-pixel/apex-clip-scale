@@ -699,9 +699,9 @@ const CampaignDetail = () => {
                   <DollarSign className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <div className="text-sm text-muted-foreground">Rate</div>
+                  <div className="text-sm text-muted-foreground">RPM</div>
                   <div className="font-semibold">
-                    ${campaign.rate_value} / {formatNumber(campaign.rate_unit)} views
+                    ${campaign.rate_value} / 1K views
                   </div>
                 </div>
               </div>

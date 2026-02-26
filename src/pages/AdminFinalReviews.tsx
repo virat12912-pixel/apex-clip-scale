@@ -50,7 +50,7 @@ function ReviewCard({ submission }: { submission: FinalSubmission }) {
   const { toast } = useToast();
 
   const rate = submission.campaign?.rate_value || 0;
-  const rateUnit = submission.campaign?.rate_unit || 100000;
+  const rateUnit = submission.campaign?.rate_unit || 1000;
   const estimatedEarnings = verifiedViews ? (Number(verifiedViews) / rateUnit) * rate : 0;
 
   const handleApprove = async () => {

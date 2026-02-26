@@ -63,7 +63,7 @@ const Launch = () => {
     niche: "",
     platforms: [] as PlatformType[],
     rate_value: "",
-    rate_unit: "100000",
+    rate_unit: "1000",
     min_views: "1000",
     min_payout_views: "10000",
     max_earnings_per_post: "",
@@ -192,7 +192,7 @@ const Launch = () => {
         platforms: formData.platforms,
         niche: formData.niche || undefined,
         rate_value: parseFloat(formData.rate_value) || 75,
-        rate_unit: parseInt(formData.rate_unit) || 100000,
+        rate_unit: 1000,
         min_views: parseInt(formData.min_views) || 1000,
         min_payout_views: parseInt(formData.min_payout_views) || 10000,
         max_earnings_per_post: formData.max_earnings_per_post 
@@ -462,7 +462,7 @@ const Launch = () => {
 
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="rate_value">Rate ($ per views)</Label>
+                    <Label htmlFor="rate_value">RPM ($ per 1,000 views)</Label>
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                       <Input
@@ -478,17 +478,9 @@ const Launch = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="rate_unit">Per X Views</Label>
-                    <div className="relative">
-                      <Target className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                      <Input
-                        id="rate_unit"
-                        type="number"
-                        placeholder="100000"
-                        value={formData.rate_unit}
-                        onChange={(e) => handleInputChange("rate_unit", e.target.value)}
-                        className="h-12 pl-10 bg-secondary border-border"
-                      />
+                    <Label>Rate Unit</Label>
+                    <div className="h-12 flex items-center px-3 bg-secondary border border-border rounded-md text-muted-foreground text-sm">
+                      Per 1,000 views (RPM)
                     </div>
                   </div>
                 </div>
@@ -588,8 +580,8 @@ const Launch = () => {
                   <div className="text-sm">
                     <p className="font-medium mb-1">How payouts work</p>
                     <p className="text-muted-foreground">
-                      Clippers earn based on the views their clips generate. At ${formData.rate_value || "75"} per {parseInt(formData.rate_unit || "100000").toLocaleString()} views, 
-                      a clip with 100K views would earn ${((parseFloat(formData.rate_value || "75") / parseInt(formData.rate_unit || "100000")) * 100000).toFixed(2)}.
+                      Clippers earn based on the views their clips generate. At an RPM of ${formData.rate_value || "75"}, 
+                      a clip with 100K views would earn ${((parseFloat(formData.rate_value || "75") / 1000) * 100000).toFixed(2)}.
                     </p>
                   </div>
                 </div>
@@ -675,9 +667,9 @@ const Launch = () => {
                     </div>
                   </div>
                   <div className="p-4 rounded-lg bg-secondary/50">
-                    <div className="text-sm text-muted-foreground mb-1">Rate</div>
+                    <div className="text-sm text-muted-foreground mb-1">RPM</div>
                     <div className="font-medium">
-                      ${formData.rate_value || "75"} / {parseInt(formData.rate_unit || "100000").toLocaleString()} views
+                      ${formData.rate_value || "75"} / 1K views
                     </div>
                   </div>
                   <div className="p-4 rounded-lg bg-secondary/50">
