@@ -527,6 +527,7 @@ export type Database = {
         Row: {
           admin_notes: string | null
           amount: number
+          campaign_id: string | null
           created_at: string
           id: string
           payout_email: string
@@ -538,6 +539,7 @@ export type Database = {
         Insert: {
           admin_notes?: string | null
           amount: number
+          campaign_id?: string | null
           created_at?: string
           id?: string
           payout_email: string
@@ -549,6 +551,7 @@ export type Database = {
         Update: {
           admin_notes?: string | null
           amount?: number
+          campaign_id?: string | null
           created_at?: string
           id?: string
           payout_email?: string
@@ -558,6 +561,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "payouts_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payouts_user_id_fkey"
             columns: ["user_id"]
