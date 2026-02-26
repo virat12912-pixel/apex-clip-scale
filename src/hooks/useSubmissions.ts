@@ -23,6 +23,7 @@ export interface Submission {
     name: string;
     rate_value: number;
     rate_unit: number;
+    status: string;
   };
   creator_profile?: {
     full_name: string | null;
@@ -69,7 +70,7 @@ export function useMySubmissions() {
         .from("submissions")
         .select(`
           id, campaign_id, creator_id, clip_url, platform, views, earnings, status, created_at, updated_at,
-          campaign:campaigns(name, rate_value, rate_unit)
+          campaign:campaigns(name, rate_value, rate_unit, status)
         `)
         .eq("creator_id", user.id)
         .order("created_at", { ascending: false });
@@ -142,7 +143,7 @@ export function useAllSubmissions() {
         .from("submissions")
         .select(`
           *,
-          campaign:campaigns(name, rate_value, rate_unit),
+          campaign:campaigns(name, rate_value, rate_unit, status),
           creator_profile:profiles!submissions_creator_id_fkey(full_name, email)
         `)
         .order("created_at", { ascending: false });

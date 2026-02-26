@@ -17,6 +17,7 @@ import { SectionDivider } from "@/components/ui/section-divider";
 interface CampaignEarnings {
   campaign_id: string;
   campaign_name: string;
+  campaign_status: string;
   approved_count: number;
   rejected_count: number;
   pending_count: number;
@@ -41,8 +42,9 @@ const Earnings = () => {
     submissions.forEach((sub: any) => {
       const campaignId = sub.campaign_id;
       const campaignName = sub.campaign?.name || "Unknown Campaign";
+      const campaignStatus = sub.campaign?.status || "active";
       if (!grouped.has(campaignId)) {
-        grouped.set(campaignId, { campaign_id: campaignId, campaign_name: campaignName, approved_count: 0, rejected_count: 0, pending_count: 0, total_views: 0, total_earnings: 0, min_payout_views: 1000, is_eligible: false });
+        grouped.set(campaignId, { campaign_id: campaignId, campaign_name: campaignName, campaign_status: campaignStatus, approved_count: 0, rejected_count: 0, pending_count: 0, total_views: 0, total_earnings: 0, min_payout_views: 1000, is_eligible: false });
       }
       const entry = grouped.get(campaignId)!;
       if (sub.status === "approved" || sub.status === "paid") {
@@ -159,9 +161,49 @@ const Earnings = () => {
                       const fs = finalSubmissions?.find(f => f.campaign_id === campaign.campaign_id);
                       const fsStatus = fs?.status;
                       const hasPending = hasPendingPayoutForCampaign(campaign.campaign_id);
-                      const canRequestPayout = fs?.status === "approved" && campaign.total_earnings >= 10 && hasPaymentDetails() && !hasPending;
+                      const isCampaignLive = campaign.campaign_status === "active" || campaign.campaign_status === "paused" || campaign.campaign_status === "private";
+                      const isCampaignCompleted = campaign.campaign_status === "completed";
+                      const isFinalApproved = fsStatus === "approved";
+                      const isFinalPaid = fsStatus === "paid";
+                      const canRequestPayout = isFinalApproved && campaign.total_earnings >= 10 && hasPaymentDetails() && !hasPending;
                       const statusLabel = !fs ? "Posting" : fsStatus === "submitted" ? "Under Review" : fsStatus === "approved" ? "Approved" : fsStatus === "paid" ? "Paid" : fsStatus === "rejected" ? "Rejected" : "Posting";
                       const statusColor = !fs ? "bg-blue-500/10 text-blue-400" : fsStatus === "submitted" || fsStatus === "under_review" ? "bg-yellow-500/10 text-yellow-400" : fsStatus === "approved" ? "bg-emerald-500/10 text-emerald-400" : fsStatus === "paid" ? "bg-primary/10 text-primary" : "bg-red-500/10 text-red-400";
+
+                      // Determine payout button state
+                      let payoutButtonLabel = "Request Payout";
+                      let payoutButtonDisabled = true;
+                      let payoutTooltip = "";
+
+                      if (isFinalPaid || hasPending) {
+                        payoutButtonLabel = hasPending ? "Payout Pending" : "Paid";
+                        payoutButtonDisabled = true;
+                      } else if (isCampaignLive) {
+                        payoutButtonLabel = "Request Payout";
+                        payoutButtonDisabled = true;
+                        payoutTooltip = "This campaign is still live. Wait for it to complete before requesting a payout.";
+                      } else if (isCampaignCompleted && !isFinalApproved) {
+                        payoutButtonLabel = "Verify Demographics";
+                        payoutButtonDisabled = false;
+                        payoutTooltip = "Verify your demographics to request a payout.";
+                      } else if (canRequestPayout) {
+                        payoutButtonLabel = "Request Payout";
+                        payoutButtonDisabled = false;
+                      }
+
+                      const handlePayoutClick = () => {
+                        if (isCampaignLive) {
+                          toast({ title: "Campaign Still Live", description: "This campaign is still live. Please wait for it to complete before requesting a payout.", variant: "destructive" });
+                          return;
+                        }
+                        if (isCampaignCompleted && !isFinalApproved) {
+                          // Redirect to campaign detail page (final submission form)
+                          window.location.href = `/campaigns/${campaign.campaign_id}`;
+                          return;
+                        }
+                        if (canRequestPayout) {
+                          handleRequestPayout(campaign.campaign_id, campaign.total_earnings);
+                        }
+                      };
 
                       return (
                         <div key={campaign.campaign_id} className="p-4 rounded-xl bg-secondary/20 border border-border/20 hover:border-primary/15 transition-all duration-300 group">
@@ -196,33 +238,41 @@ const Earnings = () => {
 
                           {fs && <FinalSubmissionTimeline status={fs.status} />}
 
+                          {/* Payout Button - Central */}
+                          <div className="my-3">
+                            <Button
+                              size="sm"
+                              onClick={handlePayoutClick}
+                              disabled={payoutButtonDisabled && !isCampaignLive && !(isCampaignCompleted && !isFinalApproved)}
+                              className={`w-full rounded-lg font-display font-bold h-10 text-sm ${
+                                canRequestPayout
+                                  ? "bg-gradient-primary hover:opacity-90"
+                                  : isCampaignCompleted && !isFinalApproved && !isFinalPaid
+                                  ? "bg-primary/80 hover:bg-primary text-primary-foreground"
+                                  : hasPending || isFinalPaid
+                                  ? "bg-muted text-muted-foreground cursor-not-allowed"
+                                  : "bg-muted text-muted-foreground"
+                              }`}
+                            >
+                              {isCampaignLive && <Lock className="h-3.5 w-3.5 mr-1.5" />}
+                              {hasPending && <Lock className="h-3.5 w-3.5 mr-1.5" />}
+                              {isCampaignCompleted && !isFinalApproved && !isFinalPaid && !hasPending && <Eye className="h-3.5 w-3.5 mr-1.5" />}
+                              {canRequestPayout && <DollarSign className="h-3.5 w-3.5 mr-1.5" />}
+                              {payoutButtonLabel}
+                            </Button>
+                            {payoutTooltip && !canRequestPayout && !hasPending && !isFinalPaid && (
+                              <p className="text-[10px] text-muted-foreground/50 text-center mt-1.5">{payoutTooltip}</p>
+                            )}
+                          </div>
+
                           <SectionDivider variant="line" size="sm" />
                           <div className="flex items-center justify-between">
                             <span className={`px-2.5 py-1 rounded-lg text-xs font-medium ${statusColor}`}>
                               {statusLabel}
                             </span>
-                            <div className="flex items-center gap-2">
-                              {/* Per-campaign payout button */}
-                              {canRequestPayout && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleRequestPayout(campaign.campaign_id, campaign.total_earnings)}
-                                  disabled={requestPayout.isPending}
-                                  className="bg-gradient-primary hover:opacity-90 rounded-lg text-xs font-display font-bold h-8 px-3"
-                                >
-                                  <DollarSign className="h-3.5 w-3.5 mr-1" />
-                                  Request Payout
-                                </Button>
-                              )}
-                              {hasPending && (
-                                <span className="px-2.5 py-1 rounded-lg text-xs font-medium bg-orange-500/10 text-orange-400 flex items-center gap-1">
-                                  <Lock className="h-3 w-3" /> Payout Pending
-                                </span>
-                              )}
-                              <Link to={`/campaigns/${campaign.campaign_id}`} className="text-sm text-primary/70 hover:text-primary flex items-center gap-1 group/link transition-colors duration-200">
-                                View <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover/link:translate-x-0.5" />
-                              </Link>
-                            </div>
+                            <Link to={`/campaigns/${campaign.campaign_id}`} className="text-sm text-primary/70 hover:text-primary flex items-center gap-1 group/link transition-colors duration-200">
+                              View <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover/link:translate-x-0.5" />
+                            </Link>
                           </div>
                         </div>
                       );
