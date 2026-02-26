@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     console.log(`Previous status: ${previousStatus}, Previous earnings: $${previousEarnings}`);
 
     // If submission was already approved and had earnings, we need to reverse them
-    if ((previousStatus === "approved" || previousStatus === "paid") && previousEarnings > 0) {
+    if ((previousStatus === "approved" || previousStatus === "paid" || previousStatus === "pending") && previousEarnings > 0) {
       console.log(`Reversing earnings of $${previousEarnings}`);
 
       // Reduce creator's wallet pending_balance

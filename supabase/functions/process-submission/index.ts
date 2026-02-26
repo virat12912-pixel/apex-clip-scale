@@ -10,6 +10,7 @@ interface ProcessSubmissionRequest {
   views: number;
   likes: number;
   comments: number;
+  set_status?: string; // optional: defaults to "approved", can be "pending" to keep status unchanged
 }
 
 Deno.serve(async (req) => {
@@ -22,7 +23,7 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { submission_id, views, likes, comments }: ProcessSubmissionRequest = await req.json();
+    const { submission_id, views, likes, comments, set_status }: ProcessSubmissionRequest = await req.json();
 
     if (!submission_id) {
       return new Response(
@@ -31,7 +32,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    console.log(`Processing submission ${submission_id} with views: ${views}, likes: ${likes}, comments: ${comments}`);
+    const targetStatus = set_status || "approved";
+    console.log(`Processing submission ${submission_id} with views: ${views}, likes: ${likes}, comments: ${comments}, status: ${targetStatus}`);
 
     // Get submission with campaign data
     const { data: submission, error: subError } = await supabase
@@ -56,7 +58,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if campaign is active
+    // Check if campaign is active (allow processing for active campaigns)
     if (campaign.status !== "active") {
       console.log(`Campaign ${campaign.id} is not active (status: ${campaign.status})`);
       return new Response(
@@ -103,7 +105,8 @@ Deno.serve(async (req) => {
           views: views,
           likes: likes,
           comments: comments,
-          submitted_views: views
+          submitted_views: views,
+          status: targetStatus,
         })
         .eq("id", submission_id);
       
@@ -144,7 +147,7 @@ Deno.serve(async (req) => {
         comments: comments,
         submitted_views: views,
         earnings: earnings,
-        status: "approved",
+        status: targetStatus,
       })
       .eq("id", submission_id);
 
@@ -207,12 +210,17 @@ Deno.serve(async (req) => {
 
     // Send notification to creator about earnings
     try {
+      const notifTitle = targetStatus === "pending" ? "Clip Submitted!" : "Clip Approved!";
+      const notifMessage = targetStatus === "pending"
+        ? `Your clip is pending review. Estimated earnings: $${earnings.toFixed(2)} from ${views.toLocaleString()} views on "${campaign.name}".`
+        : `Your clip earned $${earnings.toFixed(2)} from ${views.toLocaleString()} views on "${campaign.name}".`;
+      
       await supabase.functions.invoke("create-notification", {
         body: {
           user_id: submission.creator_id,
-          type: "earnings_updated",
-          title: "Clip Approved!",
-          message: `Your clip earned $${earnings.toFixed(2)} from ${views.toLocaleString()} views on "${campaign.name}".`,
+          type: targetStatus === "pending" ? "submission_pending" : "earnings_updated",
+          title: notifTitle,
+          message: notifMessage,
           related_id: submission_id,
         },
       });
