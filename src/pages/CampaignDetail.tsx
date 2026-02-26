@@ -457,12 +457,14 @@ const CampaignDetail = () => {
           </div>
 
           {/* Tabs for Submit / Leaderboard / Analytics */}
-          <Tabs defaultValue="submit" className="w-full">
-            <TabsList className={`w-full grid ${canManage ? 'grid-cols-3' : 'grid-cols-2'} mb-4`}>
-              <TabsTrigger value="submit" className="flex items-center gap-2">
-                <Plus className="h-4 w-4" />
-                Submit Clips
-              </TabsTrigger>
+          <Tabs defaultValue={isActive ? "submit" : "leaderboard"} className="w-full">
+            <TabsList className={`w-full grid ${isActive && !canManage ? 'grid-cols-2' : isActive && canManage ? 'grid-cols-3' : canManage ? 'grid-cols-2' : 'grid-cols-1'} mb-4`}>
+              {isActive && (
+                <TabsTrigger value="submit" className="flex items-center gap-2">
+                  <Plus className="h-4 w-4" />
+                  Submit Clips
+                </TabsTrigger>
+              )}
               <TabsTrigger value="leaderboard" className="flex items-center gap-2">
                 <Trophy className="h-4 w-4" />
                 Leaderboard
