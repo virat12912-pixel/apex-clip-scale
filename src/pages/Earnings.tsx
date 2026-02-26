@@ -1,9 +1,11 @@
 import { useMemo } from "react";
 import { AppLayout } from "@/components/app/AppLayout";
-import { DollarSign, TrendingUp, Clock, Eye, AlertCircle, ChevronRight, CheckCircle, XCircle, Film } from "lucide-react";
+import { DollarSign, TrendingUp, Clock, Eye, AlertCircle, ChevronRight, CheckCircle, XCircle, Film, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWallet, usePayouts, useRequestPayout } from "@/hooks/useWallet";
 import { useMySubmissions } from "@/hooks/useSubmissions";
+import { useMyFinalSubmissions } from "@/hooks/useFinalSubmissions";
+import { FinalSubmissionTimeline } from "@/components/campaigns/FinalSubmissionTimeline";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
@@ -28,6 +30,7 @@ const Earnings = () => {
   const { data: wallet, isLoading: walletLoading } = useWallet();
   const { data: payouts, isLoading: payoutsLoading } = usePayouts();
   const { data: submissions, isLoading: submissionsLoading } = useMySubmissions();
+  const { data: finalSubmissions } = useMyFinalSubmissions();
   const { profile } = useAuth();
   const requestPayout = useRequestPayout();
   const { toast } = useToast();
@@ -124,33 +127,58 @@ const Earnings = () => {
                   <EmptyState icon={Film} title="No campaigns joined yet" description="Start earning by joining a campaign and submitting clips" variant="gradient" action={{ label: "Browse Campaigns", onClick: () => window.location.href = "/campaigns" }} />
                 ) : (
                   <div className="space-y-3 stagger-enter">
-                    {campaignEarnings.map((campaign) => (
-                      <div key={campaign.campaign_id} className="p-4 rounded-xl bg-secondary/20 border border-border/20 hover:border-primary/15 transition-all duration-300 group">
-                        <div className="flex items-start justify-between mb-3">
-                          <div>
-                            <h4 className="font-display font-bold group-hover:text-primary transition-colors duration-200">{campaign.campaign_name}</h4>
-                            <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground/60">
-                              <span className="flex items-center gap-1"><CheckCircle className="h-3.5 w-3.5 text-emerald-400" />{campaign.approved_count} approved</span>
-                              {campaign.rejected_count > 0 && <span className="flex items-center gap-1"><XCircle className="h-3.5 w-3.5 text-red-400" />{campaign.rejected_count} rejected</span>}
-                              {campaign.pending_count > 0 && <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-yellow-400" />{campaign.pending_count} pending</span>}
+                    {campaignEarnings.map((campaign) => {
+                      const fs = finalSubmissions?.find(f => f.campaign_id === campaign.campaign_id);
+                      const fsStatus = fs?.status;
+                      const canRequestPayout = fs?.status === "approved" && !fs?.client_payment_received === false;
+                      const statusLabel = !fs ? "Posting" : fsStatus === "submitted" ? "Under Review" : fsStatus === "approved" ? "Approved" : fsStatus === "paid" ? "Paid" : fsStatus === "rejected" ? "Rejected" : "Posting";
+                      const statusColor = !fs ? "bg-blue-500/10 text-blue-400" : fsStatus === "submitted" || fsStatus === "under_review" ? "bg-yellow-500/10 text-yellow-400" : fsStatus === "approved" ? "bg-emerald-500/10 text-emerald-400" : fsStatus === "paid" ? "bg-primary/10 text-primary" : "bg-red-500/10 text-red-400";
+
+                      return (
+                        <div key={campaign.campaign_id} className="p-4 rounded-xl bg-secondary/20 border border-border/20 hover:border-primary/15 transition-all duration-300 group">
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <h4 className="font-display font-bold group-hover:text-primary transition-colors duration-200">{campaign.campaign_name}</h4>
+                              <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground/60">
+                                <span className="flex items-center gap-1"><CheckCircle className="h-3.5 w-3.5 text-emerald-400" />{campaign.approved_count} approved</span>
+                                {campaign.rejected_count > 0 && <span className="flex items-center gap-1"><XCircle className="h-3.5 w-3.5 text-red-400" />{campaign.rejected_count} rejected</span>}
+                                {campaign.pending_count > 0 && <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-yellow-400" />{campaign.pending_count} pending</span>}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-xl font-display font-bold text-primary">${campaign.total_earnings.toFixed(2)}</div>
+                              <div className="text-xs text-muted-foreground/40">{formatNumber(campaign.total_views)} views</div>
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className="text-xl font-display font-bold text-primary">${campaign.total_earnings.toFixed(2)}</div>
-                            <div className="text-xs text-muted-foreground/40">{formatNumber(campaign.total_views)} views</div>
+
+                          {/* Tracked vs Verified views */}
+                          {fs && (
+                            <div className="grid grid-cols-2 gap-2 mb-3">
+                              <div className="p-2 rounded-lg bg-secondary/30 border border-border/10">
+                                <div className="text-[10px] text-muted-foreground/40">Tracked Views</div>
+                                <div className="text-sm font-bold">{formatNumber(fs.tracked_views)}</div>
+                              </div>
+                              <div className="p-2 rounded-lg bg-secondary/30 border border-border/10">
+                                <div className="text-[10px] text-muted-foreground/40">Verified Views</div>
+                                <div className="text-sm font-bold">{fs.verified_views != null ? formatNumber(fs.verified_views) : "Pending"}</div>
+                              </div>
+                            </div>
+                          )}
+
+                          {fs && <FinalSubmissionTimeline status={fs.status} />}
+
+                          <SectionDivider variant="line" size="sm" />
+                          <div className="flex items-center justify-between">
+                            <span className={`px-2.5 py-1 rounded-lg text-xs font-medium ${statusColor}`}>
+                              {statusLabel}
+                            </span>
+                            <Link to={`/campaigns/${campaign.campaign_id}`} className="text-sm text-primary/70 hover:text-primary flex items-center gap-1 group/link transition-colors duration-200">
+                              View Campaign <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover/link:translate-x-0.5" />
+                            </Link>
                           </div>
                         </div>
-                        <SectionDivider variant="line" size="sm" />
-                        <div className="flex items-center justify-between">
-                          <span className={`px-2.5 py-1 rounded-lg text-xs font-medium ${campaign.is_eligible ? "bg-emerald-500/10 text-emerald-400" : "bg-secondary/50 text-muted-foreground/50"}`}>
-                            {campaign.is_eligible ? "Eligible for payout" : "Not eligible yet"}
-                          </span>
-                          <Link to={`/campaigns/${campaign.campaign_id}`} className="text-sm text-primary/70 hover:text-primary flex items-center gap-1 group/link transition-colors duration-200">
-                            View Campaign <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover/link:translate-x-0.5" />
-                          </Link>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </ElevatedCardContent>
