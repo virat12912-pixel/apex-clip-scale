@@ -78,6 +78,33 @@ function ReviewCard({ submission }: { submission: FinalSubmission }) {
         approved_at: new Date().toISOString(),
         admin_notes: notes || submission.admin_notes,
       });
+
+      // Adjust wallet: fetch old submission-based earnings for this campaign, replace with verified earnings
+      const { data: campaignSubmissions } = await supabase
+        .from("submissions")
+        .select("earnings")
+        .eq("campaign_id", submission.campaign_id)
+        .eq("creator_id", submission.user_id)
+        .in("status", ["approved", "paid"]);
+
+      const oldEarnings = campaignSubmissions?.reduce((sum, s) => sum + Number(s.earnings || 0), 0) || 0;
+      const earningsDiff = earnings - oldEarnings;
+
+      if (earningsDiff !== 0) {
+        const { data: wallet } = await supabase
+          .from("wallets")
+          .select("pending_balance")
+          .eq("user_id", submission.user_id)
+          .single();
+
+        if (wallet) {
+          await supabase
+            .from("wallets")
+            .update({ pending_balance: Math.max(0, Number(wallet.pending_balance) + earningsDiff) })
+            .eq("user_id", submission.user_id);
+        }
+      }
+
       // Send notification to clipper
       await supabase.functions.invoke("create-notification", {
         body: {
