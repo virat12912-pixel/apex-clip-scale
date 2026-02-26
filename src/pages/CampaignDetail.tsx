@@ -5,6 +5,7 @@ import { CampaignLeaderboard } from "@/components/campaigns/CampaignLeaderboard"
 import { CampaignExportButton } from "@/components/campaigns/CampaignExportButton";
 import { CampaignHealthBadge } from "@/components/dashboard/CampaignHealthBadge";
 import { FinalSubmissionForm } from "@/components/campaigns/FinalSubmissionForm";
+import { useFinalSubmission } from "@/hooks/useFinalSubmissions";
 import { useCampaignAnalytics } from "@/hooks/useCampaignAnalytics";
 import { ViewsChart } from "@/components/dashboard/ViewsChart";
 import { 
@@ -67,6 +68,7 @@ const CampaignDetail = () => {
   const { data: socialAccounts } = useMySocialAccounts();
   const { data: campaign, isLoading, refetch } = useCampaign(id || "");
   const { data: submissions } = useCampaignSubmissions(id || "");
+  const { data: finalSubmission, isLoading: isFinalSubmissionLoading } = useFinalSubmission(id || "");
   const { data: analyticsData } = useCampaignAnalytics(id, 30);
   const createSubmission = useCreateSubmission();
   const updateCampaign = useUpdateCampaign();
@@ -232,6 +234,43 @@ const CampaignDetail = () => {
   const isBudgetExhausted = budgetRemaining <= 0;
   const isOwner = user?.id === campaign.created_by;
   const canManage = isOwner || role === "admin";
+  const trackedViews = submissions?.filter((s) => s.status === "approved" || s.status === "paid").reduce((sum, s) => sum + Number(s.views || 0), 0) || 0;
+  const isCompletedCreatorView = role === "creator" && campaign.status === "completed";
+  const isFinalSubmissionApproved = finalSubmission?.status === "approved" || finalSubmission?.status === "paid";
+  const shouldShowFinalSubmissionOnly = isCompletedCreatorView && !isFinalSubmissionApproved;
+
+  if (isCompletedCreatorView && isFinalSubmissionLoading) {
+    return (
+      <AppLayout title={campaign.name}>
+        <Skeleton className="h-80" />
+      </AppLayout>
+    );
+  }
+
+  if (shouldShowFinalSubmissionOnly) {
+    return (
+      <AppLayout title={campaign.name}>
+        <div className="mb-6">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/campaigns")}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Campaigns
+          </Button>
+        </div>
+
+        <div className="max-w-3xl">
+          <FinalSubmissionForm
+            campaignId={id || ""}
+            campaignStatus={campaign.status}
+            trackedViews={trackedViews}
+          />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout title={campaign.name}>
@@ -540,14 +579,6 @@ const CampaignDetail = () => {
                 </div>
               )}
 
-              {/* Final Submission Form (when campaign ended) */}
-              {role === "creator" && (
-                <FinalSubmissionForm
-                  campaignId={id || ""}
-                  campaignStatus={campaign.status}
-                  trackedViews={submissions?.filter(s => s.status === "approved" || s.status === "paid").reduce((sum, s) => sum + Number(s.views || 0), 0) || 0}
-                />
-              )}
 
               {/* Submissions list (for brand/admin) */}
               {(role === "brand" || role === "admin") && submissions && submissions.length > 0 && (
