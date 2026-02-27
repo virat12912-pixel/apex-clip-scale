@@ -69,7 +69,7 @@ export function useMySubmissions() {
       const { data, error } = await supabase
         .from("submissions")
         .select(`
-          id, campaign_id, creator_id, clip_url, platform, views, earnings, status, created_at, updated_at,
+          id, campaign_id, creator_id, clip_url, platform, views, likes, comments, earnings, status, created_at, updated_at,
           campaign:campaigns(name, rate_value, rate_unit, status)
         `)
         .eq("creator_id", user.id)
@@ -90,7 +90,7 @@ export function useCampaignSubmissions(campaignId: string) {
       const { data, error } = await supabase
         .from("submissions")
         .select(`
-          id, campaign_id, creator_id, clip_url, platform, views, earnings, status, created_at, updated_at,
+          id, campaign_id, creator_id, clip_url, platform, views, likes, comments, earnings, status, created_at, updated_at,
           creator_profile:profiles!submissions_creator_id_fkey(full_name, email)
         `)
         .eq("campaign_id", campaignId)
