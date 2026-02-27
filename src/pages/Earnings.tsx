@@ -82,14 +82,14 @@ const Earnings = () => {
     return false;
   };
 
-  const hasPendingPayoutForCampaign = (campaignId: string) => {
-    return payouts?.some(p => (p.status === "pending" || p.status === "approved") && (p as any).campaign_id === campaignId);
+  const hasPendingOrPaidPayoutForCampaign = (campaignId: string) => {
+    return payouts?.some(p => (p.status === "pending" || p.status === "approved" || p.status === "paid") && (p as any).campaign_id === campaignId);
   };
 
   const handleRequestPayout = async (campaignId: string, amount: number) => {
     if (amount < 10) { toast({ title: "Minimum $10 required", variant: "destructive" }); return; }
     if (!hasPaymentDetails()) { toast({ title: "Payment details required", description: "Please add your payment details in your profile before requesting a payout", variant: "destructive" }); return; }
-    if (hasPendingPayoutForCampaign(campaignId)) { toast({ title: "Payout in progress", description: "You already have a payout request pending for this campaign", variant: "destructive" }); return; }
+    if (hasPendingOrPaidPayoutForCampaign(campaignId)) { toast({ title: "Payout already exists", description: "You already have a payout request for this campaign", variant: "destructive" }); return; }
     try {
       await requestPayout.mutateAsync({ amount, campaign_id: campaignId });
       toast({ title: "Payout requested" });
@@ -164,7 +164,7 @@ const Earnings = () => {
                     {campaignEarnings.map((campaign) => {
                       const fs = finalSubmissions?.find(f => f.campaign_id === campaign.campaign_id);
                       const fsStatus = fs?.status;
-                      const hasPending = hasPendingPayoutForCampaign(campaign.campaign_id);
+                      const hasPending = hasPendingOrPaidPayoutForCampaign(campaign.campaign_id);
                       const isCampaignLive = campaign.campaign_status === "active" || campaign.campaign_status === "paused" || campaign.campaign_status === "private";
                       const isCampaignCompleted = campaign.campaign_status === "completed";
                       const isFinalApproved = fsStatus === "approved";
@@ -178,9 +178,13 @@ const Earnings = () => {
                       let payoutButtonDisabled = true;
                       let payoutTooltip = "";
 
-                      if (isFinalPaid || hasPending) {
-                        payoutButtonLabel = hasPending ? "Payout Pending" : "Paid";
+                      if (hasPending) {
+                        const existingPayout = payouts?.find(p => (p as any).campaign_id === campaign.campaign_id);
+                        const isPaid = existingPayout?.status === "paid";
+                        const isPending = existingPayout?.status === "pending" || existingPayout?.status === "approved";
+                        payoutButtonLabel = isPaid ? "Paid" : isPending ? "Payout Pending" : "Payout Exists";
                         payoutButtonDisabled = true;
+                      } else if (isFinalPaid) {
                       } else if (isCampaignLive) {
                         payoutButtonLabel = "Request Payout";
                         payoutButtonDisabled = true;
