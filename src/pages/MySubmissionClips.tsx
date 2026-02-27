@@ -1,9 +1,10 @@
 import { useParams, Link } from "react-router-dom";
 import { AppLayout } from "@/components/app/AppLayout";
-import { useMySubmissions } from "@/hooks/useSubmissions";
+import { useMySubmissions, useDeleteSubmission } from "@/hooks/useSubmissions";
 import { useCampaign } from "@/hooks/useCampaigns";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import {
   ChevronRight,
   ExternalLink,
@@ -15,7 +16,18 @@ import {
   Camera,
   Play,
   Film,
+  Trash2,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const platformIcons: Record<string, React.ReactNode> = {
   tiktok: <Smartphone className="h-4 w-4" />,
@@ -27,20 +39,13 @@ const MySubmissionClips = () => {
   const { campaignId } = useParams<{ campaignId: string }>();
   const { data: allSubmissions, isLoading } = useMySubmissions();
   const { data: campaign } = useCampaign(campaignId || "");
+  const deleteSubmission = useDeleteSubmission();
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const submissions = useMemo(() => {
     if (!allSubmissions || !campaignId) return [];
     return allSubmissions.filter((s: any) => s.campaign_id === campaignId);
   }, [allSubmissions, campaignId]);
-
-  const totalViews = submissions.reduce((sum, s: any) => sum + Number(s.views || 0), 0);
-  const totalEarnings = submissions.reduce((sum, s: any) => sum + Number(s.earnings || 0), 0);
-
-  const formatNumber = (num: number) => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
-    if (num >= 1000) return (num / 1000).toFixed(1) + "K";
-    return num.toString();
-  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -54,6 +59,20 @@ const MySubmissionClips = () => {
     }
   };
 
+  const handleDelete = () => {
+    if (!deleteId) return;
+    deleteSubmission.mutate(deleteId, {
+      onSuccess: () => {
+        toast.success("Clip removed");
+        setDeleteId(null);
+      },
+      onError: () => {
+        toast.error("Failed to remove clip");
+        setDeleteId(null);
+      },
+    });
+  };
+
   return (
     <AppLayout title={campaign?.name || "Submissions"}>
       <div className="max-w-4xl mx-auto page-enter">
@@ -62,28 +81,6 @@ const MySubmissionClips = () => {
           <Link to="/my-submissions" className="hover:text-foreground transition-colors">My Submissions</Link>
           <ChevronRight className="h-4 w-4" />
           <span className="text-foreground font-display">{campaign?.name || "Campaign"}</span>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 mb-6 stagger-enter">
-          <div className="p-4 rounded-2xl bg-card/50 border border-border/30 text-center">
-            <div className="text-xl font-display font-bold">{submissions.length}</div>
-            <div className="text-xs text-muted-foreground">Clips</div>
-          </div>
-          <div className="p-4 rounded-2xl bg-card/50 border border-border/30 text-center">
-            <div className="text-xl font-display font-bold flex items-center justify-center gap-1">
-              <Eye className="h-4 w-4 text-muted-foreground" />
-              {formatNumber(totalViews)}
-            </div>
-            <div className="text-xs text-muted-foreground">Views</div>
-          </div>
-          <div className="p-4 rounded-2xl bg-card/50 border border-border/30 text-center">
-            <div className="text-xl font-display font-bold text-primary flex items-center justify-center gap-1">
-              <DollarSign className="h-4 w-4" />
-              {totalEarnings.toFixed(2)}
-            </div>
-            <div className="text-xs text-muted-foreground">Earnings</div>
-          </div>
         </div>
 
         {/* Clips List */}
@@ -130,7 +127,16 @@ const MySubmissionClips = () => {
                       </p>
                     </div>
                   </div>
-                  {getStatusBadge(sub.status)}
+                  <div className="flex items-center gap-2">
+                    {getStatusBadge(sub.status)}
+                    <button
+                      onClick={() => setDeleteId(sub.id)}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      title="Remove clip"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Stats Grid */}
@@ -173,6 +179,27 @@ const MySubmissionClips = () => {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove this clip?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove this submission. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteSubmission.isPending ? "Removing..." : "Remove"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 };
