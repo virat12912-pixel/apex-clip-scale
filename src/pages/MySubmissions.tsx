@@ -75,26 +75,6 @@ const MySubmissions = () => {
   return (
     <AppLayout title="My Submissions">
       <div className="page-enter">
-        {/* Summary Stats */}
-        <div className="grid sm:grid-cols-3 gap-4 mb-8 stagger-enter">
-          <div className="p-5 rounded-2xl bg-card/50 border border-border/30">
-            <div className="text-2xl font-display font-bold">{submissions?.length || 0}</div>
-            <div className="text-sm text-muted-foreground/60">Total Clips</div>
-          </div>
-          <div className="p-5 rounded-2xl bg-card/50 border border-border/30">
-            <div className="text-2xl font-display font-bold">
-              {formatNumber(submissions?.reduce((sum, s: any) => sum + Number(s.views || 0), 0) || 0)}
-            </div>
-            <div className="text-sm text-muted-foreground/60">Total Views</div>
-          </div>
-          <div className="p-5 rounded-2xl bg-card/50 border border-border/30">
-            <div className="text-2xl font-display font-bold text-primary">
-              ${(submissions?.reduce((sum, s: any) => sum + Number(s.earnings || 0), 0) || 0).toFixed(2)}
-            </div>
-            <div className="text-sm text-muted-foreground/60">Total Earnings</div>
-          </div>
-        </div>
-
         {/* Campaign List */}
         <h3 className="text-lg font-display font-bold mb-4 flex items-center gap-2">
           <Film className="h-5 w-5 text-primary" />
