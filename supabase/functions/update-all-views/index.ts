@@ -298,7 +298,7 @@ serve(async (req) => {
             likes: result.likes,
             comments: result.comments,
             earnings: newEarnings,
-            status: newEarnings > 0 ? "approved" : sub.status,
+            // Preserve current status - don't auto-approve
           })
           .eq("id", sub.id);
 

@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const targetStatus = set_status || "approved";
+    const targetStatus = set_status || "pending";
     console.log(`Processing submission ${submission_id} with views: ${views}, likes: ${likes}, comments: ${comments}, status: ${targetStatus}`);
 
     // Get submission with campaign data
