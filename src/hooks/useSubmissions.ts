@@ -206,11 +206,15 @@ async function fetchViewsForPlatform(
   maxRetries = 3,
   retryDelayMs = 1500
 ): Promise<ViewData> {
-  if (platform !== "tiktok" && platform !== "instagram") {
+  if (platform !== "tiktok" && platform !== "instagram" && platform !== "youtube") {
     return { views: 0, likes: 0, comments: 0, description: null };
   }
 
-  const functionName = platform === "instagram" ? "fetch-instagram-views" : "fetch-tiktok-views";
+  const functionName = platform === "instagram" 
+    ? "fetch-instagram-views" 
+    : platform === "youtube" 
+      ? "fetch-youtube-views" 
+      : "fetch-tiktok-views";
 
   let lastError: unknown = null;
 
@@ -325,8 +329,8 @@ export function useCreateSubmission() {
       const toInsert: any[] = [];
 
       for (const s of submissions) {
-        if (s.platform !== "tiktok" && s.platform !== "instagram") {
-          throw new Error("Auto-validation currently supports TikTok and Instagram only.");
+        if (s.platform !== "tiktok" && s.platform !== "instagram" && s.platform !== "youtube") {
+          throw new Error("Auto-validation currently supports TikTok, Instagram, and YouTube only.");
         }
 
         const campaignReq = campaignMap.get(s.campaign_id);

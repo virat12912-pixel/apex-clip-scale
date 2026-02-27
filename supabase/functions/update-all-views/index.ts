@@ -162,54 +162,53 @@ async function fetchTikTokViews(videoUrl: string, apiKey: string): Promise<TikTo
   }
 }
 
-interface InstagramResult {
-  views: number;
-  likes: number;
-  comments: number;
-}
-
-async function fetchInstagramViews(videoUrl: string, apiKey: string): Promise<InstagramResult | null> {
+async function fetchYouTubeViews(videoUrl: string, apiKey: string): Promise<{ views: number; likes: number; comments: number } | null> {
   try {
-    const reelId = extractInstagramReelId(videoUrl);
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtube\.com\/embed\/|youtube\.com\/v\/|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/i,
+      /^([a-zA-Z0-9_-]{11})$/,
+    ];
 
-    if (!reelId) {
-      console.error("Could not extract Instagram reel ID from:", videoUrl);
+    let videoId: string | null = null;
+    for (const pattern of patterns) {
+      const match = videoUrl.match(pattern);
+      if (match && match[1]) {
+        videoId = match[1];
+        break;
+      }
+    }
+
+    if (!videoId) {
+      console.error("Could not extract YouTube video ID from:", videoUrl);
       return null;
     }
 
-    const apiUrl = `https://instagram-scraper21.p.rapidapi.com/api/v1/post-info?code=${reelId}`;
-
-    const response = await fetch(apiUrl, {
-      method: "GET",
-      headers: {
-        "x-rapidapi-key": apiKey,
-        "x-rapidapi-host": "instagram-scraper21.p.rapidapi.com",
-      },
-    });
+    const apiUrl = `https://www.googleapis.com/youtube/v3/videos?part=statistics&id=${videoId}&key=${apiKey}`;
+    const response = await fetch(apiUrl, { method: "GET" });
 
     if (!response.ok) {
-      console.error("Instagram API error:", response.status);
+      console.error("YouTube API error:", response.status);
       return null;
     }
 
     const data = await response.json();
-    const postData = data?.data?.post;
-
-    if (!postData) {
-      console.error("No post data in Instagram response");
+    if (!data.items || data.items.length === 0) {
+      console.error("No video found in YouTube response");
       return null;
     }
 
+    const stats = data.items[0].statistics || {};
     return {
-      views: postData.video_view_count || 0,
-      likes: postData.edge_media_preview_like?.count || 0,
-      comments: postData.edge_media_preview_comment?.count || 0,
+      views: parseInt(stats.viewCount || "0", 10),
+      likes: parseInt(stats.likeCount || "0", 10),
+      comments: parseInt(stats.commentCount || "0", 10),
     };
   } catch (error) {
-    console.error("Instagram fetch error:", error);
+    console.error("YouTube fetch error:", error);
     return null;
   }
 }
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -221,6 +220,7 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const tiktokApiKey = Deno.env.get("TIKTOK_API_KEY");
     const instagramApiKey = Deno.env.get("INSTAGRAM_API_KEY");
+    const youtubeApiKey = Deno.env.get("YOUTUBE_API_KEY");
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -233,7 +233,7 @@ serve(async (req) => {
         "id, clip_url, platform, views, submitted_views, earnings, status, creator_id, campaign:campaigns(id, status, min_payout_views, rate_unit, rate_value, max_earnings_per_post, total_budget, spent_budget)",
       )
       .in("status", ["pending", "approved"])
-      .in("platform", ["tiktok", "instagram"]);
+      .in("platform", ["tiktok", "instagram", "youtube"]);
 
     if (fetchError) {
       console.error("Error fetching submissions:", fetchError);
@@ -256,6 +256,8 @@ serve(async (req) => {
         result = await fetchTikTokViews(sub.clip_url, tiktokApiKey);
       } else if (sub.platform === "instagram" && instagramApiKey) {
         result = await fetchInstagramViews(sub.clip_url, instagramApiKey);
+      } else if (sub.platform === "youtube" && youtubeApiKey) {
+        result = await fetchYouTubeViews(sub.clip_url, youtubeApiKey);
       }
 
       if (result && result.views > 0) {
