@@ -110,6 +110,86 @@ interface TikTokResult {
   comments: number;
 }
 
+// TikWM free API for TikTok video stats (no key needed)
+async function fetchViaTikWM(videoUrl: string): Promise<TikTokResult | null> {
+  try {
+    const response = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(videoUrl)}&count=12&cursor=0&web=1&hd=1`, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      },
+    });
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (data?.code !== 0 || !data?.data) return null;
+    const videoData = data.data;
+    return {
+      views: videoData.play_count || 0,
+      likes: videoData.digg_count || 0,
+      comments: videoData.comment_count || 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchTikTokViews(videoUrl: string, apiKey: string): Promise<TikTokResult | null> {
+  try {
+    let targetUrl = videoUrl;
+
+    if (isShortUrl(targetUrl)) {
+      targetUrl = await expandShortUrl(targetUrl);
+      console.log(`Expanded TikTok URL: ${videoUrl} -> ${targetUrl}`);
+    }
+
+    if (!targetUrl.startsWith("http")) {
+      targetUrl = "https://" + targetUrl;
+    }
+
+    // Method 1: Try TikWM free API
+    const tikwmResult = await fetchViaTikWM(targetUrl);
+    if (tikwmResult && tikwmResult.views > 0) {
+      return tikwmResult;
+    }
+
+    // Method 2: Fallback to RapidAPI
+    if (apiKey) {
+      const videoId = extractTikTokVideoId(targetUrl);
+      if (!videoId) return null;
+
+      const apiUrl = `https://tiktok-api-fast-reliable-data-scraper.p.rapidapi.com/video/${videoId}`;
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          "x-rapidapi-key": apiKey,
+          "x-rapidapi-host": "tiktok-api-fast-reliable-data-scraper.p.rapidapi.com",
+        },
+      });
+
+      if (!response.ok) {
+        await response.text();
+        return null;
+      }
+
+      const data = await response.json();
+      const awemeDetail = data?.data?.aweme_detail;
+      if (!awemeDetail) return null;
+      const statistics = awemeDetail.statistics || {};
+      return {
+        views: statistics.play_count || 0,
+        likes: statistics.digg_count || 0,
+        comments: statistics.comment_count || 0,
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error("TikTok fetch error:", error);
+    return null;
+  }
+}
+
 async function fetchTikTokViews(videoUrl: string, apiKey: string): Promise<TikTokResult | null> {
   try {
     let targetUrl = videoUrl;
@@ -120,42 +200,51 @@ async function fetchTikTokViews(videoUrl: string, apiKey: string): Promise<TikTo
       console.log(`Expanded TikTok URL: ${videoUrl} -> ${targetUrl}`);
     }
 
-    const videoId = extractTikTokVideoId(targetUrl);
-
-    if (!videoId) {
-      console.error("Could not extract TikTok video ID from:", targetUrl);
-      return null;
+    if (!targetUrl.startsWith("http")) {
+      targetUrl = "https://" + targetUrl;
     }
 
-    const apiUrl = `https://tiktok-api-fast-reliable-data-scraper.p.rapidapi.com/video/${videoId}`;
-
-    const response = await fetch(apiUrl, {
-      method: "GET",
-      headers: {
-        "x-rapidapi-key": apiKey,
-        "x-rapidapi-host": "tiktok-api-fast-reliable-data-scraper.p.rapidapi.com",
-      },
-    });
-
-    if (!response.ok) {
-      console.error("TikTok API error:", response.status);
-      return null;
+    // Method 1: Try scraping the page directly (FREE)
+    const scraped = await scrapeTikTokPage(targetUrl);
+    if (scraped && scraped.views > 0) {
+      return scraped;
     }
 
-    const data = await response.json();
-    const awemeDetail = data?.data?.aweme_detail;
+    // Method 2: Fallback to RapidAPI if key available
+    if (apiKey) {
+      const videoId = extractTikTokVideoId(targetUrl);
+      if (!videoId) {
+        console.error("Could not extract TikTok video ID from:", targetUrl);
+        return null;
+      }
 
-    if (!awemeDetail) {
-      console.error("No aweme_detail in TikTok response");
-      return null;
+      const apiUrl = `https://tiktok-api-fast-reliable-data-scraper.p.rapidapi.com/video/${videoId}`;
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          "x-rapidapi-key": apiKey,
+          "x-rapidapi-host": "tiktok-api-fast-reliable-data-scraper.p.rapidapi.com",
+        },
+      });
+
+      if (!response.ok) {
+        await response.text();
+        return null;
+      }
+
+      const data = await response.json();
+      const awemeDetail = data?.data?.aweme_detail;
+      if (!awemeDetail) return null;
+
+      const statistics = awemeDetail.statistics || {};
+      return {
+        views: statistics.play_count || 0,
+        likes: statistics.digg_count || 0,
+        comments: statistics.comment_count || 0,
+      };
     }
 
-    const statistics = awemeDetail.statistics || {};
-    return {
-      views: statistics.play_count || 0,
-      likes: statistics.digg_count || 0,
-      comments: statistics.comment_count || 0,
-    };
+    return null;
   } catch (error) {
     console.error("TikTok fetch error:", error);
     return null;
