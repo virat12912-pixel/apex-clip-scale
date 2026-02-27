@@ -190,63 +190,39 @@ async function fetchTikTokViews(videoUrl: string, apiKey: string): Promise<TikTo
   }
 }
 
-async function fetchTikTokViews(videoUrl: string, apiKey: string): Promise<TikTokResult | null> {
+async function fetchInstagramViews(clipUrl: string, apiKey: string): Promise<{ views: number; likes: number; comments: number } | null> {
   try {
-    let targetUrl = videoUrl;
-
-    // Expand short URLs first
-    if (isShortUrl(targetUrl)) {
-      targetUrl = await expandShortUrl(targetUrl);
-      console.log(`Expanded TikTok URL: ${videoUrl} -> ${targetUrl}`);
+    const reelId = extractInstagramReelId(clipUrl);
+    if (!reelId) {
+      console.error("Could not extract Instagram reel ID from:", clipUrl);
+      return null;
     }
 
-    if (!targetUrl.startsWith("http")) {
-      targetUrl = "https://" + targetUrl;
+    const apiUrl = `https://instagram-scraper21.p.rapidapi.com/api/v1/post-info?code=${reelId}`;
+    const response = await fetch(apiUrl, {
+      method: "GET",
+      headers: {
+        "x-rapidapi-key": apiKey,
+        "x-rapidapi-host": "instagram-scraper21.p.rapidapi.com",
+      },
+    });
+
+    if (!response.ok) {
+      console.error("Instagram API error:", response.status);
+      return null;
     }
 
-    // Method 1: Try scraping the page directly (FREE)
-    const scraped = await scrapeTikTokPage(targetUrl);
-    if (scraped && scraped.views > 0) {
-      return scraped;
-    }
+    const data = await response.json();
+    const postData = data?.data?.post;
+    if (!postData) return null;
 
-    // Method 2: Fallback to RapidAPI if key available
-    if (apiKey) {
-      const videoId = extractTikTokVideoId(targetUrl);
-      if (!videoId) {
-        console.error("Could not extract TikTok video ID from:", targetUrl);
-        return null;
-      }
-
-      const apiUrl = `https://tiktok-api-fast-reliable-data-scraper.p.rapidapi.com/video/${videoId}`;
-      const response = await fetch(apiUrl, {
-        method: "GET",
-        headers: {
-          "x-rapidapi-key": apiKey,
-          "x-rapidapi-host": "tiktok-api-fast-reliable-data-scraper.p.rapidapi.com",
-        },
-      });
-
-      if (!response.ok) {
-        await response.text();
-        return null;
-      }
-
-      const data = await response.json();
-      const awemeDetail = data?.data?.aweme_detail;
-      if (!awemeDetail) return null;
-
-      const statistics = awemeDetail.statistics || {};
-      return {
-        views: statistics.play_count || 0,
-        likes: statistics.digg_count || 0,
-        comments: statistics.comment_count || 0,
-      };
-    }
-
-    return null;
+    return {
+      views: postData.video_view_count || 0,
+      likes: postData.edge_media_preview_like?.count || 0,
+      comments: postData.edge_media_preview_comment?.count || 0,
+    };
   } catch (error) {
-    console.error("TikTok fetch error:", error);
+    console.error("Instagram fetch error:", error);
     return null;
   }
 }
