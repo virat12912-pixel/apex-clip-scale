@@ -34,12 +34,12 @@ Deno.serve(async (req) => {
 
     console.log(`Processing payout request for user ${user_id}: $${amount} campaign: ${campaign_id || "global"}`);
 
-    // Check for existing pending or approved payout for same campaign (prevent duplicates)
+    // Check for existing pending, approved, or paid payout for same campaign (prevent duplicates)
     let existingQuery = supabase
       .from("payouts")
       .select("id, amount, status")
       .eq("user_id", user_id)
-      .in("status", ["pending", "approved"]);
+      .in("status", ["pending", "approved", "paid"]);
 
     if (campaign_id) {
       existingQuery = existingQuery.eq("campaign_id", campaign_id);
@@ -54,8 +54,11 @@ Deno.serve(async (req) => {
 
     if (existingPayouts && existingPayouts.length > 0) {
       const status = existingPayouts[0].status;
+      const message = status === "paid" 
+        ? "You have already been paid for this campaign"
+        : `You already have a ${status} payout request for this campaign`;
       return new Response(
-        JSON.stringify({ error: `You already have a ${status} payout request for this campaign` }),
+        JSON.stringify({ error: message }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
