@@ -106,7 +106,7 @@ const SocialAccounts = () => {
   };
 
   const handleVerify = async (account: { id: string; platform: PlatformType; username: string; verification_code: string }) => {
-    if (account.platform === "youtube") { toast({ title: "YouTube verification", description: "YouTube auto-verification is not available yet.", variant: "destructive" }); return; }
+    
     setVerifyingId(account.id);
     try {
       await verifyAccount.mutateAsync({ id: account.id, platform: account.platform, username: account.username, verification_code: account.verification_code });
