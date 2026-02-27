@@ -3,7 +3,6 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { AppLayout } from "@/components/app/AppLayout";
 import { CampaignLeaderboard } from "@/components/campaigns/CampaignLeaderboard";
 import { CampaignExportButton } from "@/components/campaigns/CampaignExportButton";
-import { CampaignHealthBadge } from "@/components/dashboard/CampaignHealthBadge";
 import { FinalSubmissionForm } from "@/components/campaigns/FinalSubmissionForm";
 import { useFinalSubmission } from "@/hooks/useFinalSubmissions";
 import { useCampaignAnalytics } from "@/hooks/useCampaignAnalytics";
@@ -396,25 +395,10 @@ const CampaignDetail = () => {
             )}
 
             <div className="flex items-start justify-between mb-4">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-xl bg-gradient-primary flex items-center justify-center text-2xl font-bold text-primary-foreground overflow-hidden">
-                  {campaign.creator_profile?.avatar_url ? (
-                    <img src={campaign.creator_profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    campaign.creator_profile?.full_name?.charAt(0) || "C"
-                  )}
-                </div>
-                <div>
-                  <h1 className="text-2xl font-display font-bold">{campaign.name}</h1>
-                  <p className="text-muted-foreground">
-                    by {campaign.creator_profile?.full_name || "Creator"}
-                  </p>
-                </div>
+              <div>
+                <h1 className="text-2xl font-display font-bold">{campaign.name}</h1>
               </div>
               <div className="flex items-center gap-2">
-                {(campaign as any).health_status && (
-                  <CampaignHealthBadge status={(campaign as any).health_status} size="sm" />
-                )}
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                   isActive
                     ? "bg-emerald-500/10 text-emerald-400"
