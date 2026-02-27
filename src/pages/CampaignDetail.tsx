@@ -231,6 +231,8 @@ const CampaignDetail = () => {
 
   const isActive = campaign.status === "active";
   const budgetRemaining = Number(campaign.total_budget) - Number(campaign.spent_budget);
+  const budgetUsagePercent = Math.min((Number(campaign.spent_budget) / Number(campaign.total_budget)) * 100, 100);
+  const displayBudgetUsagePercent = budgetUsagePercent > 0 && budgetUsagePercent < 1 ? 1 : budgetUsagePercent;
   const isBudgetExhausted = budgetRemaining <= 0;
   const isOwner = user?.id === campaign.created_by;
   const canManage = isOwner || role === "admin";
@@ -749,7 +751,7 @@ const CampaignDetail = () => {
                 <div className="flex justify-between text-sm mb-2">
                   <span className="text-muted-foreground">Used</span>
                   <span className="font-medium">
-                    ${Number(campaign.spent_budget).toFixed(0)} / ${Number(campaign.total_budget).toFixed(0)}
+                    ${Number(campaign.spent_budget).toFixed(2)} / ${Number(campaign.total_budget).toFixed(2)}
                   </span>
                 </div>
                 <div className="h-3 bg-background rounded-full overflow-hidden">
@@ -757,7 +759,7 @@ const CampaignDetail = () => {
                     className={`h-full rounded-full transition-all ${
                       isBudgetExhausted ? "bg-red-500" : "bg-gradient-primary"
                     }`}
-                    style={{ width: `${Math.min((Number(campaign.spent_budget) / Number(campaign.total_budget)) * 100, 100)}%` }}
+                    style={{ width: `${displayBudgetUsagePercent}%` }}
                   />
                 </div>
               </div>
@@ -769,7 +771,7 @@ const CampaignDetail = () => {
               }`}>
                 <div className="text-sm text-muted-foreground">Remaining</div>
                 <div className={`text-2xl font-bold ${isBudgetExhausted ? "text-red-500" : "text-primary"}`}>
-                  ${budgetRemaining.toFixed(0)}
+                  ${budgetRemaining.toFixed(2)}
                 </div>
               </div>
             </div>
