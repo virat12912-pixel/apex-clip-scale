@@ -317,39 +317,6 @@ const Earnings = () => {
 
           {/* Payout History Section */}
           <div className="space-y-6">
-            <ElevatedCard variant="glass" className="rounded-2xl">
-              <ElevatedCardHeader>
-                <ElevatedCardTitle className="font-display">Wallet Summary</ElevatedCardTitle>
-              </ElevatedCardHeader>
-              <ElevatedCardContent className="space-y-3">
-                <div className="p-4 rounded-xl bg-primary/8 border border-primary/15">
-                  <div className="text-sm text-muted-foreground/60">Available Balance</div>
-                  <div className="text-3xl font-display font-bold text-primary">${(wallet?.pending_balance || 0).toFixed(2)}</div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="p-3 rounded-xl bg-secondary/30 border border-border/20">
-                    <div className="text-xs text-muted-foreground/50">Processing</div>
-                    <div className="font-display font-bold text-orange-400">${(wallet?.locked_earnings || 0).toFixed(2)}</div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-secondary/30 border border-border/20">
-                    <div className="text-xs text-muted-foreground/50">Paid Out</div>
-                    <div className="font-display font-bold text-primary">${(wallet?.paid_balance || 0).toFixed(2)}</div>
-                  </div>
-                </div>
-                {hasPaymentDetails() && (
-                  <div className="p-3 rounded-xl bg-secondary/30 border border-border/20">
-                    <div className="text-xs text-muted-foreground/50">Payment Method</div>
-                    <div className="font-display font-bold capitalize text-sm">
-                      {profile?.payout_method === "usdc_solana" ? "USDC (Solana)" : "PayPal"}
-                    </div>
-                    <div className="text-xs text-muted-foreground/40 font-mono truncate mt-0.5">
-                      {profile?.payout_method === "usdc_solana" ? profile?.solana_wallet_address : profile?.payout_email}
-                    </div>
-                  </div>
-                )}
-              </ElevatedCardContent>
-            </ElevatedCard>
-
             {payouts && payouts.length > 0 && (
               <ElevatedCard variant="spotlight" className="rounded-2xl">
                 <ElevatedCardHeader>
