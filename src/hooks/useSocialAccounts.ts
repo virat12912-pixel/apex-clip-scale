@@ -134,6 +134,8 @@ export function useVerifySocialAccount() {
         ? 'verify-instagram-bio' 
         : platform === 'tiktok'
         ? 'verify-tiktok-bio'
+        : platform === 'youtube'
+        ? 'verify-youtube-bio'
         : null;
 
       if (!functionName) {

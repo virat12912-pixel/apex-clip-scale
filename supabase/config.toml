@@ -36,5 +36,8 @@ verify_jwt = false
 [functions.reject-submission]
 verify_jwt = false
 
+[functions.verify-youtube-bio]
+verify_jwt = false
+
 [functions.admin-change-role]
 verify_jwt = false
