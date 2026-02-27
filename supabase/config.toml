@@ -9,6 +9,9 @@ verify_jwt = false
 [functions.fetch-instagram-views]
 verify_jwt = false
 
+[functions.fetch-youtube-views]
+verify_jwt = false
+
 [functions.update-all-views]
 verify_jwt = false
 
