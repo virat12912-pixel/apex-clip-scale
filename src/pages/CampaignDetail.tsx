@@ -235,7 +235,7 @@ const CampaignDetail = () => {
   const isBudgetExhausted = budgetRemaining <= 0;
   const isOwner = user?.id === campaign.created_by;
   const canManage = isOwner || role === "admin";
-  const trackedViews = submissions?.filter((s) => s.status === "approved" || s.status === "paid").reduce((sum, s) => sum + Number(s.views || 0), 0) || 0;
+  const trackedViews = submissions?.reduce((sum, s) => sum + Number(s.views || 0), 0) || 0;
   const isCompletedCreatorView = role === "creator" && campaign.status === "completed";
   const isFinalSubmissionApproved = finalSubmission?.status === "approved" || finalSubmission?.status === "paid";
   const hasFinalSubmission = !!finalSubmission;
