@@ -2,92 +2,149 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 interface TikTokRequest {
   video_url: string;
 }
 
-// Extract video ID from TikTok URL - handles full URLs only
+// Extract video ID from TikTok URL
 function extractVideoId(url: string): string | null {
   try {
     let cleanUrl = (url || "").trim();
     if (!cleanUrl) return null;
-
     if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
       cleanUrl = "https://" + cleanUrl;
     }
-
-    // Match pattern: /@username/video/NUMERIC_ID or /video/NUMERIC_ID
     const videoMatch = cleanUrl.match(/\/video\/(\d+)/);
-    if (videoMatch && videoMatch[1]) {
-      return videoMatch[1];
-    }
-
-    // Fallback: check if URL ends with numeric ID
+    if (videoMatch && videoMatch[1]) return videoMatch[1];
     const urlWithoutQuery = cleanUrl.split("?")[0];
     const parts = urlWithoutQuery.split("/");
     const lastPart = parts[parts.length - 1];
-
-    if (lastPart && /^\d{15,}$/.test(lastPart)) {
-      return lastPart;
-    }
-
+    if (lastPart && /^\d{15,}$/.test(lastPart)) return lastPart;
     return null;
   } catch {
     return null;
   }
 }
 
-// Check if URL is a short link that needs expansion
 function isShortUrl(url: string): boolean {
   return url.includes("vm.tiktok.com") || url.includes("vt.tiktok.com");
 }
 
 async function expandShortUrl(shortUrl: string): Promise<string> {
   let currentUrl = shortUrl;
-  const maxRedirects = 5;
-
-  // 1. Use a standard Android Mobile User-Agent
-  // This tricks TikTok into thinking we are a phone app, not a server script.
   const headers = {
-    "User-Agent":
-      "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
-    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.5",
+    "User-Agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
+    Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
   };
-
   try {
-    for (let i = 0; i < maxRedirects; i++) {
-      // 2. Use 'manual' redirect mode to inspect headers ourselves
-      const response = await fetch(currentUrl, {
-        method: "HEAD", // HEAD is faster and less likely to trigger 'human verification' pages
-        headers: headers,
-        redirect: "manual",
-      });
-
-      // 3. Check for Redirects (301, 302, 307, 308)
+    for (let i = 0; i < 5; i++) {
+      const response = await fetch(currentUrl, { method: "HEAD", headers, redirect: "manual" });
       if ([301, 302, 303, 307, 308].includes(response.status)) {
         const location = response.headers.get("location");
         if (location) {
-          // Handle relative URLs if necessary (rare for TikTok but good practice)
           currentUrl = new URL(location, currentUrl).href;
-          // If we found the long URL (contains /video/), we can stop early
           if (currentUrl.includes("/video/")) return currentUrl;
           continue;
         }
       }
-
-      // If we get a 200 OK, we stop.
       break;
     }
   } catch (error) {
     console.error("Expansion error:", error);
-    // Return the last known URL if fetch fails
   }
-
   return currentUrl;
+}
+
+// Method 1: TikWM free API (no key needed)
+async function fetchViaTikWM(videoUrl: string): Promise<{ views: number; likes: number; comments: number; author: string | null; description: string | null } | null> {
+  try {
+    console.log("Trying TikWM API...");
+    const response = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(videoUrl)}&count=12&cursor=0&web=1&hd=1`, {
+      method: "GET",
+      headers: {
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      },
+    });
+
+    if (!response.ok) {
+      console.error("TikWM API error:", response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    if (data?.code !== 0 || !data?.data) {
+      console.error("TikWM returned error:", data?.msg || "unknown");
+      return null;
+    }
+
+    const videoData = data.data;
+    console.log("TikWM success - views:", videoData.play_count);
+
+    return {
+      views: videoData.play_count || 0,
+      likes: videoData.digg_count || 0,
+      comments: videoData.comment_count || 0,
+      author: videoData.author?.unique_id || null,
+      description: videoData.title || null,
+    };
+  } catch (error) {
+    console.error("TikWM error:", error);
+    return null;
+  }
+}
+
+// Method 2: Fallback to RapidAPI if key is available
+async function fetchViaRapidApi(videoId: string, apiKey: string): Promise<{ views: number; likes: number; comments: number; author: string | null; description: string | null } | null> {
+  try {
+    console.log("Trying RapidAPI fallback...");
+    const apiUrl = `https://tiktok-api-fast-reliable-data-scraper.p.rapidapi.com/video/${videoId}`;
+    const response = await fetch(apiUrl, {
+      method: "GET",
+      headers: {
+        "x-rapidapi-key": apiKey,
+        "x-rapidapi-host": "tiktok-api-fast-reliable-data-scraper.p.rapidapi.com",
+      },
+    });
+    if (!response.ok) {
+      await response.text();
+      return null;
+    }
+    const data = await response.json();
+    const awemeDetail = data?.data?.aweme_detail;
+    if (!awemeDetail) return null;
+    const statistics = awemeDetail.statistics || {};
+    const author = awemeDetail.author || {};
+    return {
+      views: statistics.play_count || 0,
+      likes: statistics.digg_count || 0,
+      comments: statistics.comment_count || 0,
+      author: author.unique_id || author.nickname || null,
+      description: awemeDetail.desc || null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// Method 3: TikTok oEmbed (free, gets author info for verification even if stats fail)
+async function fetchOEmbed(videoUrl: string): Promise<{ author: string | null; description: string | null } | null> {
+  try {
+    const oembedUrl = `https://www.tiktok.com/oembed?url=${encodeURIComponent(videoUrl)}`;
+    const response = await fetch(oembedUrl);
+    if (!response.ok) return null;
+    const data = await response.json();
+    return {
+      author: data.author_name || null,
+      description: data.title || null,
+    };
+  } catch {
+    return null;
+  }
 }
 
 serve(async (req) => {
@@ -96,112 +153,82 @@ serve(async (req) => {
   }
 
   try {
-    const TIKTOK_API_KEY = Deno.env.get("TIKTOK_API_KEY");
+    const { video_url } = (await req.json()) as TikTokRequest;
 
-    if (!TIKTOK_API_KEY) {
-      console.error("TIKTOK_API_KEY is not configured");
-      return new Response(JSON.stringify({ error: "TikTok API not configured" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const requestData = (await req.json()) as TikTokRequest;
-    let targetUrl = requestData.video_url;
-
-    if (!targetUrl) {
+    if (!video_url) {
       return new Response(JSON.stringify({ error: "video_url is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    let targetUrl = video_url;
     console.log(`Original URL: ${targetUrl}`);
 
-    // Expand short URLs first
+    // Expand short URLs
     if (isShortUrl(targetUrl)) {
       targetUrl = await expandShortUrl(targetUrl);
-      console.log(`After expansion: ${targetUrl}`);
+      console.log(`Expanded URL: ${targetUrl}`);
     }
 
-    const videoId = extractVideoId(targetUrl);
+    if (!targetUrl.startsWith("http")) {
+      targetUrl = "https://" + targetUrl;
+    }
 
-    if (!videoId) {
-      console.error(`Could not extract video ID from: ${targetUrl}`);
+    // Method 1: Try TikWM free API
+    let result = await fetchViaTikWM(targetUrl);
+
+    // Method 2: If TikWM failed, try RapidAPI fallback
+    if (!result || result.views <= 0) {
+      const videoId = extractVideoId(targetUrl);
+      const tiktokApiKey = Deno.env.get("TIKTOK_API_KEY");
+
+      if (videoId && tiktokApiKey) {
+        result = await fetchViaRapidApi(videoId, tiktokApiKey);
+      }
+    }
+
+    // If we got stats, return them
+    if (result && result.views > 0) {
+      const response = {
+        success: true,
+        video_id: extractVideoId(targetUrl),
+        play_count: result.views,
+        like_count: result.likes,
+        comment_count: result.comments,
+        author: result.author,
+        description: result.description,
+      };
+
+      console.log("Result:", JSON.stringify(response));
+      return new Response(JSON.stringify(response), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // If we still don't have stats, try oEmbed for author info at least
+    const oembedData = await fetchOEmbed(targetUrl);
+    if (oembedData) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: "Could not extract video ID from URL. Please use the full TikTok video URL.",
-          error_code: "invalid_url",
+          error: "Could not fetch video stats. The video may be private or temporarily unavailable.",
+          error_code: "scrape_failed",
+          author: oembedData.author,
+          description: oembedData.description,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    console.log("Fetching TikTok data for video ID:", videoId);
-
-    const apiUrl = `https://tiktok-api-fast-reliable-data-scraper.p.rapidapi.com/video/${videoId}`;
-
-    const apiResponse = await fetch(apiUrl, {
-      method: "GET",
-      headers: {
-        "x-rapidapi-key": TIKTOK_API_KEY,
-        "x-rapidapi-host": "tiktok-api-fast-reliable-data-scraper.p.rapidapi.com",
-      },
-    });
-
-    if (!apiResponse.ok) {
-      const errorText = await apiResponse.text();
-      console.error("TikTok API error:", apiResponse.status, errorText);
-
-      const errorCode =
-        apiResponse.status === 403 ? "not_subscribed" : apiResponse.status === 429 ? "rate_limited" : "api_error";
-
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Failed to fetch TikTok data",
-          error_code: errorCode,
-          upstream_status: apiResponse.status,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    const data = await apiResponse.json();
-    console.log("TikTok API response received");
-
-    const awemeDetail = data?.data?.aweme_detail;
-
-    if (!awemeDetail) {
-      console.error("No aweme_detail in response:", JSON.stringify(data).slice(0, 500));
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: "Invalid API response structure",
-          error_code: "parse_error",
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    const statistics = awemeDetail.statistics || {};
-    const author = awemeDetail.author || {};
-
-    const result = {
-      success: true,
-      video_id: videoId,
-      play_count: statistics.play_count || 0,
-      like_count: statistics.digg_count || 0,
-      comment_count: statistics.comment_count || 0,
-      share_count: statistics.share_count || 0,
-      author: author.unique_id || author.nickname || null,
-      description: awemeDetail.desc || null,
-    };
-
-    console.log("Processed result:", JSON.stringify(result));
-
-    return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: "Could not fetch video data. Please check the URL and ensure the video is public.",
+        error_code: "scrape_failed",
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   } catch (error: unknown) {
     console.error("Error in fetch-tiktok-views:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
