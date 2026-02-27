@@ -93,33 +93,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if views meet minimum threshold
-    const minPayoutViews = campaign.min_payout_views || 1000;
-    if (views < minPayoutViews) {
-      console.log(`Views ${views} below minimum payout threshold ${minPayoutViews}`);
-      
-      // Update submission with views but no earnings yet
-      await supabase
-        .from("submissions")
-        .update({ 
-          views: views,
-          likes: likes,
-          comments: comments,
-          submitted_views: views,
-          status: targetStatus,
-        })
-        .eq("id", submission_id);
-      
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: `Views (${views}) below minimum payout threshold (${minPayoutViews})`,
-          earnings: 0,
-          views_updated: true
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // Note: We always calculate earnings regardless of min_payout_views.
+    // min_payout_views is only enforced at payout time (final submission review).
+    // If the campaign ends and views are still below threshold, earnings get reversed.
 
     // Calculate earnings: (views / rate_unit) * rate_value
     let earnings = (views / campaign.rate_unit) * campaign.rate_value;

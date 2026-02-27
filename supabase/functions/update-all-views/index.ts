@@ -333,27 +333,25 @@ serve(async (req) => {
         let newEarnings = previousEarnings;
         let shouldRecalculate = false;
 
-        // Only recalculate if views increased and campaign is active
-        if (campaign && campaign.status === "active" && result.views > previousViews) {
+        // Always recalculate earnings when views increase (no min_payout_views gate)
+        // min_payout_views is only enforced at campaign end or payout time
+        if (campaign && campaign.status === "active" && (result.views > previousViews || (previousEarnings === 0 && result.views > 0))) {
           shouldRecalculate = true;
-          const minPayoutViews = campaign.min_payout_views || 1000;
 
-          if (result.views >= minPayoutViews) {
-            // Calculate new earnings based on new views
-            newEarnings = (result.views / campaign.rate_unit) * campaign.rate_value;
+          // Calculate new earnings based on new views
+          newEarnings = (result.views / campaign.rate_unit) * campaign.rate_value;
 
-            // Apply max_earnings_per_post cap
-            if (campaign.max_earnings_per_post && newEarnings > campaign.max_earnings_per_post) {
-              newEarnings = Number(campaign.max_earnings_per_post);
-            }
+          // Apply max_earnings_per_post cap
+          if (campaign.max_earnings_per_post && newEarnings > campaign.max_earnings_per_post) {
+            newEarnings = Number(campaign.max_earnings_per_post);
+          }
 
-            // Check remaining budget
-            const remainingBudget = Number(campaign.total_budget) - Number(campaign.spent_budget);
-            const earningsDiff = newEarnings - previousEarnings;
+          // Check remaining budget
+          const remainingBudget = Number(campaign.total_budget) - Number(campaign.spent_budget);
+          const earningsDiff = newEarnings - previousEarnings;
 
-            if (earningsDiff > remainingBudget) {
-              newEarnings = previousEarnings + remainingBudget;
-            }
+          if (earningsDiff > remainingBudget) {
+            newEarnings = previousEarnings + remainingBudget;
           }
         }
 
@@ -426,7 +424,83 @@ serve(async (req) => {
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
 
-    console.log(`Daily update complete: ${successCount} success, ${errorCount} errors`);
+    console.log(`View update complete: ${successCount} success, ${errorCount} errors`);
+
+    // === Campaign-end cleanup ===
+    // For ended/completed campaigns, reverse earnings on submissions below min_payout_views
+    const { data: endedCampaigns } = await supabase
+      .from("campaigns")
+      .select("id, min_payout_views, rate_unit, rate_value, max_earnings_per_post, total_budget, spent_budget, end_date, status")
+      .or("status.eq.completed,end_date.lte." + new Date().toISOString());
+
+    let reversedCount = 0;
+
+    for (const campaign of endedCampaigns || []) {
+      const minPayoutViews = campaign.min_payout_views || 1000;
+
+      // Find submissions below threshold with earnings > 0
+      const { data: belowThresholdSubs } = await supabase
+        .from("submissions")
+        .select("id, views, earnings, creator_id")
+        .eq("campaign_id", campaign.id)
+        .in("status", ["pending", "approved"])
+        .gt("earnings", 0);
+
+      for (const sub of belowThresholdSubs || []) {
+        if (Number(sub.views) < minPayoutViews && Number(sub.earnings) > 0) {
+          const earningsToReverse = Number(sub.earnings);
+
+          // Zero out earnings on submission
+          await supabase
+            .from("submissions")
+            .update({ earnings: 0 })
+            .eq("id", sub.id);
+
+          // Reverse from creator's wallet
+          const { data: wallet } = await supabase
+            .from("wallets")
+            .select("pending_balance")
+            .eq("user_id", sub.creator_id)
+            .maybeSingle();
+
+          if (wallet) {
+            const newBalance = Math.max(0, Number(wallet.pending_balance) - earningsToReverse);
+            await supabase
+              .from("wallets")
+              .update({ pending_balance: newBalance })
+              .eq("user_id", sub.creator_id);
+          }
+
+          // Return to campaign budget
+          const newSpent = Math.max(0, Number(campaign.spent_budget) - earningsToReverse);
+          await supabase
+            .from("campaigns")
+            .update({ spent_budget: newSpent })
+            .eq("id", campaign.id);
+
+          // Update local reference for subsequent iterations
+          campaign.spent_budget = newSpent;
+
+          console.log(`Reversed $${earningsToReverse.toFixed(2)} for submission ${sub.id} (${sub.views} views < ${minPayoutViews} threshold, campaign ended)`);
+          reversedCount++;
+        }
+      }
+
+      // Mark as completed if still active and end_date passed
+      if (campaign.status === "active" && campaign.end_date && new Date(campaign.end_date) <= new Date()) {
+        await supabase
+          .from("campaigns")
+          .update({ status: "completed" })
+          .eq("id", campaign.id);
+        console.log(`Campaign ${campaign.id} end_date passed, marking as completed`);
+      }
+    }
+
+    if (reversedCount > 0) {
+      console.log(`Reversed earnings on ${reversedCount} submissions below threshold on ended campaigns`);
+    }
+
+    console.log(`Daily update complete: ${successCount} success, ${errorCount} errors, ${reversedCount} reversals`);
 
     return new Response(
       JSON.stringify({
