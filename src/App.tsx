@@ -14,6 +14,8 @@ import CampaignDetail from "./pages/CampaignDetail";
 import Launch from "./pages/Launch";
 import Profile from "./pages/Profile";
 import Earnings from "./pages/Earnings";
+import MySubmissions from "./pages/MySubmissions";
+import MySubmissionClips from "./pages/MySubmissionClips";
 import SocialAccounts from "./pages/SocialAccounts";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminSubmissions from "./pages/AdminSubmissions";
@@ -89,6 +91,16 @@ const App = () => (
             <Route path="/earnings" element={
               <ProtectedRoute>
                 <Earnings />
+              </ProtectedRoute>
+            } />
+            <Route path="/my-submissions" element={
+              <ProtectedRoute>
+                <MySubmissions />
+              </ProtectedRoute>
+            } />
+            <Route path="/my-submissions/:campaignId" element={
+              <ProtectedRoute>
+                <MySubmissionClips />
               </ProtectedRoute>
             } />
             <Route path="/social-accounts" element={

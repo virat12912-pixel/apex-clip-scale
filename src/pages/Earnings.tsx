@@ -238,35 +238,7 @@ const Earnings = () => {
                             </div>
                           </div>
 
-                          {/* Individual Submissions Tracking */}
-                          {(() => {
-                            const campaignSubs = submissions?.filter((s: any) => s.campaign_id === campaign.campaign_id) || [];
-                            if (campaignSubs.length === 0) return null;
-                            return (
-                              <div className="mb-3">
-                                <div className="text-[10px] text-muted-foreground/40 mb-1.5 uppercase tracking-wider">Submissions Tracking</div>
-                                <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
-                                  {campaignSubs.map((sub: any, idx: number) => (
-                                    <div key={sub.id} className="flex items-center justify-between p-2 rounded-lg bg-secondary/20 border border-border/10 text-xs">
-                                      <div className="flex items-center gap-2 min-w-0">
-                                        <span className="text-muted-foreground/50">#{idx + 1}</span>
-                                        <span className="capitalize text-muted-foreground/60">{sub.platform}</span>
-                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                                          sub.status === "approved" || sub.status === "paid" ? "bg-emerald-500/10 text-emerald-400" :
-                                          sub.status === "pending" ? "bg-yellow-500/10 text-yellow-400" :
-                                          "bg-red-500/10 text-red-400"
-                                        }`}>{sub.status}</span>
-                                      </div>
-                                      <div className="flex items-center gap-3 text-right">
-                                        <span className="text-muted-foreground/50">{formatNumber(Number(sub.views || 0))} views</span>
-                                        <span className="font-bold text-primary">${Number(sub.earnings || 0).toFixed(2)}</span>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })()}
+
 
                           {fs && <FinalSubmissionTimeline status={fs.status} />}
 

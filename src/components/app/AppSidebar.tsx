@@ -32,6 +32,7 @@ export function AppSidebar() {
     { title: "Settings", url: "/settings", icon: Settings },
   ] : [
     { title: "My Profile", url: "/profile", icon: User },
+    { title: "My Submissions", url: "/my-submissions", icon: FileText },
     { title: "Earnings", url: "/earnings", icon: DollarSign },
     { title: "Social Accounts", url: "/social-accounts", icon: Smartphone },
     { title: "Settings", url: "/settings", icon: Settings },
