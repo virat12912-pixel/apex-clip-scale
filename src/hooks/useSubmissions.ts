@@ -400,10 +400,9 @@ export function useCreateSubmission() {
 
       if (error) throw error;
 
-      // Immediately process each submission to calculate earnings, update wallet & budget
+      // Process each submission to calculate earnings, update wallet & budget
+      // Await all processing so onSuccess fires after budget/stats are updated
       for (const sub of insertedSubmissions) {
-        const key = `${sub.platform}:${sub.clip_url}`;
-        const vd = viewDataByKey.get(key);
         try {
           await supabase.functions.invoke("process-submission", {
             body: {
@@ -411,12 +410,11 @@ export function useCreateSubmission() {
               views: Number(sub.views || 0),
               likes: Number(sub.likes || 0),
               comments: Number(sub.comments || 0),
-              set_status: "pending", // keep pending for admin review
+              set_status: "pending",
             },
           });
         } catch (processError) {
           console.error("Failed to process submission:", processError);
-          // Non-fatal: submission is still created, just earnings not calculated yet
         }
       }
 
@@ -427,6 +425,8 @@ export function useCreateSubmission() {
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
       queryClient.invalidateQueries({ queryKey: ["campaign"] });
       queryClient.invalidateQueries({ queryKey: ["wallet"] });
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
     },
   });
 }
