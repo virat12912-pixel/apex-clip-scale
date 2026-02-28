@@ -192,6 +192,36 @@ async function fetchTikTokViews(videoUrl: string, apiKey: string): Promise<TikTo
 
 async function fetchInstagramViews(clipUrl: string, apiKey: string): Promise<{ views: number; likes: number; comments: number } | null> {
   try {
+    // Primary path: reuse dedicated scraper function (includes free fallbacks)
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
+
+    if (supabaseUrl && supabaseAnonKey) {
+      const fnResponse = await fetch(`${supabaseUrl}/functions/v1/fetch-instagram-views`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "apikey": supabaseAnonKey,
+          "Authorization": `Bearer ${supabaseAnonKey}`,
+        },
+        body: JSON.stringify({ video_url: clipUrl }),
+      });
+
+      if (fnResponse.ok) {
+        const fnData = await fnResponse.json();
+        if (fnData?.success && Number(fnData.play_count) > 0) {
+          return {
+            views: Number(fnData.play_count || 0),
+            likes: Number(fnData.like_count || 0),
+            comments: Number(fnData.comment_count || 0),
+          };
+        }
+      } else {
+        await fnResponse.text();
+      }
+    }
+
+    // Fallback path: direct RapidAPI request
     const reelId = extractInstagramReelId(clipUrl);
     if (!reelId) {
       console.error("Could not extract Instagram reel ID from:", clipUrl);
@@ -208,7 +238,8 @@ async function fetchInstagramViews(clipUrl: string, apiKey: string): Promise<{ v
     });
 
     if (!response.ok) {
-      console.error("Instagram API error:", response.status);
+      const errorText = await response.text();
+      console.error("Instagram API error:", response.status, errorText);
       return null;
     }
 
