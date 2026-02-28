@@ -327,13 +327,67 @@ async function fetchViaJinaProxy(shortcode: string): Promise<ScrapedResult | nul
   return null;
 }
 
-// ─── Method 6: RapidAPI (paid fallback with retry/backoff) ──────────────
+// ─── Method 6: Alternative RapidAPI scraper (different provider/quota) ──
+async function fetchViaRapidApiAlt(shortcode: string, apiKey: string): Promise<RapidApiFetchResult> {
+  try {
+    console.log("Trying alternative RapidAPI scraper (instagram-scraper)...");
+
+    const apiUrl = `https://instagram-scraper.p.rapidapi.com/v1/instagram/media/${shortcode}`;
+    const response = await fetch(apiUrl, {
+      method: "GET",
+      headers: {
+        "x-rapidapi-key": apiKey,
+        "x-rapidapi-host": "instagram-scraper.p.rapidapi.com",
+      },
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      // This API returns data in various formats, try common patterns
+      const item = data?.data || data?.graphql?.shortcode_media || data?.items?.[0] || data;
+
+      if (!item) {
+        console.error("No data from alt RapidAPI scraper");
+        return { result: null, errorCode: "api_error" };
+      }
+
+      const result: ScrapedResult = {
+        views: item.video_view_count || item.video_play_count || item.play_count || item.view_count || 0,
+        likes: item.like_count || item.edge_media_preview_like?.count || 0,
+        comments: item.comment_count || item.edge_media_preview_comment?.count || 0,
+        author: item.user?.username || item.owner?.username || null,
+        description: item.caption?.text || item.edge_media_to_caption?.edges?.[0]?.node?.text || null,
+      };
+
+      if (result.views > 0 || result.author) {
+        console.log("Alt RapidAPI success - views:", result.views, "author:", result.author);
+        return { result };
+      }
+
+      return { result: null, errorCode: "api_error" };
+    }
+
+    const errorText = await response.text();
+    console.error("Alt RapidAPI error:", response.status, errorText);
+
+    if (/monthly quota|exceeded.*quota|upgrade your plan/i.test(errorText)) {
+      return { result: null, errorCode: "quota_exceeded" };
+    }
+
+    return { result: null, errorCode: response.status === 429 ? "rate_limited" : "api_error" };
+  } catch (error) {
+    console.error("Alt RapidAPI error:", error);
+    return { result: null, errorCode: "api_error" };
+  }
+}
+
+// ─── Method 7: RapidAPI instagram-scraper21 (paid fallback with retry/backoff) ─
 async function fetchViaRapidApi(shortcode: string, apiKey: string): Promise<RapidApiFetchResult> {
-  const maxRetries = 3;
+  const maxRetries = 2;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      console.log(`Trying RapidAPI fallback (attempt ${attempt}/${maxRetries})...`);
+      console.log(`Trying RapidAPI instagram-scraper21 (attempt ${attempt}/${maxRetries})...`);
 
       const apiUrl = `https://instagram-scraper21.p.rapidapi.com/api/v1/post-info?code=${shortcode}`;
       const response = await fetch(apiUrl, {
@@ -365,12 +419,12 @@ async function fetchViaRapidApi(shortcode: string, apiKey: string): Promise<Rapi
           description: caption,
         };
 
-        console.log("RapidAPI success - views:", result.views, "author:", result.author);
+        console.log("RapidAPI scraper21 success - views:", result.views, "author:", result.author);
         return { result };
       }
 
       const errorText = await response.text();
-      console.error("RapidAPI error:", response.status, errorText);
+      console.error("RapidAPI scraper21 error:", response.status, errorText);
 
       const quotaExceeded = /monthly quota|exceeded.*quota|credits|upgrade your plan/i.test(errorText);
       if (response.status === 429 && quotaExceeded) {
@@ -381,22 +435,16 @@ async function fetchViaRapidApi(shortcode: string, apiKey: string): Promise<Rapi
         return { result: null, errorCode: "api_error" };
       }
 
-      if (response.status === 429 && attempt < maxRetries) {
+      if (attempt < maxRetries) {
         const retryAfterMs = parseRetryAfterMs(response.headers.get("retry-after"));
         const backoffMs = Math.pow(2, attempt) * 1000 + Math.floor(Math.random() * 700);
         await sleep(retryAfterMs > 0 ? retryAfterMs : backoffMs);
         continue;
       }
 
-      if (attempt < maxRetries) {
-        const backoffMs = Math.pow(2, attempt) * 1000 + Math.floor(Math.random() * 700);
-        await sleep(backoffMs);
-        continue;
-      }
-
       return { result: null, errorCode: response.status === 429 ? "rate_limited" : "api_error" };
     } catch (error) {
-      console.error("RapidAPI error:", error);
+      console.error("RapidAPI scraper21 error:", error);
       if (attempt < maxRetries) {
         const backoffMs = Math.pow(2, attempt) * 1000 + Math.floor(Math.random() * 700);
         await sleep(backoffMs);
@@ -494,15 +542,25 @@ serve(async (req) => {
     }
 
     let rapidApiErrorCode: RapidApiFetchResult["errorCode"];
-    if (!result || result.views <= 0) {
-      const apiKey = Deno.env.get("INSTAGRAM_API_KEY");
-      if (apiKey) {
-        const rapidApiResult = await fetchViaRapidApi(reelId, apiKey);
-        rapidApiErrorCode = rapidApiResult.errorCode;
+    const apiKey = Deno.env.get("INSTAGRAM_API_KEY");
 
-        if (rapidApiResult.result && (rapidApiResult.result.views > 0 || rapidApiResult.result.author)) {
-          result = rapidApiResult.result;
-        }
+    // Method 6: Try alternative RapidAPI scraper first (separate quota)
+    if ((!result || result.views <= 0) && apiKey) {
+      const altResult = await fetchViaRapidApiAlt(reelId, apiKey);
+      rapidApiErrorCode = altResult.errorCode;
+
+      if (altResult.result && (altResult.result.views > 0 || altResult.result.author)) {
+        result = altResult.result;
+      }
+    }
+
+    // Method 7: Try original RapidAPI scraper21 as final fallback
+    if ((!result || result.views <= 0) && apiKey) {
+      const rapidApiResult = await fetchViaRapidApi(reelId, apiKey);
+      rapidApiErrorCode = rapidApiResult.errorCode;
+
+      if (rapidApiResult.result && (rapidApiResult.result.views > 0 || rapidApiResult.result.author)) {
+        result = rapidApiResult.result;
       }
     }
 
