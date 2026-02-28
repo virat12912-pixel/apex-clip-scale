@@ -198,6 +198,20 @@ Deno.serve(async (req) => {
         throw updatePayoutError;
       }
 
+      // Update final_submission status to "paid" if this payout is campaign-specific
+      if (payout.campaign_id) {
+        const { error: fsUpdateError } = await supabase
+          .from("final_submissions")
+          .update({ status: "paid", paid_at: new Date().toISOString() })
+          .eq("user_id", payout.user_id)
+          .eq("campaign_id", payout.campaign_id)
+          .eq("status", "approved");
+
+        if (fsUpdateError) {
+          console.warn(`Failed to update final_submission status to paid:`, fsUpdateError);
+        }
+      }
+
       if (amountToMove < payoutAmount) {
         console.warn(
           `Payout ${payout_id}: locked balance (${lockedBefore}) was below payout amount (${payoutAmount}). Moved ${amountToMove}.`
