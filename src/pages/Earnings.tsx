@@ -87,6 +87,7 @@ const Earnings = () => {
   };
 
   const handleRequestPayout = async (campaignId: string, amount: number) => {
+    if (requestPayout.isPending) return;
     if (amount < 10) { toast({ title: "Minimum $10 required", variant: "destructive" }); return; }
     if (!hasPaymentDetails()) { toast({ title: "Payment details required", description: "Please add your payment details in your profile before requesting a payout", variant: "destructive" }); return; }
     if (hasPendingOrPaidPayoutForCampaign(campaignId)) { toast({ title: "Payout already exists", description: "You already have a payout request for this campaign", variant: "destructive" }); return; }
@@ -251,13 +252,13 @@ const Earnings = () => {
                             <Button
                               size="sm"
                               onClick={handlePayoutClick}
-                              disabled={payoutButtonDisabled && !isCampaignLive && !(isCampaignCompleted && !isFinalApproved)}
+                              disabled={requestPayout.isPending || (payoutButtonDisabled && !isCampaignLive && !(isCampaignCompleted && !isFinalApproved))}
                               className={`w-full rounded-lg font-display font-bold h-10 text-sm ${
-                                canRequestPayout
+                                canRequestPayout && !requestPayout.isPending
                                   ? "bg-gradient-primary hover:opacity-90"
                                   : isCampaignCompleted && !isFinalApproved && !isFinalPaid
                                   ? "bg-primary/80 hover:bg-primary text-primary-foreground"
-                                  : hasPending || isFinalPaid
+                                  : hasPending || isFinalPaid || requestPayout.isPending
                                   ? "bg-muted text-muted-foreground cursor-not-allowed"
                                   : "bg-muted text-muted-foreground"
                               }`}
@@ -265,8 +266,8 @@ const Earnings = () => {
                               {isCampaignLive && <Lock className="h-3.5 w-3.5 mr-1.5" />}
                               {hasPending && <Lock className="h-3.5 w-3.5 mr-1.5" />}
                               {isCampaignCompleted && !isFinalApproved && !isFinalPaid && !hasPending && <Eye className="h-3.5 w-3.5 mr-1.5" />}
-                              {canRequestPayout && <DollarSign className="h-3.5 w-3.5 mr-1.5" />}
-                              {payoutButtonLabel}
+                              {canRequestPayout && !requestPayout.isPending && <DollarSign className="h-3.5 w-3.5 mr-1.5" />}
+                              {requestPayout.isPending && canRequestPayout ? "Requesting..." : payoutButtonLabel}
                             </Button>
                             {payoutTooltip && !canRequestPayout && !hasPending && !isFinalPaid && (
                               <p className="text-[10px] text-muted-foreground/50 text-center mt-1.5">{payoutTooltip}</p>
