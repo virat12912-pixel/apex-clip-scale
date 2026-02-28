@@ -13,7 +13,7 @@ const AdminPayouts = () => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const handleAction = async (id: string, action: "approve" | "pay" | "reject") => {
+  const handleAction = async (id: string, action: "approve" | "paid" | "reject") => {
     try {
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-payout`,
@@ -29,7 +29,7 @@ const AdminPayouts = () => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Failed to process payout");
       queryClient.invalidateQueries({ queryKey: ["payouts"] });
-      toast({ title: `Payout ${action === "pay" ? "paid" : action + "d"}` });
+      toast({ title: `Payout ${action === "paid" ? "paid" : action + "d"}` });
     } catch (error: unknown) {
       logError("AdminPayouts:handleAction", error);
       toast({ title: "Error", description: mapErrorToUserMessage(error), variant: "destructive" });
@@ -130,7 +130,7 @@ const AdminPayouts = () => {
                       </>
                     )}
                     {payout.status === "approved" && (
-                      <Button size="sm" onClick={() => handleAction(payout.id, "pay")} className="bg-gradient-primary hover:opacity-90 rounded-xl btn-shimmer text-xs">
+                      <Button size="sm" onClick={() => handleAction(payout.id, "paid")} className="bg-gradient-primary hover:opacity-90 rounded-xl btn-shimmer text-xs">
                         <DollarSign className="h-3.5 w-3.5 mr-1" /> Mark Paid
                       </Button>
                     )}
