@@ -37,9 +37,11 @@ const Earnings = () => {
   const { toast } = useToast();
 
   const campaignEarnings = useMemo(() => {
-    if (!submissions) return [];
+    if (!submissions && !finalSubmissions) return [];
     const grouped = new Map<string, CampaignEarnings>();
-    submissions.forEach((sub: any) => {
+
+    // Build from regular submissions
+    (submissions || []).forEach((sub: any) => {
       const campaignId = sub.campaign_id;
       const campaignName = sub.campaign?.name || "Unknown Campaign";
       const campaignStatus = sub.campaign?.status || "active";
@@ -56,6 +58,24 @@ const Earnings = () => {
         entry.pending_count += 1;
         entry.total_views += Number(sub.views || 0);
         entry.total_earnings += Number(sub.earnings || 0);
+      }
+    });
+
+    // Merge final submissions — add campaigns that don't exist from regular submissions
+    (finalSubmissions || []).forEach((fs) => {
+      if (!grouped.has(fs.campaign_id)) {
+        grouped.set(fs.campaign_id, {
+          campaign_id: fs.campaign_id,
+          campaign_name: fs.campaign?.name || "Unknown Campaign",
+          campaign_status: fs.campaign?.status || "completed",
+          approved_count: 1, // They must have had approved clips to reach final submission
+          rejected_count: 0,
+          pending_count: 0,
+          total_views: Number(fs.tracked_views || 0),
+          total_earnings: Number(fs.final_earnings || 0),
+          min_payout_views: 1000,
+          is_eligible: false,
+        });
       }
     });
 
