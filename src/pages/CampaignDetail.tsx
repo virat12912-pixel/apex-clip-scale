@@ -236,7 +236,8 @@ const CampaignDetail = () => {
   const isOwner = user?.id === campaign.created_by;
   const canManage = isOwner || role === "admin";
   const trackedViews = submissions?.reduce((sum, s) => sum + Number(s.views || 0), 0) || 0;
-  const isCompletedCreatorView = role === "creator" && campaign.status === "completed";
+  const isCreatorOrClipper = role === "creator" || role === "clipper";
+  const isCompletedCreatorView = isCreatorOrClipper && campaign.status === "completed";
   const isFinalSubmissionApproved = finalSubmission?.status === "approved" || finalSubmission?.status === "paid";
   const hasFinalSubmission = !!finalSubmission;
   // Check if this creator has any submissions in this campaign
@@ -467,7 +468,7 @@ const CampaignDetail = () => {
 
             <TabsContent value="submit" className="space-y-6">
               {/* Submit clips (for creators) */}
-              {role === "creator" && isActive && !isBudgetExhausted && (
+              {isCreatorOrClipper && isActive && !isBudgetExhausted && (
             <div className="p-6 rounded-2xl bg-card/50 border border-border/30">
                   <h3 className="text-lg font-display font-bold mb-4">Submit Your Clips</h3>
 
@@ -570,7 +571,7 @@ const CampaignDetail = () => {
               )}
 
               {/* Budget Exhausted Notice */}
-              {role === "creator" && isBudgetExhausted && (
+              {isCreatorOrClipper && isBudgetExhausted && (
                 <div className="p-6 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
                   <div className="flex items-center gap-3">
                     <AlertCircle className="h-6 w-6 text-yellow-500" />
@@ -585,7 +586,7 @@ const CampaignDetail = () => {
               )}
 
               {/* Campaign Paused Notice */}
-              {role === "creator" && campaign.status === "paused" && (
+              {isCreatorOrClipper && campaign.status === "paused" && (
                 <div className="p-6 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
                   <div className="flex items-center gap-3">
                     <Pause className="h-6 w-6 text-yellow-500" />

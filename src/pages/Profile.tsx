@@ -62,7 +62,8 @@ const Profile = () => {
       };
       if (formData.payout_method === "paypal") { updateData.payout_email = formData.payout_email.trim(); }
       else if (formData.payout_method === "usdc_solana") { updateData.solana_wallet_address = formData.solana_wallet_address.trim(); }
-      const { error } = await supabase.from("profiles").update(updateData).eq("id", profile?.id);
+      if (!user?.id) throw new Error("Not authenticated");
+      const { error } = await supabase.from("profiles").update(updateData).eq("id", user.id);
       if (error) throw error;
       await refreshProfile();
       setIsEditing(false);
