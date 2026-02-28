@@ -347,6 +347,16 @@ const CampaignDetail = () => {
                 Resume
               </Button>
             )}
+            {campaign.status === "completed" && role === "admin" && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleStatusChange("active")}
+              >
+                <Play className="h-4 w-4 mr-1" />
+                Reactivate
+              </Button>
+            )}
             {(campaign.status === "active" || campaign.status === "paused") && (
               <Button
                 size="sm"
