@@ -332,18 +332,17 @@ export function useCreateSubmission() {
         if (!campaignMap.get(s.campaign_id)) throw new Error("Campaign not found for submission.");
       }
 
-      // Fetch views for ALL submissions in parallel for speed
-      const viewResults = await Promise.all(
-        submissions.map(async (s) => {
-          const viewData = await fetchViewsForPlatform(s.clip_url, s.platform);
-          return { submission: s, viewData };
-        })
-      );
-
-      // Validate each result
+      // Fetch views SEQUENTIALLY to avoid API rate-limiting returning wrong data
       const toInsert: any[] = [];
-      for (const { submission: s, viewData } of viewResults) {
+      for (const s of submissions) {
         const campaignReq = campaignMap.get(s.campaign_id)!;
+
+        // Add a small delay between API calls to avoid rate limits
+        if (toInsert.length > 0) {
+          await sleep(1000);
+        }
+
+        const viewData = await fetchViewsForPlatform(s.clip_url, s.platform, 3, 2000);
 
         if (viewData.views <= 0) {
           throw new Error(`Could not fetch views for ${s.clip_url}. Please double-check the URL and try again.`);
@@ -355,7 +354,6 @@ export function useCreateSubmission() {
           );
         }
 
-        // Validate that the clip author matches a verified account
         if (viewData.author) {
           const normalizedAuthor = viewData.author.toLowerCase().replace(/^@/, '');
           const hasVerifiedAccount = verifiedAccounts.some(
