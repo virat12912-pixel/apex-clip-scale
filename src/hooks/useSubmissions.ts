@@ -324,22 +324,29 @@ export function useCreateSubmission() {
         ]),
       );
 
-      // Validate each submission by fetching current stats + caption
-      const viewDataByKey = new Map<string, ViewData>();
-      const toInsert: any[] = [];
-
+      // Pre-validate platforms
       for (const s of submissions) {
         if (s.platform !== "tiktok" && s.platform !== "instagram" && s.platform !== "youtube") {
           throw new Error("Auto-validation currently supports TikTok, Instagram, and YouTube only.");
         }
+        if (!campaignMap.get(s.campaign_id)) throw new Error("Campaign not found for submission.");
+      }
 
-        const campaignReq = campaignMap.get(s.campaign_id);
-        if (!campaignReq) throw new Error("Campaign not found for submission.");
+      // Fetch views for ALL submissions in parallel for speed
+      const viewResults = await Promise.all(
+        submissions.map(async (s) => {
+          const viewData = await fetchViewsForPlatform(s.clip_url, s.platform);
+          return { submission: s, viewData };
+        })
+      );
 
-        const viewData = await fetchViewsForPlatform(s.clip_url, s.platform);
+      // Validate each result
+      const toInsert: any[] = [];
+      for (const { submission: s, viewData } of viewResults) {
+        const campaignReq = campaignMap.get(s.campaign_id)!;
 
         if (viewData.views <= 0) {
-          throw new Error("Could not fetch views for this clip. Please double-check the URL and try again.");
+          throw new Error(`Could not fetch views for ${s.clip_url}. Please double-check the URL and try again.`);
         }
 
         if (viewData.views < campaignReq.min_views) {
@@ -365,7 +372,6 @@ export function useCreateSubmission() {
             );
           }
         } else {
-          // If we couldn't get the author, we cannot verify ownership
           throw new Error(
             `Could not verify the clip author. Please ensure the video is public and try again.`
           );
@@ -384,9 +390,6 @@ export function useCreateSubmission() {
           throw new Error(parts.join(". "));
         }
 
-        const key = `${s.platform}:${s.clip_url}`;
-        viewDataByKey.set(key, viewData);
-
         toInsert.push({
           ...s,
           creator_id: user.id,
@@ -404,23 +407,24 @@ export function useCreateSubmission() {
 
       if (error) throw error;
 
-      // Process each submission to calculate earnings, update wallet & budget
-      // Await all processing so onSuccess fires after budget/stats are updated
-      for (const sub of insertedSubmissions) {
-        try {
-          await supabase.functions.invoke("process-submission", {
-            body: {
-              submission_id: sub.id,
-              views: Number(sub.views || 0),
-              likes: Number(sub.likes || 0),
-              comments: Number(sub.comments || 0),
-              set_status: "pending",
-            },
-          });
-        } catch (processError) {
-          console.error("Failed to process submission:", processError);
-        }
-      }
+      // Process all submissions in parallel for speed
+      await Promise.all(
+        insertedSubmissions.map(async (sub) => {
+          try {
+            await supabase.functions.invoke("process-submission", {
+              body: {
+                submission_id: sub.id,
+                views: Number(sub.views || 0),
+                likes: Number(sub.likes || 0),
+                comments: Number(sub.comments || 0),
+                set_status: "pending",
+              },
+            });
+          } catch (processError) {
+            console.error("Failed to process submission:", processError);
+          }
+        })
+      );
 
       return insertedSubmissions;
     },
