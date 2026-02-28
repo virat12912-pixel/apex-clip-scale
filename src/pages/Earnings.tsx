@@ -189,7 +189,6 @@ const Earnings = () => {
                   <div className="space-y-3 stagger-enter">
                     {campaignEarnings.map((campaign) => {
                       const rawFs = finalSubmissions?.find(f => f.campaign_id === campaign.campaign_id);
-                      const hasPending = hasPendingOrPaidPayoutForCampaign(campaign.campaign_id);
                       const isCampaignLive = campaign.campaign_status === "active" || campaign.campaign_status === "paused" || campaign.campaign_status === "private";
                       const isCampaignCompleted = campaign.campaign_status === "completed";
 
@@ -197,6 +196,9 @@ const Earnings = () => {
                       const isRelaunchedAndPaid = isCampaignLive && rawFs?.status === "paid";
                       const fs = isRelaunchedAndPaid ? undefined : rawFs;
                       const fsStatus = fs?.status;
+
+                      // Skip old paid payouts when campaign is relaunched
+                      const hasPending = isRelaunchedAndPaid ? false : hasPendingOrPaidPayoutForCampaign(campaign.campaign_id);
 
                       const isFinalApproved = fsStatus === "approved";
                       const isFinalPaid = fsStatus === "paid";
