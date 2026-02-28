@@ -32,70 +32,221 @@ function extractReelId(url: string): string | null {
 
 const BROWSER_HEADERS = {
   "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
   Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
   "Accept-Language": "en-US,en;q=0.9",
   "Sec-Fetch-Mode": "navigate",
 };
 
-// ─── Method 1: Instagram GraphQL API (free, no key) ────────────────────
-async function fetchViaGraphQL(shortcode: string): Promise<ScrapedResult | null> {
+// ─── Method 1: Instagram Embed page (most reliable free method) ────────
+async function fetchViaEmbed(shortcode: string): Promise<ScrapedResult | null> {
   try {
-    console.log("Trying Instagram GraphQL API...");
+    console.log("Trying Instagram Embed page...");
 
-    const variables = JSON.stringify({
-      shortcode,
-      child_comment_count: 0,
-      fetch_comment_count: 0,
-      parent_comment_count: 0,
-      has_threaded_comments: false,
-    });
-
-    const response = await fetch("https://www.instagram.com/graphql/query", {
-      method: "POST",
+    const embedUrl = `https://www.instagram.com/p/${shortcode}/embed/captioned/`;
+    const response = await fetch(embedUrl, {
+      method: "GET",
       headers: {
         ...BROWSER_HEADERS,
-        "Content-Type": "application/x-www-form-urlencoded",
-        "X-IG-App-ID": "936619743392459",
-        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       },
-      body: `av=0&__d=www&__user=0&__a=1&__req=1&__hs=0&dpr=1&__ccg=UNKNOWN&__rev=0&__s=0&__hsi=0&__comet_req=0&lsd=0&jazoest=0&__spin_r=0&__spin_b=trunk&__spin_t=0&__jssesw=0&fb_api_caller_class=RelayModern&fb_api_req_friendly_name=PolarisPostActionLoadPostQueryQuery&variables=${encodeURIComponent(variables)}&server_timestamps=true&doc_id=10015901848480474`,
+      redirect: "follow",
     });
 
     if (!response.ok) {
-      console.error("GraphQL API error:", response.status);
+      console.error("Embed page error:", response.status);
+      await response.text();
+      return null;
+    }
+
+    const html = await response.text();
+
+    // Extract from embedded media JSON
+    // Look for window.__additionalDataLoaded or embedded media data
+    let views = 0, likes = 0, comments = 0;
+    let author: string | null = null;
+    let description: string | null = null;
+
+    // Try to find video_view_count in the embed HTML
+    const viewMatch = html.match(/"video_view_count"\s*:\s*(\d+)/);
+    if (viewMatch) views = parseInt(viewMatch[1]);
+
+    const playMatch = html.match(/"video_play_count"\s*:\s*(\d+)/);
+    if (!views && playMatch) views = parseInt(playMatch[1]);
+
+    // Also try play_count pattern (mobile-style)
+    const playCount2 = html.match(/"play_count"\s*:\s*(\d+)/);
+    if (!views && playCount2) views = parseInt(playCount2[1]);
+
+    const likeMatch = html.match(/"edge_media_preview_like"\s*:\s*\{\s*"count"\s*:\s*(\d+)/);
+    if (likeMatch) likes = parseInt(likeMatch[1]);
+
+    const likeMatch2 = html.match(/"like_count"\s*:\s*(\d+)/);
+    if (!likes && likeMatch2) likes = parseInt(likeMatch2[1]);
+
+    const commentMatch = html.match(/"edge_media_preview_comment"\s*:\s*\{\s*"count"\s*:\s*(\d+)/);
+    if (commentMatch) comments = parseInt(commentMatch[1]);
+
+    const commentMatch2 = html.match(/"comment_count"\s*:\s*(\d+)/);
+    if (!comments && commentMatch2) comments = parseInt(commentMatch2[1]);
+
+    const authorMatch = html.match(/"username"\s*:\s*"([^"]+)"/);
+    if (authorMatch) author = authorMatch[1];
+
+    // Try to extract from the embed's caption area
+    const captionMatch = html.match(/<div class="Caption"[^>]*>.*?<div class="CaptionUsername"[^>]*>.*?<\/div>(.*?)<\/div>/s);
+    if (captionMatch) {
+      description = captionMatch[1].replace(/<[^>]+>/g, '').trim();
+    }
+
+    // Also try JSON caption
+    if (!description) {
+      const captionJsonMatch = html.match(/"text"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+      if (captionJsonMatch) {
+        try {
+          description = JSON.parse(`"${captionJsonMatch[1]}"`);
+        } catch { /* ignore */ }
+      }
+    }
+
+    if (views > 0 || author) {
+      console.log("Embed success - views:", views, "author:", author);
+      return { views, likes, comments, author, description };
+    }
+
+    // Fallback: try to extract view count from the visible text (e.g., "1,234 views")
+    const textViewMatch = html.match(/([\d,]+)\s*views/i);
+    if (textViewMatch) {
+      views = parseInt(textViewMatch[1].replace(/,/g, ''));
+      if (views > 0) {
+        console.log("Embed text scrape success - views:", views);
+        return { views, likes, comments, author, description };
+      }
+    }
+
+    console.log("Embed page: no data extracted");
+    return null;
+  } catch (error) {
+    console.error("Embed error:", error);
+    return null;
+  }
+}
+
+// ─── Method 2: Instagram GraphQL API (updated doc_ids) ─────────────────
+async function fetchViaGraphQL(shortcode: string): Promise<ScrapedResult | null> {
+  // Try multiple known doc_ids (Instagram rotates them)
+  const docIds = [
+    "8845758582119845",  // PolarisPostActionLoadPostQueryQuery (newer)
+    "10015901848480474", // PolarisPostActionLoadPostQueryQuery (older)
+    "17891344298141564", // Alternative
+  ];
+
+  for (const docId of docIds) {
+    try {
+      console.log(`Trying Instagram GraphQL with doc_id ${docId}...`);
+
+      const variables = JSON.stringify({
+        shortcode,
+        child_comment_count: 0,
+        fetch_comment_count: 0,
+        parent_comment_count: 0,
+        has_threaded_comments: false,
+      });
+
+      const response = await fetch("https://www.instagram.com/graphql/query", {
+        method: "POST",
+        headers: {
+          ...BROWSER_HEADERS,
+          "Content-Type": "application/x-www-form-urlencoded",
+          "X-IG-App-ID": "936619743392459",
+          "X-Requested-With": "XMLHttpRequest",
+          "X-ASBD-ID": "129477",
+          "X-IG-WWW-Claim": "0",
+        },
+        body: `av=0&__d=www&__user=0&__a=1&__req=1&__hs=0&dpr=1&__ccg=UNKNOWN&__rev=0&__s=0&__hsi=0&__comet_req=0&lsd=0&jazoest=0&__spin_r=0&__spin_b=trunk&__spin_t=0&__jssesw=0&fb_api_caller_class=RelayModern&fb_api_req_friendly_name=PolarisPostActionLoadPostQueryQuery&variables=${encodeURIComponent(variables)}&server_timestamps=true&doc_id=${docId}`,
+      });
+
+      if (!response.ok) {
+        console.error(`GraphQL doc_id ${docId} error:`, response.status);
+        await response.text();
+        continue;
+      }
+
+      const data = await response.json();
+      const media = data?.data?.xdt_shortcode_media;
+
+      if (!media) {
+        console.error(`No media data for doc_id ${docId}`);
+        continue;
+      }
+
+      const captionEdges = media.edge_media_to_caption?.edges || [];
+      const caption = captionEdges[0]?.node?.text || null;
+
+      const result: ScrapedResult = {
+        views: media.video_view_count || media.video_play_count || 0,
+        likes: media.edge_media_preview_like?.count || 0,
+        comments: media.edge_media_preview_comment?.count || media.edge_media_to_parent_comment?.count || 0,
+        author: media.owner?.username || null,
+        description: caption,
+      };
+
+      console.log("GraphQL success - views:", result.views, "author:", result.author);
+      return result;
+    } catch (error) {
+      console.error(`GraphQL doc_id ${docId} error:`, error);
+      continue;
+    }
+  }
+  return null;
+}
+
+// ─── Method 3: Instagram mobile/web API (/api/v1/media) ────────────────
+async function fetchViaMobileApi(shortcode: string): Promise<ScrapedResult | null> {
+  try {
+    console.log("Trying Instagram web info API...");
+
+    // Convert shortcode to media ID is complex, so use the web info endpoint instead
+    const response = await fetch(`https://www.instagram.com/p/${shortcode}/?__a=1&__d=dis`, {
+      method: "GET",
+      headers: {
+        "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
+        "Accept": "*/*",
+        "X-IG-App-ID": "936619743392459",
+      },
+    });
+
+    if (!response.ok) {
+      console.error("Mobile API error:", response.status);
       await response.text();
       return null;
     }
 
     const data = await response.json();
-    const media = data?.data?.xdt_shortcode_media;
+    const item = data?.graphql?.shortcode_media || data?.items?.[0];
 
-    if (!media) {
-      console.error("No media data in GraphQL response");
+    if (!item) {
+      console.log("No data from mobile API");
       return null;
     }
 
-    const captionEdges = media.edge_media_to_caption?.edges || [];
-    const caption = captionEdges[0]?.node?.text || null;
-
     const result: ScrapedResult = {
-      views: media.video_view_count || media.video_play_count || 0,
-      likes: media.edge_media_preview_like?.count || 0,
-      comments: media.edge_media_preview_comment?.count || media.edge_media_to_parent_comment?.count || 0,
-      author: media.owner?.username || null,
-      description: caption,
+      views: item.video_view_count || item.video_play_count || item.play_count || 0,
+      likes: item.edge_media_preview_like?.count || item.like_count || 0,
+      comments: item.edge_media_preview_comment?.count || item.comment_count || 0,
+      author: item.owner?.username || item.user?.username || null,
+      description: item.edge_media_to_caption?.edges?.[0]?.node?.text || item.caption?.text || null,
     };
 
-    console.log("GraphQL success - views:", result.views, "author:", result.author);
+    console.log("Mobile API success - views:", result.views, "author:", result.author);
     return result;
   } catch (error) {
-    console.error("GraphQL error:", error);
+    console.error("Mobile API error:", error);
     return null;
   }
 }
 
-// ─── Method 2: HTML page scraping (extract JSON from page source) ──────
+// ─── Method 4: HTML page scraping ──────────────────────────────────────
 async function fetchViaHTMLScrape(shortcode: string): Promise<ScrapedResult | null> {
   try {
     console.log("Trying Instagram HTML scrape...");
@@ -115,93 +266,40 @@ async function fetchViaHTMLScrape(shortcode: string): Promise<ScrapedResult | nu
 
     const html = await response.text();
 
-    // Try to extract data from embedded JSON in the page
-    // Pattern 1: window.__additionalDataLoaded or window._sharedData
-    let mediaData: any = null;
+    // Try multiple JSON patterns from the page source
+    let views = 0, likes = 0, comments = 0;
+    let author: string | null = null;
 
-    // Try SharedData pattern
-    const sharedDataMatch = html.match(/window\._sharedData\s*=\s*(\{.+?\});\s*<\/script>/s);
-    if (sharedDataMatch) {
-      try {
-        const sharedData = JSON.parse(sharedDataMatch[1]);
-        mediaData =
-          sharedData?.entry_data?.PostPage?.[0]?.graphql?.shortcode_media;
-      } catch {
-        // parse failed, continue
-      }
+    // Pattern: xdt_shortcode_media in preloader cache
+    const viewMatch = html.match(/"video_view_count"\s*:\s*(\d+)/);
+    if (viewMatch) views = parseInt(viewMatch[1]);
+
+    const playMatch = html.match(/"video_play_count"\s*:\s*(\d+)/);
+    if (!views && playMatch) views = parseInt(playMatch[1]);
+
+    const likeMatch = html.match(/"edge_media_preview_like"\s*:\s*\{\s*"count"\s*:\s*(\d+)/);
+    if (likeMatch) likes = parseInt(likeMatch[1]);
+
+    const commentMatch = html.match(/"edge_media_preview_comment"\s*:\s*\{\s*"count"\s*:\s*(\d+)/);
+    if (commentMatch) comments = parseInt(commentMatch[1]);
+
+    const authorMatch = html.match(/"username"\s*:\s*"([^"]+)"/);
+    if (authorMatch) author = authorMatch[1];
+
+    if (views > 0 || author) {
+      console.log("HTML scrape success - views:", views, "author:", author);
+      return { views, likes, comments, author, description: null };
     }
 
-    // Try additionalDataLoaded pattern
-    if (!mediaData) {
-      const additionalMatch = html.match(
-        /window\.__additionalDataLoaded\s*\(\s*['"][^'"]*['"]\s*,\s*(\{.+?\})\s*\)\s*;/s,
-      );
-      if (additionalMatch) {
-        try {
-          const additionalData = JSON.parse(additionalMatch[1]);
-          mediaData =
-            additionalData?.graphql?.shortcode_media ||
-            additionalData?.items?.[0];
-        } catch {
-          // parse failed
-        }
-      }
-    }
-
-    // Try require("PolarisQueryPreloaderCache") pattern (newer pages)
-    if (!mediaData) {
-      const preloaderMatch = html.match(/"xdt_shortcode_media"\s*:\s*(\{.+?"owner"\s*:\s*\{[^}]+\})/s);
-      if (preloaderMatch) {
-        try {
-          // This is partial JSON, try to extract key fields
-          const snippet = preloaderMatch[0];
-          const viewMatch = snippet.match(/"video_view_count"\s*:\s*(\d+)/);
-          const likeMatch = snippet.match(/"edge_media_preview_like"\s*:\s*\{\s*"count"\s*:\s*(\d+)/);
-          const commentMatch = snippet.match(/"edge_media_preview_comment"\s*:\s*\{\s*"count"\s*:\s*(\d+)/);
-          const authorMatch = snippet.match(/"username"\s*:\s*"([^"]+)"/);
-
-          if (viewMatch || authorMatch) {
-            const result: ScrapedResult = {
-              views: viewMatch ? parseInt(viewMatch[1]) : 0,
-              likes: likeMatch ? parseInt(likeMatch[1]) : 0,
-              comments: commentMatch ? parseInt(commentMatch[1]) : 0,
-              author: authorMatch ? authorMatch[1] : null,
-              description: null,
-            };
-            console.log("HTML regex scrape success - views:", result.views);
-            return result;
-          }
-        } catch {
-          // parse failed
-        }
-      }
-    }
-
-    if (!mediaData) {
-      console.log("Could not extract media data from HTML");
-      return null;
-    }
-
-    const captionEdges = mediaData.edge_media_to_caption?.edges || [];
-    const caption = captionEdges[0]?.node?.text || mediaData.caption?.text || null;
-
-    const result: ScrapedResult = {
-      views: mediaData.video_view_count || mediaData.video_play_count || 0,
-      likes: mediaData.edge_media_preview_like?.count || mediaData.like_count || 0,
-      comments: mediaData.edge_media_preview_comment?.count || mediaData.comment_count || 0,
-      author: mediaData.owner?.username || mediaData.user?.username || null,
-      description: caption,
-    };
-
-    console.log("HTML scrape success - views:", result.views, "author:", result.author);
-    return result;
+    console.log("Could not extract media data from HTML");
+    return null;
   } catch (error) {
     console.error("HTML scrape error:", error);
     return null;
   }
 }
 
-// ─── Method 3: RapidAPI (paid, existing) ───────────────────────────────
+// ─── Method 5: RapidAPI (paid fallback) ────────────────────────────────
 async function fetchViaRapidApi(
   shortcode: string,
   apiKey: string,
@@ -252,7 +350,7 @@ async function fetchViaRapidApi(
   }
 }
 
-// ─── Method 4: oEmbed for author info fallback ─────────────────────────
+// ─── oEmbed for author info fallback ───────────────────────────────────
 async function fetchOEmbed(
   url: string,
 ): Promise<{ author: string | null; description: string | null } | null> {
@@ -306,15 +404,28 @@ serve(async (req) => {
 
     console.log(`Fetching Instagram data for shortcode: ${reelId}`);
 
-    // Method 1: Try free GraphQL API
-    let result = await fetchViaGraphQL(reelId);
+    // Method 1: Try embed page (most reliable free method)
+    let result = await fetchViaEmbed(reelId);
 
-    // Method 2: If GraphQL failed, try HTML page scraping
+    // Method 2: Try GraphQL with multiple doc_ids
     if (!result || result.views <= 0) {
-      result = await fetchViaHTMLScrape(reelId);
+      result = await fetchViaGraphQL(reelId);
     }
 
-    // Method 3: If free methods failed, try RapidAPI
+    // Method 3: Try mobile/web API
+    if (!result || result.views <= 0) {
+      result = await fetchViaMobileApi(reelId);
+    }
+
+    // Method 4: Try HTML page scraping
+    if (!result || result.views <= 0) {
+      const htmlResult = await fetchViaHTMLScrape(reelId);
+      if (htmlResult && (htmlResult.views > 0 || (result && !result.author && htmlResult.author))) {
+        result = htmlResult;
+      }
+    }
+
+    // Method 5: RapidAPI as final fallback
     if (!result || result.views <= 0) {
       const apiKey = Deno.env.get("INSTAGRAM_API_KEY");
       if (apiKey) {
