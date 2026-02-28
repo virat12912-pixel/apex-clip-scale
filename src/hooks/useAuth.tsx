@@ -43,6 +43,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchProfile = async (userId: string) => {
     try {
       console.log("[Auth] Fetching profile for user:", userId);
+
+      // Self-heal missing profile/role/wallet records after database resets
+      const { error: ensureError } = await supabase.rpc("ensure_user_setup" as never);
+      if (ensureError) {
+        console.error("[Auth] Error ensuring user setup:", ensureError);
+      }
       
       // Fetch profile and role in parallel for faster loading
       const [profileResult, roleResult] = await Promise.all([
@@ -60,21 +66,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (profileResult.error) {
         console.error("[Auth] Error fetching profile:", profileResult.error);
+        setProfile(null);
       } else if (profileResult.data) {
         console.log("[Auth] Profile loaded:", profileResult.data.email);
         setProfile(profileResult.data as Profile);
+      } else {
+        setProfile(null);
       }
 
       if (roleResult.error) {
         console.error("[Auth] Error fetching role:", roleResult.error);
+        setRole(null);
       } else if (roleResult.data) {
         console.log("[Auth] Role loaded:", roleResult.data.role);
         setRole(roleResult.data.role as AppRole);
       } else {
+        setRole(null);
         console.log("[Auth] No role found for user, defaulting to null");
       }
     } catch (error) {
       console.error("[Auth] Error in fetchProfile:", error);
+      setProfile(null);
+      setRole(null);
     }
   };
 
