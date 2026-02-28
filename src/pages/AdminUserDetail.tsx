@@ -9,7 +9,9 @@ import {
   useChangeUserRole,
 } from "@/hooks/useAdminUsers";
 import { useCampaign } from "@/hooks/useCampaigns";
-import { useAllPayouts, useUpdatePayout } from "@/hooks/useWallet";
+import { useAllPayouts } from "@/hooks/useWallet";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -64,7 +66,7 @@ const AdminUserDetail = () => {
   
 
   const updateUserStatus = useUpdateUserStatus();
-  const updatePayout = useUpdatePayout();
+  const queryClient = useQueryClient();
   const changeRole = useChangeUserRole();
 
   const userPayouts =
@@ -180,11 +182,25 @@ const AdminUserDetail = () => {
 
   const handlePayoutAction = async (
     payoutId: string,
-    status: "approved" | "rejected" | "paid"
+    action: "approve" | "reject" | "paid"
   ) => {
     try {
-      await updatePayout.mutateAsync({ id: payoutId, status });
-      toast({ title: `Payout ${status}` });
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-payout`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          },
+          body: JSON.stringify({ payout_id: payoutId, action }),
+        }
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to process payout");
+      queryClient.invalidateQueries({ queryKey: ["payouts"] });
+      queryClient.invalidateQueries({ queryKey: ["wallet"] });
+      toast({ title: `Payout ${action === "paid" ? "paid" : action + "d"}` });
     } catch (error: any) {
       toast({
         title: "Error",
@@ -551,7 +567,7 @@ const AdminUserDetail = () => {
                                   size="sm"
                                   className="bg-emerald-500 hover:bg-emerald-600"
                                   onClick={() =>
-                                    handlePayoutAction(payout.id, "approved")
+                                    handlePayoutAction(payout.id, "approve")
                                   }
                                 >
                                   <CheckCircle className="h-4 w-4 mr-1" /> Approve
@@ -560,7 +576,7 @@ const AdminUserDetail = () => {
                                   size="sm"
                                   variant="destructive"
                                   onClick={() =>
-                                    handlePayoutAction(payout.id, "rejected")
+                                    handlePayoutAction(payout.id, "reject")
                                   }
                                 >
                                   <XCircle className="h-4 w-4 mr-1" /> Reject
