@@ -98,37 +98,71 @@ async function fetchViaTikWM(videoUrl: string): Promise<{ views: number; likes: 
   }
 }
 
-// Method 2: Fallback to RapidAPI if key is available
+// Method 2: Fallback to RapidAPI if key is available (with retry/backoff)
 async function fetchViaRapidApi(videoId: string, apiKey: string): Promise<{ views: number; likes: number; comments: number; author: string | null; description: string | null } | null> {
-  try {
-    console.log("Trying RapidAPI fallback...");
-    const apiUrl = `https://tiktok-api-fast-reliable-data-scraper.p.rapidapi.com/video/${videoId}`;
-    const response = await fetch(apiUrl, {
-      method: "GET",
-      headers: {
-        "x-rapidapi-key": apiKey,
-        "x-rapidapi-host": "tiktok-api-fast-reliable-data-scraper.p.rapidapi.com",
-      },
-    });
-    if (!response.ok) {
-      await response.text();
+  const maxRetries = 3;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Trying RapidAPI fallback (attempt ${attempt}/${maxRetries})...`);
+
+      const apiUrl = `https://tiktok-api-fast-reliable-data-scraper.p.rapidapi.com/video/${videoId}`;
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          "x-rapidapi-key": apiKey,
+          "x-rapidapi-host": "tiktok-api-fast-reliable-data-scraper.p.rapidapi.com",
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const awemeDetail = data?.data?.aweme_detail;
+        if (!awemeDetail) return null;
+
+        const statistics = awemeDetail.statistics || {};
+        const author = awemeDetail.author || {};
+        return {
+          views: statistics.play_count || 0,
+          likes: statistics.digg_count || 0,
+          comments: statistics.comment_count || 0,
+          author: author.unique_id || author.nickname || null,
+          description: awemeDetail.desc || null,
+        };
+      }
+
+      const errorText = await response.text();
+      console.error("TikTok RapidAPI error:", response.status, errorText);
+
+      // Permanent errors
+      if ([400, 401, 403, 404].includes(response.status)) {
+        return null;
+      }
+
+      // Retry rate limits and transient errors
+      if (attempt < maxRetries) {
+        const retryAfter = response.headers.get("retry-after");
+        const retryAfterMs = retryAfter ? Number.parseInt(retryAfter, 10) * 1000 : 0;
+        const backoffMs = Math.pow(2, attempt) * 1000 + Math.floor(Math.random() * 700);
+        await new Promise((resolve) => setTimeout(resolve, retryAfterMs > 0 ? retryAfterMs : backoffMs));
+        continue;
+      }
+
+      return null;
+    } catch (error) {
+      console.error("TikTok RapidAPI fallback error:", error);
+
+      if (attempt < maxRetries) {
+        const backoffMs = Math.pow(2, attempt) * 1000 + Math.floor(Math.random() * 700);
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
+        continue;
+      }
+
       return null;
     }
-    const data = await response.json();
-    const awemeDetail = data?.data?.aweme_detail;
-    if (!awemeDetail) return null;
-    const statistics = awemeDetail.statistics || {};
-    const author = awemeDetail.author || {};
-    return {
-      views: statistics.play_count || 0,
-      likes: statistics.digg_count || 0,
-      comments: statistics.comment_count || 0,
-      author: author.unique_id || author.nickname || null,
-      description: awemeDetail.desc || null,
-    };
-  } catch {
-    return null;
   }
+
+  return null;
 }
 
 // Method 3: TikTok oEmbed (free, gets author info for verification even if stats fail)

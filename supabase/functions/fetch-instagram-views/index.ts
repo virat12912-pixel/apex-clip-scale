@@ -38,107 +38,116 @@ const BROWSER_HEADERS = {
   "Sec-Fetch-Mode": "navigate",
 };
 
-// ─── Method 1: Instagram Embed page (most reliable free method) ────────
-async function fetchViaEmbed(shortcode: string): Promise<ScrapedResult | null> {
-  try {
-    console.log("Trying Instagram Embed page...");
+const INSTAGRAM_PATHS = ["reel", "p"] as const;
 
-    const embedUrl = `https://www.instagram.com/p/${shortcode}/embed/captioned/`;
-    const response = await fetch(embedUrl, {
-      method: "GET",
-      headers: {
-        ...BROWSER_HEADERS,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-      redirect: "follow",
-    });
-
-    if (!response.ok) {
-      console.error("Embed page error:", response.status);
-      await response.text();
-      return null;
-    }
-
-    const html = await response.text();
-
-    // Extract from embedded media JSON
-    // Look for window.__additionalDataLoaded or embedded media data
-    let views = 0, likes = 0, comments = 0;
-    let author: string | null = null;
-    let description: string | null = null;
-
-    // Try to find video_view_count in the embed HTML
-    const viewMatch = html.match(/"video_view_count"\s*:\s*(\d+)/);
-    if (viewMatch) views = parseInt(viewMatch[1]);
-
-    const playMatch = html.match(/"video_play_count"\s*:\s*(\d+)/);
-    if (!views && playMatch) views = parseInt(playMatch[1]);
-
-    // Also try play_count pattern (mobile-style)
-    const playCount2 = html.match(/"play_count"\s*:\s*(\d+)/);
-    if (!views && playCount2) views = parseInt(playCount2[1]);
-
-    const likeMatch = html.match(/"edge_media_preview_like"\s*:\s*\{\s*"count"\s*:\s*(\d+)/);
-    if (likeMatch) likes = parseInt(likeMatch[1]);
-
-    const likeMatch2 = html.match(/"like_count"\s*:\s*(\d+)/);
-    if (!likes && likeMatch2) likes = parseInt(likeMatch2[1]);
-
-    const commentMatch = html.match(/"edge_media_preview_comment"\s*:\s*\{\s*"count"\s*:\s*(\d+)/);
-    if (commentMatch) comments = parseInt(commentMatch[1]);
-
-    const commentMatch2 = html.match(/"comment_count"\s*:\s*(\d+)/);
-    if (!comments && commentMatch2) comments = parseInt(commentMatch2[1]);
-
-    const authorMatch = html.match(/"username"\s*:\s*"([^"]+)"/);
-    if (authorMatch) author = authorMatch[1];
-
-    // Try to extract from the embed's caption area
-    const captionMatch = html.match(/<div class="Caption"[^>]*>.*?<div class="CaptionUsername"[^>]*>.*?<\/div>(.*?)<\/div>/s);
-    if (captionMatch) {
-      description = captionMatch[1].replace(/<[^>]+>/g, '').trim();
-    }
-
-    // Also try JSON caption
-    if (!description) {
-      const captionJsonMatch = html.match(/"text"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-      if (captionJsonMatch) {
-        try {
-          description = JSON.parse(`"${captionJsonMatch[1]}"`);
-        } catch { /* ignore */ }
-      }
-    }
-
-    if (views > 0 || author) {
-      console.log("Embed success - views:", views, "author:", author);
-      return { views, likes, comments, author, description };
-    }
-
-    // Fallback: try to extract view count from the visible text (e.g., "1,234 views")
-    const textViewMatch = html.match(/([\d,]+)\s*views/i);
-    if (textViewMatch) {
-      views = parseInt(textViewMatch[1].replace(/,/g, ''));
-      if (views > 0) {
-        console.log("Embed text scrape success - views:", views);
-        return { views, likes, comments, author, description };
-      }
-    }
-
-    console.log("Embed page: no data extracted");
-    return null;
-  } catch (error) {
-    console.error("Embed error:", error);
-    return null;
-  }
+interface RapidApiFetchResult {
+  result: ScrapedResult | null;
+  errorCode?: "rate_limited" | "quota_exceeded" | "api_error";
 }
 
-// ─── Method 2: Instagram GraphQL API (updated doc_ids) ─────────────────
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseRetryAfterMs(retryAfter: string | null): number {
+  if (!retryAfter) return 0;
+
+  const seconds = Number.parseInt(retryAfter, 10);
+  if (!Number.isNaN(seconds) && seconds > 0) return seconds * 1000;
+
+  const dateDelay = new Date(retryAfter).getTime() - Date.now();
+  return Number.isNaN(dateDelay) ? 0 : Math.max(0, dateDelay);
+}
+
+function parseScrapedPayload(payload: string): ScrapedResult {
+  let views = 0;
+  let likes = 0;
+  let comments = 0;
+  let author: string | null = null;
+  let description: string | null = null;
+
+  const viewMatch = payload.match(/"video_view_count"\s*:\s*(\d+)/);
+  if (viewMatch?.[1]) views = Number.parseInt(viewMatch[1], 10);
+
+  const playMatch = payload.match(/"video_play_count"\s*:\s*(\d+)/);
+  if (!views && playMatch?.[1]) views = Number.parseInt(playMatch[1], 10);
+
+  const playCountMatch = payload.match(/"play_count"\s*:\s*(\d+)/);
+  if (!views && playCountMatch?.[1]) views = Number.parseInt(playCountMatch[1], 10);
+
+  const textViewMatch = payload.match(/([\d,]+)\s*views/i);
+  if (!views && textViewMatch?.[1]) {
+    views = Number.parseInt(textViewMatch[1].replace(/,/g, ""), 10);
+  }
+
+  const likeMatch = payload.match(/"edge_media_preview_like"\s*:\s*\{\s*"count"\s*:\s*(\d+)/);
+  if (likeMatch?.[1]) likes = Number.parseInt(likeMatch[1], 10);
+
+  const likeCountMatch = payload.match(/"like_count"\s*:\s*(\d+)/);
+  if (!likes && likeCountMatch?.[1]) likes = Number.parseInt(likeCountMatch[1], 10);
+
+  const commentMatch = payload.match(/"edge_media_preview_comment"\s*:\s*\{\s*"count"\s*:\s*(\d+)/);
+  if (commentMatch?.[1]) comments = Number.parseInt(commentMatch[1], 10);
+
+  const commentCountMatch = payload.match(/"comment_count"\s*:\s*(\d+)/);
+  if (!comments && commentCountMatch?.[1]) comments = Number.parseInt(commentCountMatch[1], 10);
+
+  const authorMatch = payload.match(/"username"\s*:\s*"([^\"]+)"/);
+  if (authorMatch?.[1]) author = authorMatch[1];
+
+  const captionJsonMatch = payload.match(/"text"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  if (captionJsonMatch?.[1]) {
+    try {
+      description = JSON.parse(`"${captionJsonMatch[1]}"`);
+    } catch {
+      description = null;
+    }
+  }
+
+  return { views, likes, comments, author, description };
+}
+
+// ─── Method 1: Instagram Embed page ─────────────────────────────────────
+async function fetchViaEmbed(shortcode: string): Promise<ScrapedResult | null> {
+  for (const path of INSTAGRAM_PATHS) {
+    try {
+      console.log(`Trying Instagram embed page via /${path}/...`);
+
+      const embedUrl = `https://www.instagram.com/${path}/${shortcode}/embed/captioned/`;
+      const response = await fetch(embedUrl, {
+        method: "GET",
+        headers: BROWSER_HEADERS,
+        redirect: "follow",
+      });
+
+      if (!response.ok) {
+        console.error(`Embed page error (${path}):`, response.status);
+        await response.text();
+        continue;
+      }
+
+      const html = await response.text();
+      const parsed = parseScrapedPayload(html);
+
+      if (parsed.views > 0 || parsed.author) {
+        console.log(`Embed success (${path}) - views:`, parsed.views, "author:", parsed.author);
+        return parsed;
+      }
+    } catch (error) {
+      console.error(`Embed error (${path}):`, error);
+    }
+  }
+
+  console.log("Embed page: no data extracted");
+  return null;
+}
+
+// ─── Method 2: Instagram GraphQL API ────────────────────────────────────
 async function fetchViaGraphQL(shortcode: string): Promise<ScrapedResult | null> {
-  // Try multiple known doc_ids (Instagram rotates them)
   const docIds = [
-    "8845758582119845",  // PolarisPostActionLoadPostQueryQuery (newer)
-    "10015901848480474", // PolarisPostActionLoadPostQueryQuery (older)
-    "17891344298141564", // Alternative
+    "8845758582119845",
+    "10015901848480474",
+    "17891344298141564",
   ];
 
   for (const docId of docIds) {
@@ -195,175 +204,225 @@ async function fetchViaGraphQL(shortcode: string): Promise<ScrapedResult | null>
       return result;
     } catch (error) {
       console.error(`GraphQL doc_id ${docId} error:`, error);
-      continue;
     }
   }
+
   return null;
 }
 
-// ─── Method 3: Instagram mobile/web API (/api/v1/media) ────────────────
+// ─── Method 3: Instagram web API ────────────────────────────────────────
 async function fetchViaMobileApi(shortcode: string): Promise<ScrapedResult | null> {
-  try {
-    console.log("Trying Instagram web info API...");
+  for (const path of INSTAGRAM_PATHS) {
+    try {
+      console.log(`Trying Instagram web info API via /${path}/...`);
 
-    // Convert shortcode to media ID is complex, so use the web info endpoint instead
-    const response = await fetch(`https://www.instagram.com/p/${shortcode}/?__a=1&__d=dis`, {
-      method: "GET",
-      headers: {
-        "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
-        "Accept": "*/*",
-        "X-IG-App-ID": "936619743392459",
-      },
-    });
+      const response = await fetch(`https://www.instagram.com/${path}/${shortcode}/?__a=1&__d=dis`, {
+        method: "GET",
+        headers: {
+          "User-Agent": "Instagram 275.0.0.27.98 Android (33/13; 420dpi; 1080x2400; samsung; SM-G991B; o1s; exynos2100; en_US; 458229258)",
+          "Accept": "*/*",
+          "X-IG-App-ID": "936619743392459",
+        },
+      });
 
-    if (!response.ok) {
-      console.error("Mobile API error:", response.status);
-      await response.text();
-      return null;
+      if (!response.ok) {
+        console.error(`Mobile API error (${path}):`, response.status);
+        await response.text();
+        continue;
+      }
+
+      const data = await response.json();
+      const item = data?.graphql?.shortcode_media || data?.items?.[0];
+
+      if (!item) {
+        console.log(`No data from mobile API (${path})`);
+        continue;
+      }
+
+      const result: ScrapedResult = {
+        views: item.video_view_count || item.video_play_count || item.play_count || 0,
+        likes: item.edge_media_preview_like?.count || item.like_count || 0,
+        comments: item.edge_media_preview_comment?.count || item.comment_count || 0,
+        author: item.owner?.username || item.user?.username || null,
+        description: item.edge_media_to_caption?.edges?.[0]?.node?.text || item.caption?.text || null,
+      };
+
+      if (result.views > 0 || result.author) {
+        console.log(`Mobile API success (${path}) - views:`, result.views, "author:", result.author);
+        return result;
+      }
+    } catch (error) {
+      console.error(`Mobile API error (${path}):`, error);
     }
-
-    const data = await response.json();
-    const item = data?.graphql?.shortcode_media || data?.items?.[0];
-
-    if (!item) {
-      console.log("No data from mobile API");
-      return null;
-    }
-
-    const result: ScrapedResult = {
-      views: item.video_view_count || item.video_play_count || item.play_count || 0,
-      likes: item.edge_media_preview_like?.count || item.like_count || 0,
-      comments: item.edge_media_preview_comment?.count || item.comment_count || 0,
-      author: item.owner?.username || item.user?.username || null,
-      description: item.edge_media_to_caption?.edges?.[0]?.node?.text || item.caption?.text || null,
-    };
-
-    console.log("Mobile API success - views:", result.views, "author:", result.author);
-    return result;
-  } catch (error) {
-    console.error("Mobile API error:", error);
-    return null;
   }
+
+  return null;
 }
 
-// ─── Method 4: HTML page scraping ──────────────────────────────────────
+// ─── Method 4: HTML page scraping ───────────────────────────────────────
 async function fetchViaHTMLScrape(shortcode: string): Promise<ScrapedResult | null> {
-  try {
-    console.log("Trying Instagram HTML scrape...");
+  for (const path of INSTAGRAM_PATHS) {
+    try {
+      console.log(`Trying Instagram HTML scrape via /${path}/...`);
 
-    const url = `https://www.instagram.com/p/${shortcode}/`;
-    const response = await fetch(url, {
-      method: "GET",
-      headers: BROWSER_HEADERS,
-      redirect: "follow",
-    });
+      const response = await fetch(`https://www.instagram.com/${path}/${shortcode}/`, {
+        method: "GET",
+        headers: BROWSER_HEADERS,
+        redirect: "follow",
+      });
 
-    if (!response.ok) {
-      console.error("HTML scrape error:", response.status);
-      await response.text();
-      return null;
+      if (!response.ok) {
+        console.error(`HTML scrape error (${path}):`, response.status);
+        await response.text();
+        continue;
+      }
+
+      const html = await response.text();
+      const parsed = parseScrapedPayload(html);
+
+      if (parsed.views > 0 || parsed.author) {
+        console.log(`HTML scrape success (${path}) - views:`, parsed.views, "author:", parsed.author);
+        return parsed;
+      }
+    } catch (error) {
+      console.error(`HTML scrape error (${path}):`, error);
     }
-
-    const html = await response.text();
-
-    // Try multiple JSON patterns from the page source
-    let views = 0, likes = 0, comments = 0;
-    let author: string | null = null;
-
-    // Pattern: xdt_shortcode_media in preloader cache
-    const viewMatch = html.match(/"video_view_count"\s*:\s*(\d+)/);
-    if (viewMatch) views = parseInt(viewMatch[1]);
-
-    const playMatch = html.match(/"video_play_count"\s*:\s*(\d+)/);
-    if (!views && playMatch) views = parseInt(playMatch[1]);
-
-    const likeMatch = html.match(/"edge_media_preview_like"\s*:\s*\{\s*"count"\s*:\s*(\d+)/);
-    if (likeMatch) likes = parseInt(likeMatch[1]);
-
-    const commentMatch = html.match(/"edge_media_preview_comment"\s*:\s*\{\s*"count"\s*:\s*(\d+)/);
-    if (commentMatch) comments = parseInt(commentMatch[1]);
-
-    const authorMatch = html.match(/"username"\s*:\s*"([^"]+)"/);
-    if (authorMatch) author = authorMatch[1];
-
-    if (views > 0 || author) {
-      console.log("HTML scrape success - views:", views, "author:", author);
-      return { views, likes, comments, author, description: null };
-    }
-
-    console.log("Could not extract media data from HTML");
-    return null;
-  } catch (error) {
-    console.error("HTML scrape error:", error);
-    return null;
   }
+
+  return null;
 }
 
-// ─── Method 5: RapidAPI (paid fallback) ────────────────────────────────
-async function fetchViaRapidApi(
-  shortcode: string,
-  apiKey: string,
-): Promise<ScrapedResult | null> {
-  try {
-    console.log("Trying RapidAPI fallback...");
+// ─── Method 5: Jina AI proxy page scrape (free fallback) ────────────────
+async function fetchViaJinaProxy(shortcode: string): Promise<ScrapedResult | null> {
+  for (const path of INSTAGRAM_PATHS) {
+    try {
+      console.log(`Trying Jina proxy scrape via /${path}/...`);
 
-    const apiUrl = `https://instagram-scraper21.p.rapidapi.com/api/v1/post-info?code=${shortcode}`;
-    const response = await fetch(apiUrl, {
-      method: "GET",
-      headers: {
-        "x-rapidapi-key": apiKey,
-        "x-rapidapi-host": "instagram-scraper21.p.rapidapi.com",
-      },
-    });
+      const response = await fetch(`https://r.jina.ai/http://www.instagram.com/${path}/${shortcode}/`, {
+        method: "GET",
+        headers: {
+          "User-Agent": BROWSER_HEADERS["User-Agent"],
+          Accept: "text/plain, text/markdown, */*",
+        },
+      });
 
-    if (!response.ok) {
+      if (!response.ok) {
+        console.error(`Jina proxy error (${path}):`, response.status);
+        await response.text();
+        continue;
+      }
+
+      const text = await response.text();
+      const parsed = parseScrapedPayload(text);
+
+      if (parsed.views > 0 || parsed.author) {
+        console.log(`Jina proxy success (${path}) - views:`, parsed.views, "author:", parsed.author);
+        return parsed;
+      }
+    } catch (error) {
+      console.error(`Jina proxy error (${path}):`, error);
+    }
+  }
+
+  return null;
+}
+
+// ─── Method 6: RapidAPI (paid fallback with retry/backoff) ──────────────
+async function fetchViaRapidApi(shortcode: string, apiKey: string): Promise<RapidApiFetchResult> {
+  const maxRetries = 3;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Trying RapidAPI fallback (attempt ${attempt}/${maxRetries})...`);
+
+      const apiUrl = `https://instagram-scraper21.p.rapidapi.com/api/v1/post-info?code=${shortcode}`;
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          "x-rapidapi-key": apiKey,
+          "x-rapidapi-host": "instagram-scraper21.p.rapidapi.com",
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const postData = data?.data?.post;
+
+        if (!postData) {
+          console.error("No post data in RapidAPI response");
+          return { result: null, errorCode: "api_error" };
+        }
+
+        const captionEdges = postData.edge_media_to_caption?.edges || [];
+        const caption = captionEdges[0]?.node?.text || null;
+        const likeCount = postData.edge_media_preview_like?.count || 0;
+
+        const result: ScrapedResult = {
+          views: postData.video_view_count || 0,
+          likes: likeCount,
+          comments: postData.edge_media_preview_comment?.count || 0,
+          author: postData.owner?.username || null,
+          description: caption,
+        };
+
+        console.log("RapidAPI success - views:", result.views, "author:", result.author);
+        return { result };
+      }
+
       const errorText = await response.text();
       console.error("RapidAPI error:", response.status, errorText);
-      return null;
+
+      const quotaExceeded = /monthly quota|exceeded.*quota|credits|upgrade your plan/i.test(errorText);
+      if (response.status === 429 && quotaExceeded) {
+        return { result: null, errorCode: "quota_exceeded" };
+      }
+
+      if ([400, 401, 403, 404].includes(response.status)) {
+        return { result: null, errorCode: "api_error" };
+      }
+
+      if (response.status === 429 && attempt < maxRetries) {
+        const retryAfterMs = parseRetryAfterMs(response.headers.get("retry-after"));
+        const backoffMs = Math.pow(2, attempt) * 1000 + Math.floor(Math.random() * 700);
+        await sleep(retryAfterMs > 0 ? retryAfterMs : backoffMs);
+        continue;
+      }
+
+      if (attempt < maxRetries) {
+        const backoffMs = Math.pow(2, attempt) * 1000 + Math.floor(Math.random() * 700);
+        await sleep(backoffMs);
+        continue;
+      }
+
+      return { result: null, errorCode: response.status === 429 ? "rate_limited" : "api_error" };
+    } catch (error) {
+      console.error("RapidAPI error:", error);
+      if (attempt < maxRetries) {
+        const backoffMs = Math.pow(2, attempt) * 1000 + Math.floor(Math.random() * 700);
+        await sleep(backoffMs);
+        continue;
+      }
+      return { result: null, errorCode: "api_error" };
     }
-
-    const data = await response.json();
-    const postData = data?.data?.post;
-
-    if (!postData) {
-      console.error("No post data in RapidAPI response");
-      return null;
-    }
-
-    const captionEdges = postData.edge_media_to_caption?.edges || [];
-    const caption = captionEdges[0]?.node?.text || null;
-    const likeCount = postData.edge_media_preview_like?.count || 0;
-
-    const result: ScrapedResult = {
-      views: postData.video_view_count || 0,
-      likes: likeCount,
-      comments: postData.edge_media_preview_comment?.count || 0,
-      author: postData.owner?.username || null,
-      description: caption,
-    };
-
-    console.log("RapidAPI success - views:", result.views, "author:", result.author);
-    return result;
-  } catch (error) {
-    console.error("RapidAPI error:", error);
-    return null;
   }
+
+  return { result: null, errorCode: "rate_limited" };
 }
 
-// ─── oEmbed for author info fallback ───────────────────────────────────
-async function fetchOEmbed(
-  url: string,
-): Promise<{ author: string | null; description: string | null } | null> {
+// ─── oEmbed for author info fallback ─────────────────────────────────────
+async function fetchOEmbed(url: string): Promise<{ author: string | null; description: string | null } | null> {
   try {
     console.log("Trying Instagram oEmbed...");
     const oembedUrl = `https://api.instagram.com/oembed/?url=${encodeURIComponent(url)}`;
     const response = await fetch(oembedUrl, {
       headers: { "User-Agent": BROWSER_HEADERS["User-Agent"] },
     });
+
     if (!response.ok) {
       await response.text();
       return null;
     }
+
     const data = await response.json();
     return {
       author: data.author_name || null,
@@ -374,7 +433,7 @@ async function fetchOEmbed(
   }
 }
 
-// ─── Main handler ──────────────────────────────────────────────────────
+// ─── Main handler ────────────────────────────────────────────────────────
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -404,61 +463,84 @@ serve(async (req) => {
 
     console.log(`Fetching Instagram data for shortcode: ${reelId}`);
 
-    // Method 1: Try embed page (most reliable free method)
     let result = await fetchViaEmbed(reelId);
 
-    // Method 2: Try GraphQL with multiple doc_ids
     if (!result || result.views <= 0) {
-      result = await fetchViaGraphQL(reelId);
+      const graphResult = await fetchViaGraphQL(reelId);
+      if (graphResult && (graphResult.views > 0 || graphResult.author)) {
+        result = graphResult;
+      }
     }
 
-    // Method 3: Try mobile/web API
     if (!result || result.views <= 0) {
-      result = await fetchViaMobileApi(reelId);
+      const mobileResult = await fetchViaMobileApi(reelId);
+      if (mobileResult && (mobileResult.views > 0 || mobileResult.author)) {
+        result = mobileResult;
+      }
     }
 
-    // Method 4: Try HTML page scraping
     if (!result || result.views <= 0) {
       const htmlResult = await fetchViaHTMLScrape(reelId);
-      if (htmlResult && (htmlResult.views > 0 || (result && !result.author && htmlResult.author))) {
+      if (htmlResult && (htmlResult.views > 0 || htmlResult.author)) {
         result = htmlResult;
       }
     }
 
-    // Method 5: RapidAPI as final fallback
     if (!result || result.views <= 0) {
-      const apiKey = Deno.env.get("INSTAGRAM_API_KEY");
-      if (apiKey) {
-        result = await fetchViaRapidApi(reelId, apiKey);
+      const jinaResult = await fetchViaJinaProxy(reelId);
+      if (jinaResult && (jinaResult.views > 0 || jinaResult.author)) {
+        result = jinaResult;
       }
     }
 
-    // If we got stats, return them
-    if (result && result.views > 0) {
-      const response = {
-        success: true,
-        shortcode: reelId,
-        play_count: result.views,
-        like_count: result.likes,
-        comment_count: result.comments,
-        author: result.author,
-        description: result.description,
-      };
+    let rapidApiErrorCode: RapidApiFetchResult["errorCode"];
+    if (!result || result.views <= 0) {
+      const apiKey = Deno.env.get("INSTAGRAM_API_KEY");
+      if (apiKey) {
+        const rapidApiResult = await fetchViaRapidApi(reelId, apiKey);
+        rapidApiErrorCode = rapidApiResult.errorCode;
 
-      console.log("Processed result:", JSON.stringify(response));
-      return new Response(JSON.stringify(response), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+        if (rapidApiResult.result && (rapidApiResult.result.views > 0 || rapidApiResult.result.author)) {
+          result = rapidApiResult.result;
+        }
+      }
     }
 
-    // If stats failed but we can get author info via oEmbed
+    if (result && result.views > 0) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          shortcode: reelId,
+          play_count: result.views,
+          like_count: result.likes,
+          comment_count: result.comments,
+          author: result.author,
+          description: result.description,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    if (result?.author || result?.description) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Stats are temporarily unavailable for this Instagram post, but author metadata was found.",
+          error_code: rapidApiErrorCode ?? "stats_unavailable",
+          author: result.author,
+          description: result.description,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const oembedData = await fetchOEmbed(video_url);
     if (oembedData) {
       return new Response(
         JSON.stringify({
           success: false,
           error: "Could not fetch video stats. The video may be private or temporarily unavailable.",
-          error_code: "scrape_failed",
+          error_code: rapidApiErrorCode ?? "scrape_failed",
           author: oembedData.author,
           description: oembedData.description,
         }),
@@ -470,7 +552,7 @@ serve(async (req) => {
       JSON.stringify({
         success: false,
         error: "Could not fetch video data. Please check the URL and ensure the video is public.",
-        error_code: "scrape_failed",
+        error_code: rapidApiErrorCode ?? "scrape_failed",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
