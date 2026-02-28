@@ -93,7 +93,14 @@ const Earnings = () => {
   }, [submissions, finalSubmissions]);
 
   const totalEarnings = campaignEarnings.reduce((sum, c) => sum + c.total_earnings, 0);
-  const paidSubmissions = submissions?.filter(s => s.status === "paid" || s.status === "approved") || [];
+
+  // Available = sum of final_earnings from campaigns where final submission is approved and no payout exists yet
+  const availableBalance = useMemo(() => {
+    if (!finalSubmissions || !payouts) return 0;
+    return finalSubmissions
+      .filter(fs => fs.status === "approved" && !payouts.some(p => (p as any).campaign_id === fs.campaign_id && ["pending", "approved", "paid"].includes(p.status)))
+      .reduce((sum, fs) => sum + Number(fs.final_earnings || 0), 0);
+  }, [finalSubmissions, payouts]);
 
   const hasPaymentDetails = () => {
     if (!profile) return false;
@@ -125,7 +132,7 @@ const Earnings = () => {
 
   const statCards = [
     { icon: DollarSign, label: "Total Earnings", value: `$${totalEarnings.toFixed(2)}`, bg: "bg-emerald-500/10", text: "text-emerald-400" },
-    { icon: Clock, label: "Available", value: `$${(wallet?.pending_balance || 0).toFixed(2)}`, bg: "bg-yellow-500/10", text: "text-yellow-400" },
+    { icon: Clock, label: "Available", value: `$${availableBalance.toFixed(2)}`, bg: "bg-yellow-500/10", text: "text-yellow-400" },
     { icon: Clock, label: "Processing", value: `$${(wallet?.locked_earnings || 0).toFixed(2)}`, bg: "bg-orange-500/10", text: "text-orange-400" },
   ];
 
@@ -204,6 +211,8 @@ const Earnings = () => {
                         payoutButtonLabel = isPaid ? "Paid" : isPending ? "Payout Pending" : "Payout Exists";
                         payoutButtonDisabled = true;
                       } else if (isFinalPaid) {
+                        payoutButtonLabel = "Paid";
+                        payoutButtonDisabled = true;
                       } else if (isCampaignLive) {
                         payoutButtonLabel = "Request Payout";
                         payoutButtonDisabled = true;
@@ -218,12 +227,12 @@ const Earnings = () => {
                       }
 
                       const handlePayoutClick = () => {
+                        if (hasPending || isFinalPaid) return;
                         if (isCampaignLive) {
                           toast({ title: "Campaign Still Live", description: "This campaign is still live. Please wait for it to complete before requesting a payout.", variant: "destructive" });
                           return;
                         }
                         if (isCampaignCompleted && !isFinalApproved) {
-                          // Redirect to campaign detail page (final submission form)
                           window.location.href = `/campaigns/${campaign.campaign_id}`;
                           return;
                         }
@@ -270,7 +279,7 @@ const Earnings = () => {
                             <Button
                               size="sm"
                               onClick={handlePayoutClick}
-                              disabled={requestPayout.isPending || (payoutButtonDisabled && !isCampaignLive && !(isCampaignCompleted && !isFinalApproved))}
+                              disabled={requestPayout.isPending || payoutButtonDisabled}
                               className={`w-full rounded-lg font-display font-bold h-10 text-sm ${
                                 canRequestPayout && !requestPayout.isPending
                                   ? "bg-gradient-primary hover:opacity-90"
