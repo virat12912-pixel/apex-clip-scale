@@ -254,28 +254,30 @@ const Earnings = () => {
                             <div>
                               <h4 className="font-display font-bold group-hover:text-primary transition-colors duration-200">{campaign.campaign_name}</h4>
                               <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground/60">
-                                <span className="flex items-center gap-1"><CheckCircle className="h-3.5 w-3.5 text-emerald-400" />{campaign.approved_count} approved</span>
-                                {campaign.rejected_count > 0 && <span className="flex items-center gap-1"><XCircle className="h-3.5 w-3.5 text-red-400" />{campaign.rejected_count} rejected</span>}
-                                {campaign.pending_count > 0 && <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-yellow-400" />{campaign.pending_count} pending</span>}
+                                <span className="flex items-center gap-1"><CheckCircle className="h-3.5 w-3.5 text-emerald-400" />{isRelaunchedAndPaid ? 0 : campaign.approved_count} approved</span>
+                                {(isRelaunchedAndPaid ? false : campaign.rejected_count > 0) && <span className="flex items-center gap-1"><XCircle className="h-3.5 w-3.5 text-red-400" />{campaign.rejected_count} rejected</span>}
+                                {(isRelaunchedAndPaid ? false : campaign.pending_count > 0) && <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-yellow-400" />{campaign.pending_count} pending</span>}
                               </div>
                             </div>
                             <div className="text-right">
-                              <div className="text-xl font-display font-bold text-primary">${campaign.total_earnings.toFixed(2)}</div>
-                              <div className="text-xs text-muted-foreground/40">{formatNumber(campaign.total_views)} views</div>
+                              <div className="text-xl font-display font-bold text-primary">${isRelaunchedAndPaid ? "0.00" : campaign.total_earnings.toFixed(2)}</div>
+                              <div className="text-xs text-muted-foreground/40">{isRelaunchedAndPaid ? "0" : formatNumber(campaign.total_views)} views</div>
                             </div>
                           </div>
 
-                          {/* Tracked vs Verified views */}
-                          <div className="grid grid-cols-2 gap-2 mb-3">
-                            <div className="p-2 rounded-lg bg-secondary/30 border border-border/10">
-                              <div className="text-[10px] text-muted-foreground/40">Tracked Views</div>
-                              <div className="text-sm font-bold">{formatNumber(fs ? fs.tracked_views : campaign.total_views)}</div>
+                          {/* Tracked vs Verified views - hidden when relaunched after payout */}
+                          {!isRelaunchedAndPaid && (
+                            <div className="grid grid-cols-2 gap-2 mb-3">
+                              <div className="p-2 rounded-lg bg-secondary/30 border border-border/10">
+                                <div className="text-[10px] text-muted-foreground/40">Tracked Views</div>
+                                <div className="text-sm font-bold">{formatNumber(fs ? fs.tracked_views : campaign.total_views)}</div>
+                              </div>
+                              <div className="p-2 rounded-lg bg-secondary/30 border border-border/10">
+                                <div className="text-[10px] text-muted-foreground/40">Verified Views</div>
+                                <div className="text-sm font-bold">{fs && fs.verified_views != null ? formatNumber(fs.verified_views) : "Pending"}</div>
+                              </div>
                             </div>
-                            <div className="p-2 rounded-lg bg-secondary/30 border border-border/10">
-                              <div className="text-[10px] text-muted-foreground/40">Verified Views</div>
-                              <div className="text-sm font-bold">{fs && fs.verified_views != null ? formatNumber(fs.verified_views) : "Pending"}</div>
-                            </div>
-                          </div>
+                          )}
 
 
 
