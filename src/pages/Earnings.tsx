@@ -127,15 +127,13 @@ const Earnings = () => {
     { icon: DollarSign, label: "Total Earnings", value: `$${totalEarnings.toFixed(2)}`, bg: "bg-emerald-500/10", text: "text-emerald-400" },
     { icon: Clock, label: "Available", value: `$${(wallet?.pending_balance || 0).toFixed(2)}`, bg: "bg-yellow-500/10", text: "text-yellow-400" },
     { icon: Clock, label: "Processing", value: `$${(wallet?.locked_earnings || 0).toFixed(2)}`, bg: "bg-orange-500/10", text: "text-orange-400" },
-    { icon: TrendingUp, label: "Paid Out", value: `$${(wallet?.paid_balance || 0).toFixed(2)}`, bg: "bg-primary/10", text: "text-primary" },
-    { icon: Eye, label: "Paid Clips", value: paidSubmissions.length.toString(), bg: "bg-blue-500/10", text: "text-blue-400" },
   ];
 
   return (
     <AppLayout title="Earnings">
       <div className="page-enter">
         {/* Stats Cards */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8 stagger-enter">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8 stagger-enter">
           {walletLoading ? Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-32 rounded-2xl" />) : (
             statCards.map((stat) => (
               <div key={stat.label} className="p-5 rounded-2xl bg-card/50 border border-border/30 transition-all duration-300 hover:border-primary/15 hover:-translate-y-0.5 hover:shadow-lg group">
