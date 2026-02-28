@@ -188,16 +188,21 @@ const Earnings = () => {
                 ) : (
                   <div className="space-y-3 stagger-enter">
                     {campaignEarnings.map((campaign) => {
-                      const fs = finalSubmissions?.find(f => f.campaign_id === campaign.campaign_id);
-                      const fsStatus = fs?.status;
+                      const rawFs = finalSubmissions?.find(f => f.campaign_id === campaign.campaign_id);
                       const hasPending = hasPendingOrPaidPayoutForCampaign(campaign.campaign_id);
                       const isCampaignLive = campaign.campaign_status === "active" || campaign.campaign_status === "paused" || campaign.campaign_status === "private";
                       const isCampaignCompleted = campaign.campaign_status === "completed";
+
+                      // If campaign was reactivated (now live) and payout was already made, treat as fresh start
+                      const isRelaunchedAndPaid = isCampaignLive && rawFs?.status === "paid";
+                      const fs = isRelaunchedAndPaid ? undefined : rawFs;
+                      const fsStatus = fs?.status;
+
                       const isFinalApproved = fsStatus === "approved";
                       const isFinalPaid = fsStatus === "paid";
                       const canRequestPayout = isFinalApproved && campaign.total_earnings >= 10 && hasPaymentDetails() && !hasPending;
-                      const statusLabel = !fs ? "Posting" : fsStatus === "submitted" ? "Under Review" : fsStatus === "approved" ? "Approved" : fsStatus === "paid" ? "Paid" : fsStatus === "rejected" ? "Rejected" : "Posting";
-                      const statusColor = !fs ? "bg-blue-500/10 text-blue-400" : fsStatus === "submitted" || fsStatus === "under_review" ? "bg-yellow-500/10 text-yellow-400" : fsStatus === "approved" ? "bg-emerald-500/10 text-emerald-400" : fsStatus === "paid" ? "bg-primary/10 text-primary" : "bg-red-500/10 text-red-400";
+                      const statusLabel = isRelaunchedAndPaid ? "Posting" : !fs ? "Posting" : fsStatus === "submitted" ? "Under Review" : fsStatus === "approved" ? "Approved" : fsStatus === "paid" ? "Paid" : fsStatus === "rejected" ? "Rejected" : "Posting";
+                      const statusColor = isRelaunchedAndPaid ? "bg-blue-500/10 text-blue-400" : !fs ? "bg-blue-500/10 text-blue-400" : fsStatus === "submitted" || fsStatus === "under_review" ? "bg-yellow-500/10 text-yellow-400" : fsStatus === "approved" ? "bg-emerald-500/10 text-emerald-400" : fsStatus === "paid" ? "bg-primary/10 text-primary" : "bg-red-500/10 text-red-400";
 
                       // Determine payout button state
                       let payoutButtonLabel = "Request Payout";
