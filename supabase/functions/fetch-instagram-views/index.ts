@@ -327,33 +327,37 @@ async function fetchViaJinaProxy(shortcode: string): Promise<ScrapedResult | nul
   return null;
 }
 
-// ─── Method 6: instagram-scraper-stable-api (primary paid provider) ──
-async function fetchViaStableApi(shortcode: string, apiKey: string): Promise<RapidApiFetchResult> {
-  const endpoints = [
-    `https://instagram-scraper-stable-api.p.rapidapi.com/get_media_info_v2.php?media_code=${shortcode}`,
-    `https://instagram-scraper-stable-api.p.rapidapi.com/get_post_info.php?media_code=${shortcode}`,
-    `https://instagram-scraper-stable-api.p.rapidapi.com/get_reel.php?media_code=${shortcode}`,
+// ─── Method 6: instagram120 API (primary paid provider) ──
+async function fetchViaInstagram120(shortcode: string, apiKey: string): Promise<RapidApiFetchResult> {
+  // Try multiple endpoints: reel, post, media/info
+  const attempts = [
+    { url: "https://instagram120.p.rapidapi.com/api/instagram/reel", body: { shortcode } },
+    { url: "https://instagram120.p.rapidapi.com/api/instagram/post", body: { shortcode } },
+    { url: "https://instagram120.p.rapidapi.com/api/instagram/media/info", body: { shortcode } },
   ];
 
-  for (const apiUrl of endpoints) {
+  for (const attempt of attempts) {
     try {
-      const epName = apiUrl.split('?')[0].split('/').pop();
-      console.log(`Trying stable API: ${epName}...`);
+      const epName = attempt.url.split('/').slice(-2).join('/');
+      console.log(`Trying instagram120 ${epName}...`);
 
-      const response = await fetch(apiUrl, {
-        method: "GET",
+      const response = await fetch(attempt.url, {
+        method: "POST",
         headers: {
+          "Content-Type": "application/json",
           "x-rapidapi-key": apiKey,
-          "x-rapidapi-host": "instagram-scraper-stable-api.p.rapidapi.com",
+          "x-rapidapi-host": "instagram120.p.rapidapi.com",
         },
+        body: JSON.stringify(attempt.body),
       });
 
       if (response.ok) {
         const data = await response.json();
-        const item = data?.data || data?.graphql?.shortcode_media || data?.items?.[0] || data;
+        // Navigate nested response structures
+        const item = data?.data || data?.result || data?.media || data?.graphql?.shortcode_media || data?.items?.[0] || data;
 
         if (!item || (typeof item === 'object' && Object.keys(item).length === 0)) {
-          console.error(`Empty response from stable API (${epName})`);
+          console.error(`Empty response from instagram120 ${epName}`);
           continue;
         }
 
@@ -366,25 +370,26 @@ async function fetchViaStableApi(shortcode: string, apiKey: string): Promise<Rap
         };
 
         if (result.views > 0 || result.author) {
-          console.log("Stable API success - views:", result.views, "author:", result.author);
+          console.log(`instagram120 ${epName} success - views:`, result.views, "author:", result.author);
           return { result };
         }
-      } else {
-        const errorText = await response.text();
-        console.error(`Stable API (${epName}) error:`, response.status, errorText);
+        continue;
+      }
 
-        if (response.status === 403 && /not subscribed/i.test(errorText)) {
-          continue; // Try next endpoint
-        }
-        if (/monthly quota|exceeded.*quota|upgrade your plan/i.test(errorText)) {
-          return { result: null, errorCode: "quota_exceeded" };
-        }
-        if (response.status === 429) {
-          return { result: null, errorCode: "rate_limited" };
-        }
+      const errorText = await response.text();
+      console.error(`instagram120 ${epName} error:`, response.status, errorText);
+
+      if (response.status === 403 && /not subscribed/i.test(errorText)) {
+        continue;
+      }
+      if (/monthly quota|exceeded.*quota|upgrade your plan/i.test(errorText)) {
+        return { result: null, errorCode: "quota_exceeded" };
+      }
+      if (response.status === 429) {
+        return { result: null, errorCode: "rate_limited" };
       }
     } catch (error) {
-      console.error("Stable API error:", error);
+      console.error("instagram120 error:", error);
     }
   }
 
@@ -554,13 +559,13 @@ serve(async (req) => {
     let rapidApiErrorCode: RapidApiFetchResult["errorCode"];
     const apiKey = Deno.env.get("INSTAGRAM_API_KEY");
 
-    // Method 6: Try stable API scraper first (primary paid provider)
+    // Method 6: Try instagram120 API (primary paid provider)
     if ((!result || result.views <= 0) && apiKey) {
-      const stableResult = await fetchViaStableApi(reelId, apiKey);
-      rapidApiErrorCode = stableResult.errorCode;
+      const ig120Result = await fetchViaInstagram120(reelId, apiKey);
+      rapidApiErrorCode = ig120Result.errorCode;
 
-      if (stableResult.result && (stableResult.result.views > 0 || stableResult.result.author)) {
-        result = stableResult.result;
+      if (ig120Result.result && (ig120Result.result.views > 0 || ig120Result.result.author)) {
+        result = ig120Result.result;
       }
     }
 
