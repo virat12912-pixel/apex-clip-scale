@@ -329,71 +329,70 @@ async function fetchViaJinaProxy(shortcode: string): Promise<ScrapedResult | nul
 
 // ─── Method 6: instagram120 API (primary paid provider) ──
 async function fetchViaInstagram120(shortcode: string, apiKey: string): Promise<RapidApiFetchResult> {
-  // Try multiple endpoints: reel, post, media/info
-  const attempts = [
-    { url: "https://instagram120.p.rapidapi.com/api/instagram/reel", body: { shortcode } },
-    { url: "https://instagram120.p.rapidapi.com/api/instagram/post", body: { shortcode } },
-    { url: "https://instagram120.p.rapidapi.com/api/instagram/media/info", body: { shortcode } },
-  ];
+  try {
+    console.log("Trying instagram120 /api/instagram/links...");
 
-  for (const attempt of attempts) {
-    try {
-      const epName = attempt.url.split('/').slice(-2).join('/');
-      console.log(`Trying instagram120 ${epName}...`);
+    const reelUrl = `https://www.instagram.com/reel/${shortcode}/`;
+    const response = await fetch("https://instagram120.p.rapidapi.com/api/instagram/links", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-rapidapi-key": apiKey,
+        "x-rapidapi-host": "instagram120.p.rapidapi.com",
+      },
+      body: JSON.stringify({ url: reelUrl }),
+    });
 
-      const response = await fetch(attempt.url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-rapidapi-key": apiKey,
-          "x-rapidapi-host": "instagram120.p.rapidapi.com",
-        },
-        body: JSON.stringify(attempt.body),
-      });
+    if (response.ok) {
+      const data = await response.json();
+      console.log("instagram120 raw response keys:", Object.keys(data));
 
-      if (response.ok) {
-        const data = await response.json();
-        // Navigate nested response structures
-        const item = data?.data || data?.result || data?.media || data?.graphql?.shortcode_media || data?.items?.[0] || data;
+      // Navigate nested response structures
+      const item = data?.data || data?.result || data?.media || data?.graphql?.shortcode_media || data?.items?.[0] || data;
 
-        if (!item || (typeof item === 'object' && Object.keys(item).length === 0)) {
-          console.error(`Empty response from instagram120 ${epName}`);
-          continue;
-        }
-
-        const result: ScrapedResult = {
-          views: item.video_view_count || item.video_play_count || item.play_count || item.view_count || 0,
-          likes: item.like_count || item.edge_media_preview_like?.count || 0,
-          comments: item.comment_count || item.edge_media_preview_comment?.count || 0,
-          author: item.user?.username || item.owner?.username || null,
-          description: item.caption?.text || item.edge_media_to_caption?.edges?.[0]?.node?.text || null,
-        };
-
-        if (result.views > 0 || result.author) {
-          console.log(`instagram120 ${epName} success - views:`, result.views, "author:", result.author);
-          return { result };
-        }
-        continue;
+      if (!item || (typeof item === 'object' && Object.keys(item).length === 0)) {
+        console.error("Empty response from instagram120");
+        return { result: null, errorCode: "api_error" };
       }
 
-      const errorText = await response.text();
-      console.error(`instagram120 ${epName} error:`, response.status, errorText);
+      const result: ScrapedResult = {
+        views: item.video_view_count || item.video_play_count || item.play_count || item.view_count || 0,
+        likes: item.like_count || item.edge_media_preview_like?.count || 0,
+        comments: item.comment_count || item.edge_media_preview_comment?.count || 0,
+        author: item.user?.username || item.owner?.username || null,
+        description: item.caption?.text || item.edge_media_to_caption?.edges?.[0]?.node?.text || null,
+      };
 
-      if (response.status === 403 && /not subscribed/i.test(errorText)) {
-        continue;
+      if (result.views > 0 || result.author) {
+        console.log("instagram120 success - views:", result.views, "author:", result.author);
+        return { result };
       }
-      if (/monthly quota|exceeded.*quota|upgrade your plan/i.test(errorText)) {
-        return { result: null, errorCode: "quota_exceeded" };
+
+      // Try parsing the raw response with our general parser
+      const rawText = JSON.stringify(data);
+      const parsed = parseScrapedPayload(rawText);
+      if (parsed.views > 0 || parsed.author) {
+        console.log("instagram120 parsed success - views:", parsed.views, "author:", parsed.author);
+        return { result: parsed };
       }
-      if (response.status === 429) {
-        return { result: null, errorCode: "rate_limited" };
-      }
-    } catch (error) {
-      console.error("instagram120 error:", error);
+
+      return { result: null, errorCode: "api_error" };
     }
-  }
 
-  return { result: null, errorCode: "api_error" };
+    const errorText = await response.text();
+    console.error("instagram120 error:", response.status, errorText);
+
+    if (/monthly quota|exceeded.*quota|upgrade your plan/i.test(errorText)) {
+      return { result: null, errorCode: "quota_exceeded" };
+    }
+    if (response.status === 403 && /not subscribed/i.test(errorText)) {
+      return { result: null, errorCode: "api_error" };
+    }
+    return { result: null, errorCode: response.status === 429 ? "rate_limited" : "api_error" };
+  } catch (error) {
+    console.error("instagram120 error:", error);
+    return { result: null, errorCode: "api_error" };
+  }
 }
 
 // ─── Method 7: RapidAPI instagram-scraper21 (paid fallback with retry/backoff) ─
