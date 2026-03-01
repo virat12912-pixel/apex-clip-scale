@@ -327,58 +327,68 @@ async function fetchViaJinaProxy(shortcode: string): Promise<ScrapedResult | nul
   return null;
 }
 
-// ─── Method 6: Alternative RapidAPI scraper (different provider/quota) ──
-async function fetchViaRapidApiAlt(shortcode: string, apiKey: string): Promise<RapidApiFetchResult> {
-  try {
-    console.log("Trying alternative RapidAPI scraper (instagram-scraper)...");
+// ─── Method 6: instagram-scraper-stable-api (primary paid provider) ──
+async function fetchViaStableApi(shortcode: string, apiKey: string): Promise<RapidApiFetchResult> {
+  const endpoints = [
+    `https://instagram-scraper-stable-api.p.rapidapi.com/get_media_info_v2.php?media_code=${shortcode}`,
+    `https://instagram-scraper-stable-api.p.rapidapi.com/get_post_info.php?media_code=${shortcode}`,
+    `https://instagram-scraper-stable-api.p.rapidapi.com/get_reel.php?media_code=${shortcode}`,
+  ];
 
-    const apiUrl = `https://instagram-scraper.p.rapidapi.com/v1/instagram/media/${shortcode}`;
-    const response = await fetch(apiUrl, {
-      method: "GET",
-      headers: {
-        "x-rapidapi-key": apiKey,
-        "x-rapidapi-host": "instagram-scraper.p.rapidapi.com",
-      },
-    });
+  for (const apiUrl of endpoints) {
+    try {
+      const epName = apiUrl.split('?')[0].split('/').pop();
+      console.log(`Trying stable API: ${epName}...`);
 
-    if (response.ok) {
-      const data = await response.json();
-      // This API returns data in various formats, try common patterns
-      const item = data?.data || data?.graphql?.shortcode_media || data?.items?.[0] || data;
+      const response = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          "x-rapidapi-key": apiKey,
+          "x-rapidapi-host": "instagram-scraper-stable-api.p.rapidapi.com",
+        },
+      });
 
-      if (!item) {
-        console.error("No data from alt RapidAPI scraper");
-        return { result: null, errorCode: "api_error" };
+      if (response.ok) {
+        const data = await response.json();
+        const item = data?.data || data?.graphql?.shortcode_media || data?.items?.[0] || data;
+
+        if (!item || (typeof item === 'object' && Object.keys(item).length === 0)) {
+          console.error(`Empty response from stable API (${epName})`);
+          continue;
+        }
+
+        const result: ScrapedResult = {
+          views: item.video_view_count || item.video_play_count || item.play_count || item.view_count || 0,
+          likes: item.like_count || item.edge_media_preview_like?.count || 0,
+          comments: item.comment_count || item.edge_media_preview_comment?.count || 0,
+          author: item.user?.username || item.owner?.username || null,
+          description: item.caption?.text || item.edge_media_to_caption?.edges?.[0]?.node?.text || null,
+        };
+
+        if (result.views > 0 || result.author) {
+          console.log("Stable API success - views:", result.views, "author:", result.author);
+          return { result };
+        }
+      } else {
+        const errorText = await response.text();
+        console.error(`Stable API (${epName}) error:`, response.status, errorText);
+
+        if (response.status === 403 && /not subscribed/i.test(errorText)) {
+          continue; // Try next endpoint
+        }
+        if (/monthly quota|exceeded.*quota|upgrade your plan/i.test(errorText)) {
+          return { result: null, errorCode: "quota_exceeded" };
+        }
+        if (response.status === 429) {
+          return { result: null, errorCode: "rate_limited" };
+        }
       }
-
-      const result: ScrapedResult = {
-        views: item.video_view_count || item.video_play_count || item.play_count || item.view_count || 0,
-        likes: item.like_count || item.edge_media_preview_like?.count || 0,
-        comments: item.comment_count || item.edge_media_preview_comment?.count || 0,
-        author: item.user?.username || item.owner?.username || null,
-        description: item.caption?.text || item.edge_media_to_caption?.edges?.[0]?.node?.text || null,
-      };
-
-      if (result.views > 0 || result.author) {
-        console.log("Alt RapidAPI success - views:", result.views, "author:", result.author);
-        return { result };
-      }
-
-      return { result: null, errorCode: "api_error" };
+    } catch (error) {
+      console.error("Stable API error:", error);
     }
-
-    const errorText = await response.text();
-    console.error("Alt RapidAPI error:", response.status, errorText);
-
-    if (/monthly quota|exceeded.*quota|upgrade your plan/i.test(errorText)) {
-      return { result: null, errorCode: "quota_exceeded" };
-    }
-
-    return { result: null, errorCode: response.status === 429 ? "rate_limited" : "api_error" };
-  } catch (error) {
-    console.error("Alt RapidAPI error:", error);
-    return { result: null, errorCode: "api_error" };
   }
+
+  return { result: null, errorCode: "api_error" };
 }
 
 // ─── Method 7: RapidAPI instagram-scraper21 (paid fallback with retry/backoff) ─
@@ -544,13 +554,13 @@ serve(async (req) => {
     let rapidApiErrorCode: RapidApiFetchResult["errorCode"];
     const apiKey = Deno.env.get("INSTAGRAM_API_KEY");
 
-    // Method 6: Try alternative RapidAPI scraper first (separate quota)
+    // Method 6: Try stable API scraper first (primary paid provider)
     if ((!result || result.views <= 0) && apiKey) {
-      const altResult = await fetchViaRapidApiAlt(reelId, apiKey);
-      rapidApiErrorCode = altResult.errorCode;
+      const stableResult = await fetchViaStableApi(reelId, apiKey);
+      rapidApiErrorCode = stableResult.errorCode;
 
-      if (altResult.result && (altResult.result.views > 0 || altResult.result.author)) {
-        result = altResult.result;
+      if (stableResult.result && (stableResult.result.views > 0 || stableResult.result.author)) {
+        result = stableResult.result;
       }
     }
 
