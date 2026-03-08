@@ -10,147 +10,40 @@ interface VerifyRequest {
   verification_code: string;
 }
 
-// Method 1: Scrape TikTok profile page directly
-async function scrapeTikTokBio(username: string): Promise<string | null> {
+// Fetch TikTok bio using Scrape Creators API
+async function fetchTikTokBio(username: string): Promise<string | null> {
   try {
-    const url = `https://www.tiktok.com/@${encodeURIComponent(username)}`;
-    console.log('Scraping TikTok profile:', url);
+    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY') || 'yp6K8BEqORYJn6YZkZJLLIwgFkV2';
+    const cleanUsername = username.replace(/^@/, '');
+    const apiUrl = `https://api.scrapecreators.com/v1/tiktok/profile?uniqueId=${encodeURIComponent(cleanUsername)}`;
+    
+    console.log('Fetching TikTok profile via Scrape Creators API:', cleanUsername);
 
-    const response = await fetch(url, {
+    const response = await fetch(apiUrl, {
+      method: 'GET',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Cache-Control': 'no-cache',
+        'x-api-key': apiKey,
       },
     });
 
     if (!response.ok) {
-      console.error('TikTok page fetch failed:', response.status);
-      return null;
-    }
-
-    const html = await response.text();
-
-    // Try to extract bio from __UNIVERSAL_DATA_FOR_REHYDRATION__
-    const rehydrationMatch = html.match(/<script id="__UNIVERSAL_DATA_FOR_REHYDRATION__"[^>]*>([\s\S]*?)<\/script>/);
-    if (rehydrationMatch) {
-      try {
-        const data = JSON.parse(rehydrationMatch[1]);
-        const userInfo = data?.__DEFAULT_SCOPE__?.['webapp.user-detail']?.userInfo;
-        const bio = userInfo?.user?.signature;
-        if (bio !== undefined) {
-          console.log('Found bio via REHYDRATION data');
-          return bio;
-        }
-      } catch (e) {
-        console.log('Failed to parse REHYDRATION data');
-      }
-    }
-
-    // Try SIGI_STATE
-    const sigiMatch = html.match(/<script id="SIGI_STATE"[^>]*>([\s\S]*?)<\/script>/);
-    if (sigiMatch) {
-      try {
-        const data = JSON.parse(sigiMatch[1]);
-        const userModule = data?.UserModule?.users;
-        if (userModule) {
-          const userKey = Object.keys(userModule)[0];
-          const bio = userModule[userKey]?.signature;
-          if (bio !== undefined) {
-            console.log('Found bio via SIGI_STATE');
-            return bio;
-          }
-        }
-      } catch (e) {
-        console.log('Failed to parse SIGI_STATE');
-      }
-    }
-
-    // Try meta description as fallback
-    const metaMatch = html.match(/<meta[^>]*name="description"[^>]*content="([^"]*)"[^>]*>/i);
-    if (metaMatch) {
-      console.log('Found meta description as fallback');
-      return metaMatch[1];
-    }
-
-    // Try JSON-LD
-    const jsonLdMatches = html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g);
-    for (const match of jsonLdMatches) {
-      try {
-        const ld = JSON.parse(match[1]);
-        if (ld?.description) {
-          console.log('Found bio via JSON-LD');
-          return ld.description;
-        }
-      } catch (e) {
-        // skip
-      }
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Scrape error:', error);
-    return null;
-  }
-}
-
-// Method 2: Use TikWM free API
-async function fetchBioViaTikWM(username: string): Promise<string | null> {
-  try {
-    const url = `https://www.tikwm.com/api/user/info?unique_id=${encodeURIComponent(username)}`;
-    console.log('Fetching bio via TikWM:', username);
-
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      console.error('TikWM API error:', response.status);
+      console.error('Scrape Creators API error:', response.status);
+      const errorText = await response.text();
+      console.error('Error response:', errorText);
       return null;
     }
 
     const data = await response.json();
-    const bio = data?.data?.signature;
-    if (bio !== undefined) {
-      console.log('Found bio via TikWM');
+    const bio = data?.user?.signature || null;
+    
+    if (bio !== null && bio !== undefined) {
+      console.log('Found bio via Scrape Creators API');
       return bio;
     }
 
     return null;
   } catch (error) {
-    console.error('TikWM error:', error);
-    return null;
-  }
-}
-
-// Method 3: Fallback to RapidAPI if key exists
-async function fetchBioViaRapidApi(username: string, apiKey: string): Promise<string | null> {
-  try {
-    const apiUrl = `https://tiktok-scraper7.p.rapidapi.com/user/info?unique_id=${encodeURIComponent(username)}`;
-    console.log('Fetching bio via RapidAPI');
-
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'x-rapidapi-key': apiKey,
-        'x-rapidapi-host': 'tiktok-scraper7.p.rapidapi.com',
-      },
-    });
-
-    if (!response.ok) {
-      console.error('RapidAPI error:', response.status);
-      return null;
-    }
-
-    const data = await response.json();
-    return data?.data?.user?.signature || data?.data?.signature || null;
-  } catch (error) {
-    console.error('RapidAPI error:', error);
+    console.error('Scrape Creators API error:', error);
     return null;
   }
 }
@@ -173,23 +66,7 @@ serve(async (req) => {
     const cleanUsername = username.replace(/^@/, '');
     console.log('Verifying TikTok bio for:', cleanUsername);
 
-    // Try methods in order: TikWM (free API) → Scrape → RapidAPI (fallback)
-    let bio: string | null = null;
-
-    bio = await fetchBioViaTikWM(cleanUsername);
-
-    if (bio === null) {
-      console.log('TikWM failed, trying direct scrape...');
-      bio = await scrapeTikTokBio(cleanUsername);
-    }
-
-    if (bio === null) {
-      const tiktokApiKey = Deno.env.get('TIKTOK_API_KEY');
-      if (tiktokApiKey) {
-        console.log('Scrape failed, trying RapidAPI fallback...');
-        bio = await fetchBioViaRapidApi(cleanUsername, tiktokApiKey);
-      }
-    }
+    const bio = await fetchTikTokBio(cleanUsername);
 
     if (bio === null) {
       return new Response(
