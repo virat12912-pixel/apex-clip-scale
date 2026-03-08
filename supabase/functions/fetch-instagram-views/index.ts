@@ -107,7 +107,70 @@ function parseScrapedPayload(payload: string): ScrapedResult {
   return { views, likes, comments, author, description };
 }
 
-// ─── Method 1: Instagram Embed page ─────────────────────────────────────
+// ─── Method 1: Scrape Creators API (primary) ─────────────────────────────
+async function fetchViaScrapeCreators(videoUrl: string, shortcode: string): Promise<ScrapedResult | null> {
+  try {
+    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY') || 'BYkwgH6v3kXbKlvvXcaXa9XNa5J2';
+    console.log("Trying Scrape Creators API...");
+    
+    // Try with full URL first, then with shortcode
+    const apiUrl = `https://api.scrapecreators.com/v1/instagram/post?url=${encodeURIComponent(videoUrl)}`;
+    let response = await fetch(apiUrl, {
+      method: "GET",
+      headers: {
+        "x-api-key": apiKey,
+        "Accept": "application/json",
+      },
+    });
+
+    // If URL doesn't work, try with shortcode
+    if (!response.ok) {
+      const shortcodeUrl = `https://www.instagram.com/reel/${shortcode}/`;
+      const apiUrlShortcode = `https://api.scrapecreators.com/v1/instagram/post?url=${encodeURIComponent(shortcodeUrl)}`;
+      response = await fetch(apiUrlShortcode, {
+        method: "GET",
+        headers: {
+          "x-api-key": apiKey,
+          "Accept": "application/json",
+        },
+      });
+    }
+
+    if (!response.ok) {
+      console.error("Scrape Creators API error:", response.status);
+      const errorText = await response.text();
+      console.error("Error response:", errorText);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    if (!data?.data?.xdt_shortcode_media) {
+      console.error("Scrape Creators returned no media data");
+      return null;
+    }
+
+    const media = data.data.xdt_shortcode_media;
+    const captionEdges = media.edge_media_to_caption?.edges || [];
+    const caption = captionEdges[0]?.node?.text || null;
+
+    const result: ScrapedResult = {
+      views: media.video_view_count || media.video_play_count || 0,
+      likes: media.edge_media_preview_like?.count || 0,
+      comments: media.edge_media_to_parent_comment?.count || media.edge_media_preview_comment?.count || 0,
+      author: media.owner?.username || null,
+      description: caption,
+    };
+
+    console.log("Scrape Creators success - views:", result.views, "likes:", result.likes, "comments:", result.comments);
+    return result;
+  } catch (error) {
+    console.error("Scrape Creators error:", error);
+    return null;
+  }
+}
+
+// ─── Method 2: Instagram Embed page ─────────────────────────────────────
 async function fetchViaEmbed(shortcode: string): Promise<ScrapedResult | null> {
   for (const path of INSTAGRAM_PATHS) {
     try {
@@ -525,7 +588,13 @@ serve(async (req) => {
 
     console.log(`Fetching Instagram data for shortcode: ${reelId}`);
 
-    let result = await fetchViaEmbed(reelId);
+    // Method 1: Try Scrape Creators API (primary)
+    let result = await fetchViaScrapeCreators(video_url, reelId);
+
+    // Method 2: If Scrape Creators failed, try embed page
+    if (!result || result.views <= 0) {
+      result = await fetchViaEmbed(reelId);
+    }
 
     if (!result || result.views <= 0) {
       const graphResult = await fetchViaGraphQL(reelId);
