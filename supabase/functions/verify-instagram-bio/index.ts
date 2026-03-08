@@ -2,12 +2,55 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 interface VerifyRequest {
   username: string;
   verification_code: string;
+}
+
+// Fetch Instagram bio using Scrape Creators API
+async function fetchInstagramBio(username: string): Promise<string | null> {
+  try {
+    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY') || 'yp6K8BEqORYJn6YZkZJLLIwgFkV2';
+    const cleanUsername = username.replace(/^@/, '');
+    const apiUrl = `https://api.scrapecreators.com/v1/instagram/profile?username=${encodeURIComponent(cleanUsername)}`;
+    
+    console.log('Fetching Instagram profile via Scrape Creators API:', cleanUsername);
+
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'x-api-key': apiKey,
+      },
+    });
+
+    if (!response.ok) {
+      console.error('Scrape Creators API error:', response.status);
+      const errorText = await response.text();
+      console.error('Error response:', errorText);
+      
+      if (response.status === 429) {
+        return null;
+      }
+      
+      return null;
+    }
+
+    const data = await response.json();
+    const bio = data?.data?.user?.biography || data?.data?.biography || null;
+    
+    if (bio !== null && bio !== undefined) {
+      console.log('Found bio via Scrape Creators API');
+      return bio;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Scrape Creators API error:', error);
+    return null;
+  }
 }
 
 serve(async (req) => {
@@ -16,16 +59,6 @@ serve(async (req) => {
   }
 
   try {
-    const INSTAGRAM_API_KEY = Deno.env.get('INSTAGRAM_API_KEY');
-    
-    if (!INSTAGRAM_API_KEY) {
-      console.error('INSTAGRAM_API_KEY is not configured');
-      return new Response(
-        JSON.stringify({ success: false, error: 'Instagram API not configured' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const { username, verification_code } = await req.json() as VerifyRequest;
     
     if (!username || !verification_code) {
@@ -38,47 +71,21 @@ serve(async (req) => {
     // Remove @ if present
     const cleanUsername = username.replace(/^@/, '');
     
-    console.log('Fetching Instagram bio for:', cleanUsername);
+    console.log('Verifying Instagram bio for:', cleanUsername);
 
-    const apiUrl = `https://instagram-scraper21.p.rapidapi.com/api/v1/info?id_or_username=${encodeURIComponent(cleanUsername)}`;
-    
-    const response = await fetch(apiUrl, {
-      method: 'GET',
-      headers: {
-        'x-rapidapi-key': INSTAGRAM_API_KEY,
-        'x-rapidapi-host': 'instagram-scraper21.p.rapidapi.com',
-      },
-    });
+    const bio = await fetchInstagramBio(cleanUsername);
 
-    if (!response.ok) {
-      console.error('Instagram API error:', response.status);
-      
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: 'Rate limit reached. Please try again later.',
-            error_code: 'rate_limited'
-          }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
+    if (bio === null) {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'Failed to fetch Instagram profile',
-          error_code: 'api_error'
+          error: 'Could not fetch Instagram profile. Please make sure the username is correct and try again.',
+          error_code: 'fetch_failed'
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const data = await response.json();
-    console.log('Instagram API response received');
-
-    const bio = data?.data?.user?.biography || data?.data?.biography || data?.biography || '';
-    
     console.log('User bio:', bio);
     console.log('Looking for code:', verification_code);
 
