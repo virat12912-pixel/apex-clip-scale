@@ -58,7 +58,56 @@ async function expandShortUrl(shortUrl: string): Promise<string> {
   return currentUrl;
 }
 
-// Method 1: TikWM free API (no key needed)
+// Method 1: Scrape Creators API (primary)
+async function fetchViaScrapeCreators(videoUrl: string): Promise<{ views: number; likes: number; comments: number; author: string | null; description: string | null } | null> {
+  try {
+    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY') || 'BYkwgH6v3kXbKlvvXcaXa9XNa5J2';
+    console.log("Trying Scrape Creators API...");
+    
+    const apiUrl = `https://api.scrapecreators.com/v2/tiktok/video?url=${encodeURIComponent(videoUrl)}`;
+    const response = await fetch(apiUrl, {
+      method: "GET",
+      headers: {
+        "x-api-key": apiKey,
+        "Accept": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      console.error("Scrape Creators API error:", response.status);
+      const errorText = await response.text();
+      console.error("Error response:", errorText);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    if (!data?.aweme_detail) {
+      console.error("Scrape Creators returned no aweme_detail");
+      return null;
+    }
+
+    const awemeDetail = data.aweme_detail;
+    const statistics = awemeDetail.statistics || {};
+    const author = awemeDetail.author || {};
+
+    const result = {
+      views: statistics.play_count || 0,
+      likes: statistics.digg_count || 0,
+      comments: statistics.comment_count || 0,
+      author: author.unique_id || author.nickname || null,
+      description: awemeDetail.desc || null,
+    };
+
+    console.log("Scrape Creators success - views:", result.views, "likes:", result.likes, "comments:", result.comments);
+    return result;
+  } catch (error) {
+    console.error("Scrape Creators error:", error);
+    return null;
+  }
+}
+
+// Method 2: TikWM free API (fallback)
 async function fetchViaTikWM(videoUrl: string): Promise<{ views: number; likes: number; comments: number; author: string | null; description: string | null } | null> {
   try {
     console.log("Trying TikWM API...");
@@ -209,10 +258,15 @@ serve(async (req) => {
       targetUrl = "https://" + targetUrl;
     }
 
-    // Method 1: Try TikWM free API
-    let result = await fetchViaTikWM(targetUrl);
+    // Method 1: Try Scrape Creators API (primary)
+    let result = await fetchViaScrapeCreators(targetUrl);
 
-    // Method 2: If TikWM failed, try RapidAPI fallback
+    // Method 2: If Scrape Creators failed, try TikWM free API
+    if (!result || result.views <= 0) {
+      result = await fetchViaTikWM(targetUrl);
+    }
+
+    // Method 3: If TikWM failed, try RapidAPI fallback
     if (!result || result.views <= 0) {
       const videoId = extractVideoId(targetUrl);
       const tiktokApiKey = Deno.env.get("TIKTOK_API_KEY");
