@@ -10,22 +10,62 @@ interface VerifyRequest {
   verification_code: string;
 }
 
+// Fetch YouTube channel description using Scrape Creators API
+async function fetchYouTubeDescription(username: string): Promise<string | null> {
+  try {
+    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY') || 'yp6K8BEqORYJn6YZkZJLLIwgFkV2';
+    const cleanUsername = username.replace(/^@/, '').trim();
+    
+    // Handle different YouTube URL formats
+    let channelId = cleanUsername;
+    
+    // If it's a full URL, extract the channel ID or handle
+    if (cleanUsername.includes('youtube.com') || cleanUsername.includes('youtu.be')) {
+      const urlMatch = cleanUsername.match(/(?:youtube\.com\/(?:c\/|channel\/|user\/|@))([^\/\s]+)/);
+      if (urlMatch) {
+        channelId = urlMatch[1];
+      }
+    }
+    
+    const apiUrl = `https://api.scrapecreators.com/v1/youtube/channel?channel=${encodeURIComponent(channelId)}`;
+    
+    console.log('Fetching YouTube channel via Scrape Creators API:', channelId);
+
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'x-api-key': apiKey,
+      },
+    });
+
+    if (!response.ok) {
+      console.error('Scrape Creators API error:', response.status);
+      const errorText = await response.text();
+      console.error('Error response:', errorText);
+      return null;
+    }
+
+    const data = await response.json();
+    const description = data?.description || null;
+    
+    if (description !== null && description !== undefined) {
+      console.log('Found description via Scrape Creators API');
+      return description;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Scrape Creators API error:', error);
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY");
-
-    if (!YOUTUBE_API_KEY) {
-      console.error("YOUTUBE_API_KEY is not configured");
-      return new Response(
-        JSON.stringify({ success: false, error: "YouTube API not configured" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
     const { username, verification_code } = (await req.json()) as VerifyRequest;
 
     if (!username || !verification_code) {
@@ -38,83 +78,35 @@ serve(async (req) => {
     // Clean username - remove @ and leading/trailing whitespace
     const cleanUsername = username.replace(/^@/, "").trim();
 
-    console.log("Searching YouTube channel for:", cleanUsername);
+    console.log("Verifying YouTube channel for:", cleanUsername);
 
-    // First, search for the channel by username/handle
-    const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=channel&q=${encodeURIComponent(cleanUsername)}&maxResults=5&key=${YOUTUBE_API_KEY}`;
-    const searchResponse = await fetch(searchUrl, { method: "GET" });
+    const description = await fetchYouTubeDescription(cleanUsername);
 
-    if (!searchResponse.ok) {
-      const errorText = await searchResponse.text();
-      console.error("YouTube search API error:", searchResponse.status, errorText);
-
-      if (searchResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ success: false, error: "Rate limit reached. Please try again later.", error_code: "rate_limited" }),
-          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-
+    if (description === null) {
       return new Response(
-        JSON.stringify({ success: false, error: "Failed to search YouTube channels", error_code: "api_error" }),
+        JSON.stringify({ 
+          success: false, 
+          error: "Could not fetch YouTube channel. Please make sure the channel name or handle is correct and try again.",
+          error_code: "fetch_failed"
+        }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    const searchData = await searchResponse.json();
-    const channels = searchData.items || [];
+    console.log('Channel description:', description.substring(0, 200));
+    console.log('Looking for code:', verification_code);
 
-    if (channels.length === 0) {
-      return new Response(
-        JSON.stringify({ success: true, verified: false, message: "YouTube channel not found. Make sure you entered the correct channel name or handle." }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    // Get channel details (description) for all found channels
-    const channelIds = channels.map((ch: any) => ch.snippet?.channelId || ch.id?.channelId).filter(Boolean).join(",");
-
-    const channelUrl = `https://www.googleapis.com/youtube/v3/channels?part=snippet,brandingSettings&id=${channelIds}&key=${YOUTUBE_API_KEY}`;
-    const channelResponse = await fetch(channelUrl, { method: "GET" });
-
-    if (!channelResponse.ok) {
-      const errorText = await channelResponse.text();
-      console.error("YouTube channels API error:", channelResponse.status, errorText);
-      return new Response(
-        JSON.stringify({ success: false, error: "Failed to fetch channel details", error_code: "api_error" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    const channelData = await channelResponse.json();
-    const channelItems = channelData.items || [];
-
-    // Check each channel's description for the verification code
-    for (const channel of channelItems) {
-      const description = channel.snippet?.description || "";
-      const brandingDescription = channel.brandingSettings?.channel?.description || "";
-      const combinedText = `${description} ${brandingDescription}`;
-
-      console.log(`Channel "${channel.snippet?.title}" description:`, description.substring(0, 200));
-
-      if (combinedText.includes(verification_code)) {
-        return new Response(
-          JSON.stringify({
-            success: true,
-            verified: true,
-            channel_title: channel.snippet?.title,
-            message: "Verification successful! Code found in channel description.",
-          }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-    }
+    // Check if verification code is in description
+    const isVerified = description.includes(verification_code);
 
     return new Response(
       JSON.stringify({
         success: true,
-        verified: false,
-        message: "Verification code not found in channel description. Please add it to your YouTube channel's About section and try again.",
+        verified: isVerified,
+        bio: description,
+        message: isVerified
+          ? "Verification successful! Code found in channel description."
+          : "Verification code not found in channel description. Please add it to your YouTube channel's About section and try again.",
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
