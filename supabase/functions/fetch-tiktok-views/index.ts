@@ -61,7 +61,7 @@ async function expandShortUrl(shortUrl: string): Promise<string> {
 // Method 1: Scrape Creators API (primary)
 async function fetchViaScrapeCreators(videoUrl: string): Promise<{ views: number; likes: number; comments: number; author: string | null; description: string | null } | null> {
   try {
-    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY') || 'BYkwgH6v3kXbKlvvXcaXa9XNa5J2';
+    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY') || 'yp6K8BEqORYJn6YZkZJLLIwgFkV2';
     console.log("Trying Scrape Creators API...");
     
     const apiUrl = `https://api.scrapecreators.com/v2/tiktok/video?url=${encodeURIComponent(videoUrl)}`;
