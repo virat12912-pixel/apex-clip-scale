@@ -28,7 +28,7 @@ function extractYouTubeVideoId(url: string): string | null {
 // Fetch YouTube video stats using Scrape Creators API
 async function fetchViaScrapeCreators(videoUrl: string, videoId: string): Promise<{ views: number; likes: number; comments: number; author: string | null; description: string | null } | null> {
   try {
-    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY') || 'BYkwgH6v3kXbKlvvXcaXa9XNa5J2';
+    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY') || 'yp6K8BEqORYJn6YZkZJLLIwgFkV2';
     console.log("Trying Scrape Creators API...");
     
     // Try with full URL first, then with video ID

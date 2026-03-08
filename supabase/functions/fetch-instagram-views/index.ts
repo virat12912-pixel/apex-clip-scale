@@ -110,7 +110,7 @@ function parseScrapedPayload(payload: string): ScrapedResult {
 // ─── Method 1: Scrape Creators API (primary) ─────────────────────────────
 async function fetchViaScrapeCreators(videoUrl: string, shortcode: string): Promise<ScrapedResult | null> {
   try {
-    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY') || 'BYkwgH6v3kXbKlvvXcaXa9XNa5J2';
+    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY') || 'yp6K8BEqORYJn6YZkZJLLIwgFkV2';
     console.log("Trying Scrape Creators API...");
     
     // Try with full URL first, then with shortcode
