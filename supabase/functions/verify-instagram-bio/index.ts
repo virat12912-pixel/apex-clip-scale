@@ -15,7 +15,7 @@ async function fetchInstagramBio(username: string): Promise<string | null> {
   try {
     const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY') || 'yp6K8BEqORYJn6YZkZJLLIwgFkV2';
     const cleanUsername = username.replace(/^@/, '');
-    const apiUrl = `https://api.scrapecreators.com/v1/instagram/profile?username=${encodeURIComponent(cleanUsername)}`;
+    const apiUrl = `https://api.scrapecreators.com/v1/instagram/profile?handle=${encodeURIComponent(cleanUsername)}`;
     
     console.log('Fetching Instagram profile via Scrape Creators API:', cleanUsername);
 
