@@ -97,7 +97,16 @@ const SocialAccounts = () => {
       toast({ title: "Account added! Add verification code to your bio, then click Verify." });
       setIsOpen(false);
       setFormData({ platform: "tiktok", username: "", profile_url: "" });
-    } catch (error: any) { toast({ title: "Error", description: error.message, variant: "destructive" }); }
+    } catch (error: any) {
+      const isDuplicate = error.message?.includes("social_accounts_user_id_platform_username_key");
+      toast({
+        title: isDuplicate ? "Account already linked" : "Error",
+        description: isDuplicate
+          ? "This username is already linked to your profile on this platform."
+          : error.message,
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDelete = async (id: string) => {
