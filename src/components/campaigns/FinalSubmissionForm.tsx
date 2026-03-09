@@ -13,6 +13,7 @@ interface FinalSubmissionFormProps {
   campaignId: string;
   campaignStatus: string;
   trackedViews: number;
+  isRelaunched?: boolean;
 }
 
 function ScreenshotUploader({ label, onUpload, uploading, url }: {
