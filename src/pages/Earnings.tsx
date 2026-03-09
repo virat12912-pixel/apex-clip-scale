@@ -261,19 +261,16 @@ const Earnings = () => {
                             </div>
                           </div>
 
-                          {/* Tracked vs Verified views - hidden when relaunched after payout */}
-                          {!isRelaunchedAndPaid && (
-                            <div className="grid grid-cols-2 gap-2 mb-3">
-                              <div className="p-2 rounded-lg bg-secondary/30 border border-border/10">
-                                <div className="text-[10px] text-muted-foreground/40">Tracked Views</div>
-                                <div className="text-sm font-bold">{formatNumber(fs ? fs.tracked_views : campaign.total_views)}</div>
-                              </div>
-                              <div className="p-2 rounded-lg bg-secondary/30 border border-border/10">
-                                <div className="text-[10px] text-muted-foreground/40">Verified Views</div>
-                                <div className="text-sm font-bold">{fs && fs.verified_views != null ? formatNumber(fs.verified_views) : "Pending"}</div>
-                              </div>
+                          <div className="grid grid-cols-2 gap-2 mb-3">
+                            <div className="p-2 rounded-lg bg-secondary/30 border border-border/10">
+                              <div className="text-[10px] text-muted-foreground/40">Tracked Views</div>
+                              <div className="text-sm font-bold">{formatNumber(fs ? fs.tracked_views : campaign.total_views)}</div>
                             </div>
-                          )}
+                            <div className="p-2 rounded-lg bg-secondary/30 border border-border/10">
+                              <div className="text-[10px] text-muted-foreground/40">Verified Views</div>
+                              <div className="text-sm font-bold">{fs && fs.verified_views != null ? formatNumber(fs.verified_views) : "Pending"}</div>
+                            </div>
+                          </div>
 
 
 
