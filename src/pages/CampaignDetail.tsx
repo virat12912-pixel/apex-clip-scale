@@ -239,18 +239,8 @@ const CampaignDetail = () => {
   const isCreatorOrClipper = role === "creator" || role === "clipper";
   const isCompletedCreatorView = isCreatorOrClipper && campaign.status === "completed";
   
-  // Detect if campaign was relaunched after a previous paid cycle
-  // If there are submissions created after the final_submission was paid, the old FS belongs to a previous cycle
-  const isRelaunchedAfterPaid = (() => {
-    if (!finalSubmission || finalSubmission.status !== "paid" || !finalSubmission.paid_at) return false;
-    const paidAt = new Date(finalSubmission.paid_at).getTime();
-    return submissions?.some(s => s.creator_id === user?.id && new Date(s.created_at).getTime() > paidAt) ?? false;
-  })();
-  
-  // If relaunched after paid, treat the old final submission as non-existent for this cycle
-  const effectiveFinalSubmission = isRelaunchedAfterPaid ? null : finalSubmission;
-  const isFinalSubmissionApproved = effectiveFinalSubmission?.status === "approved" || effectiveFinalSubmission?.status === "paid";
-  const hasFinalSubmission = !!effectiveFinalSubmission;
+  const isFinalSubmissionApproved = finalSubmission?.status === "approved" || finalSubmission?.status === "paid";
+  const hasFinalSubmission = !!finalSubmission;
   // Check if this creator has any submissions in this campaign
   const hasSubmittedClips = submissions?.some((s) => s.creator_id === user?.id) ?? false;
   // Show form only if campaign completed AND no final submission exists yet AND creator has submitted clips
@@ -285,7 +275,6 @@ const CampaignDetail = () => {
             campaignId={id || ""}
             campaignStatus={campaign.status}
             trackedViews={trackedViews}
-            isRelaunched={isRelaunchedAfterPaid}
           />
         </div>
       </AppLayout>
@@ -312,7 +301,6 @@ const CampaignDetail = () => {
             campaignId={id || ""}
             campaignStatus={campaign.status}
             trackedViews={trackedViews}
-            isRelaunched={isRelaunchedAfterPaid}
           />
         </div>
       </AppLayout>

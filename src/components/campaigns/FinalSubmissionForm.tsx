@@ -13,7 +13,6 @@ interface FinalSubmissionFormProps {
   campaignId: string;
   campaignStatus: string;
   trackedViews: number;
-  isRelaunched?: boolean;
 }
 
 function ScreenshotUploader({ label, onUpload, uploading, url }: {
@@ -49,7 +48,7 @@ function ScreenshotUploader({ label, onUpload, uploading, url }: {
   );
 }
 
-export function FinalSubmissionForm({ campaignId, campaignStatus, trackedViews, isRelaunched }: FinalSubmissionFormProps) {
+export function FinalSubmissionForm({ campaignId, campaignStatus, trackedViews }: FinalSubmissionFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const { data: existing, isLoading } = useFinalSubmission(campaignId);
@@ -138,8 +137,8 @@ export function FinalSubmissionForm({ campaignId, campaignStatus, trackedViews, 
     }
   };
 
-  // If already submitted and not a relaunched cycle, show locked view
-  if (existing && !isRelaunched) {
+  // If already submitted, show locked view
+  if (existing) {
     return <LockedFinalSubmission submission={existing} />;
   }
 

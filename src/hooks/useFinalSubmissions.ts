@@ -189,46 +189,13 @@ export function useCreateFinalSubmission() {
     }) => {
       if (!user) throw new Error("Not authenticated");
 
-      // Check if a record already exists (relaunch case)
-      const { data: existing } = await supabase
+      const { data, error } = await supabase
         .from("final_submissions")
-        .select("id")
-        .eq("campaign_id", params.campaign_id)
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (existing) {
-        // Update existing record, reset status for re-review
-        const { data, error } = await supabase
-          .from("final_submissions")
-          .update({
-            ...params,
-            status: "submitted" as const,
-            submitted_at: new Date().toISOString(),
-            reviewed_at: null,
-            approved_at: null,
-            paid_at: null,
-            client_payment_received: false,
-            admin_notes: null,
-            verified_views: null,
-            final_earnings: 0,
-          })
-          .eq("id", existing.id)
-          .select()
-          .maybeSingle();
-
-        if (error) throw error;
-        if (!data) throw new Error("Update failed");
-        return data;
-      } else {
-        const { data, error } = await supabase
-          .from("final_submissions")
-          .insert({ ...params, user_id: user.id })
-          .select()
-          .single();
-        if (error) throw error;
-        return data;
-      }
+        .insert({ ...params, user_id: user.id })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["final-submission"] });

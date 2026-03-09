@@ -109,16 +109,10 @@ const Earnings = () => {
     return false;
   };
 
-  // Check if payout exists for campaign, optionally excluding payouts from before a certain date (for relaunched campaigns)
-  const hasPendingOrPaidPayoutForCampaign = (campaignId: string, excludePayoutsBeforeDate?: Date) => {
-    return payouts?.some(p => {
-      const matches = (p.status === "pending" || p.status === "approved" || p.status === "paid") && (p as any).campaign_id === campaignId;
-      if (!matches) return false;
-      if (excludePayoutsBeforeDate && new Date(p.created_at).getTime() <= excludePayoutsBeforeDate.getTime()) {
-        return false; // Exclude old-cycle payouts
-      }
-      return true;
-    });
+  const hasPendingOrPaidPayoutForCampaign = (campaignId: string) => {
+    return payouts?.some(p => 
+      (p.status === "pending" || p.status === "approved" || p.status === "paid") && (p as any).campaign_id === campaignId
+    );
   };
 
   const handleRequestPayout = async (campaignId: string, amount: number) => {
@@ -196,33 +190,17 @@ const Earnings = () => {
                 ) : (
                   <div className="space-y-3 stagger-enter">
                     {campaignEarnings.map((campaign) => {
-                      const rawFs = finalSubmissions?.find(f => f.campaign_id === campaign.campaign_id);
+                      const fs = finalSubmissions?.find(f => f.campaign_id === campaign.campaign_id);
                       const isCampaignLive = campaign.campaign_status === "active" || campaign.campaign_status === "paused" || campaign.campaign_status === "private";
                       const isCampaignCompleted = campaign.campaign_status === "completed";
-
-                      // Detect if campaign was relaunched after a previous paid cycle
-                      // Check if there are submissions created after the final submission was paid
-                      const isRelaunchedAfterPaid = (() => {
-                        if (!rawFs || rawFs.status !== "paid" || !rawFs.paid_at) return false;
-                        const paidAt = new Date(rawFs.paid_at).getTime();
-                        const campaignSubs = (submissions || []).filter((s: any) => s.campaign_id === campaign.campaign_id);
-                        return campaignSubs.some((s: any) => new Date(s.created_at).getTime() > paidAt);
-                      })();
-
-                      // If campaign was reactivated and payout was already made, treat as fresh start
-                      const isRelaunchedAndPaid = (isCampaignLive || isRelaunchedAfterPaid) && rawFs?.status === "paid";
-                      const fs = isRelaunchedAndPaid ? undefined : rawFs;
                       const fsStatus = fs?.status;
-
-                      // Skip old paid payouts when campaign is relaunched (exclude payouts from before the relaunch)
-                      const excludePayoutsBefore = isRelaunchedAndPaid && rawFs?.paid_at ? new Date(rawFs.paid_at) : undefined;
-                      const hasPending = isRelaunchedAndPaid ? false : hasPendingOrPaidPayoutForCampaign(campaign.campaign_id, excludePayoutsBefore);
+                      const hasPending = hasPendingOrPaidPayoutForCampaign(campaign.campaign_id);
 
                       const isFinalApproved = fsStatus === "approved";
                       const isFinalPaid = fsStatus === "paid";
                       const canRequestPayout = isFinalApproved && campaign.total_earnings >= 10 && hasPaymentDetails() && !hasPending;
-                      const statusLabel = isRelaunchedAndPaid ? "Posting" : !fs ? "Posting" : fsStatus === "submitted" ? "Under Review" : fsStatus === "approved" ? "Approved" : fsStatus === "paid" ? "Paid" : fsStatus === "rejected" ? "Rejected" : "Posting";
-                      const statusColor = isRelaunchedAndPaid ? "bg-blue-500/10 text-blue-400" : !fs ? "bg-blue-500/10 text-blue-400" : fsStatus === "submitted" || fsStatus === "under_review" ? "bg-yellow-500/10 text-yellow-400" : fsStatus === "approved" ? "bg-emerald-500/10 text-emerald-400" : fsStatus === "paid" ? "bg-primary/10 text-primary" : "bg-red-500/10 text-red-400";
+                      const statusLabel = !fs ? "Posting" : fsStatus === "submitted" ? "Under Review" : fsStatus === "approved" ? "Approved" : fsStatus === "paid" ? "Paid" : fsStatus === "rejected" ? "Rejected" : "Posting";
+                      const statusColor = !fs ? "bg-blue-500/10 text-blue-400" : fsStatus === "submitted" || fsStatus === "under_review" ? "bg-yellow-500/10 text-yellow-400" : fsStatus === "approved" ? "bg-emerald-500/10 text-emerald-400" : fsStatus === "paid" ? "bg-primary/10 text-primary" : "bg-red-500/10 text-red-400";
 
                       // Determine payout button state
                       let payoutButtonLabel = "Request Payout";
@@ -272,30 +250,27 @@ const Earnings = () => {
                             <div>
                               <h4 className="font-display font-bold group-hover:text-primary transition-colors duration-200">{campaign.campaign_name}</h4>
                               <div className="flex items-center gap-3 mt-1.5 text-sm text-muted-foreground/60">
-                                <span className="flex items-center gap-1"><CheckCircle className="h-3.5 w-3.5 text-emerald-400" />{isRelaunchedAndPaid ? 0 : campaign.approved_count} approved</span>
-                                {(isRelaunchedAndPaid ? false : campaign.rejected_count > 0) && <span className="flex items-center gap-1"><XCircle className="h-3.5 w-3.5 text-red-400" />{campaign.rejected_count} rejected</span>}
-                                {(isRelaunchedAndPaid ? false : campaign.pending_count > 0) && <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-yellow-400" />{campaign.pending_count} pending</span>}
+                                <span className="flex items-center gap-1"><CheckCircle className="h-3.5 w-3.5 text-emerald-400" />{campaign.approved_count} approved</span>
+                                {campaign.rejected_count > 0 && <span className="flex items-center gap-1"><XCircle className="h-3.5 w-3.5 text-red-400" />{campaign.rejected_count} rejected</span>}
+                                {campaign.pending_count > 0 && <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5 text-yellow-400" />{campaign.pending_count} pending</span>}
                               </div>
                             </div>
                             <div className="text-right">
-                              <div className="text-xl font-display font-bold text-primary">${isRelaunchedAndPaid ? "0.00" : campaign.total_earnings.toFixed(2)}</div>
-                              <div className="text-xs text-muted-foreground/40">{isRelaunchedAndPaid ? "0" : formatNumber(campaign.total_views)} views</div>
+                              <div className="text-xl font-display font-bold text-primary">${campaign.total_earnings.toFixed(2)}</div>
+                              <div className="text-xs text-muted-foreground/40">{formatNumber(campaign.total_views)} views</div>
                             </div>
                           </div>
 
-                          {/* Tracked vs Verified views - hidden when relaunched after payout */}
-                          {!isRelaunchedAndPaid && (
-                            <div className="grid grid-cols-2 gap-2 mb-3">
-                              <div className="p-2 rounded-lg bg-secondary/30 border border-border/10">
-                                <div className="text-[10px] text-muted-foreground/40">Tracked Views</div>
-                                <div className="text-sm font-bold">{formatNumber(fs ? fs.tracked_views : campaign.total_views)}</div>
-                              </div>
-                              <div className="p-2 rounded-lg bg-secondary/30 border border-border/10">
-                                <div className="text-[10px] text-muted-foreground/40">Verified Views</div>
-                                <div className="text-sm font-bold">{fs && fs.verified_views != null ? formatNumber(fs.verified_views) : "Pending"}</div>
-                              </div>
+                          <div className="grid grid-cols-2 gap-2 mb-3">
+                            <div className="p-2 rounded-lg bg-secondary/30 border border-border/10">
+                              <div className="text-[10px] text-muted-foreground/40">Tracked Views</div>
+                              <div className="text-sm font-bold">{formatNumber(fs ? fs.tracked_views : campaign.total_views)}</div>
                             </div>
-                          )}
+                            <div className="p-2 rounded-lg bg-secondary/30 border border-border/10">
+                              <div className="text-[10px] text-muted-foreground/40">Verified Views</div>
+                              <div className="text-sm font-bold">{fs && fs.verified_views != null ? formatNumber(fs.verified_views) : "Pending"}</div>
+                            </div>
+                          </div>
 
 
 
