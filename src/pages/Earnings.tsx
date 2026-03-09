@@ -109,16 +109,10 @@ const Earnings = () => {
     return false;
   };
 
-  // Check if payout exists for campaign, optionally excluding payouts from before a certain date (for relaunched campaigns)
-  const hasPendingOrPaidPayoutForCampaign = (campaignId: string, excludePayoutsBeforeDate?: Date) => {
-    return payouts?.some(p => {
-      const matches = (p.status === "pending" || p.status === "approved" || p.status === "paid") && (p as any).campaign_id === campaignId;
-      if (!matches) return false;
-      if (excludePayoutsBeforeDate && new Date(p.created_at).getTime() <= excludePayoutsBeforeDate.getTime()) {
-        return false; // Exclude old-cycle payouts
-      }
-      return true;
-    });
+  const hasPendingOrPaidPayoutForCampaign = (campaignId: string) => {
+    return payouts?.some(p => 
+      (p.status === "pending" || p.status === "approved" || p.status === "paid") && (p as any).campaign_id === campaignId
+    );
   };
 
   const handleRequestPayout = async (campaignId: string, amount: number) => {
