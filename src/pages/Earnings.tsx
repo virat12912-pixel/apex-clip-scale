@@ -109,8 +109,16 @@ const Earnings = () => {
     return false;
   };
 
-  const hasPendingOrPaidPayoutForCampaign = (campaignId: string) => {
-    return payouts?.some(p => (p.status === "pending" || p.status === "approved" || p.status === "paid") && (p as any).campaign_id === campaignId);
+  // Check if payout exists for campaign, optionally excluding payouts from before a certain date (for relaunched campaigns)
+  const hasPendingOrPaidPayoutForCampaign = (campaignId: string, excludePayoutsBeforeDate?: Date) => {
+    return payouts?.some(p => {
+      const matches = (p.status === "pending" || p.status === "approved" || p.status === "paid") && (p as any).campaign_id === campaignId;
+      if (!matches) return false;
+      if (excludePayoutsBeforeDate && new Date(p.created_at).getTime() <= excludePayoutsBeforeDate.getTime()) {
+        return false; // Exclude old-cycle payouts
+      }
+      return true;
+    });
   };
 
   const handleRequestPayout = async (campaignId: string, amount: number) => {
@@ -192,13 +200,23 @@ const Earnings = () => {
                       const isCampaignLive = campaign.campaign_status === "active" || campaign.campaign_status === "paused" || campaign.campaign_status === "private";
                       const isCampaignCompleted = campaign.campaign_status === "completed";
 
-                      // If campaign was reactivated (now live) and payout was already made, treat as fresh start
-                      const isRelaunchedAndPaid = isCampaignLive && rawFs?.status === "paid";
+                      // Detect if campaign was relaunched after a previous paid cycle
+                      // Check if there are submissions created after the final submission was paid
+                      const isRelaunchedAfterPaid = (() => {
+                        if (!rawFs || rawFs.status !== "paid" || !rawFs.paid_at) return false;
+                        const paidAt = new Date(rawFs.paid_at).getTime();
+                        const campaignSubs = (submissions || []).filter((s: any) => s.campaign_id === campaign.campaign_id);
+                        return campaignSubs.some((s: any) => new Date(s.created_at).getTime() > paidAt);
+                      })();
+
+                      // If campaign was reactivated and payout was already made, treat as fresh start
+                      const isRelaunchedAndPaid = (isCampaignLive || isRelaunchedAfterPaid) && rawFs?.status === "paid";
                       const fs = isRelaunchedAndPaid ? undefined : rawFs;
                       const fsStatus = fs?.status;
 
-                      // Skip old paid payouts when campaign is relaunched
-                      const hasPending = isRelaunchedAndPaid ? false : hasPendingOrPaidPayoutForCampaign(campaign.campaign_id);
+                      // Skip old paid payouts when campaign is relaunched (exclude payouts from before the relaunch)
+                      const excludePayoutsBefore = isRelaunchedAndPaid && rawFs?.paid_at ? new Date(rawFs.paid_at) : undefined;
+                      const hasPending = isRelaunchedAndPaid ? false : hasPendingOrPaidPayoutForCampaign(campaign.campaign_id, excludePayoutsBefore);
 
                       const isFinalApproved = fsStatus === "approved";
                       const isFinalPaid = fsStatus === "paid";
