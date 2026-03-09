@@ -207,14 +207,18 @@ export function useCreateFinalSubmission() {
             submitted_at: new Date().toISOString(),
             reviewed_at: null,
             approved_at: null,
+            paid_at: null,
+            client_payment_received: false,
             admin_notes: null,
             verified_views: null,
             final_earnings: 0,
           })
           .eq("id", existing.id)
           .select()
-          .single();
+          .maybeSingle();
+
         if (error) throw error;
+        if (!data) throw new Error("Update failed");
         return data;
       } else {
         const { data, error } = await supabase
