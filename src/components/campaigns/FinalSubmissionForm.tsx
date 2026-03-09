@@ -138,8 +138,8 @@ export function FinalSubmissionForm({ campaignId, campaignStatus, trackedViews, 
     }
   };
 
-  // If already submitted, show locked view
-  if (existing) {
+  // If already submitted and not a relaunched cycle, show locked view
+  if (existing && !isRelaunched) {
     return <LockedFinalSubmission submission={existing} />;
   }
 
