@@ -190,33 +190,17 @@ const Earnings = () => {
                 ) : (
                   <div className="space-y-3 stagger-enter">
                     {campaignEarnings.map((campaign) => {
-                      const rawFs = finalSubmissions?.find(f => f.campaign_id === campaign.campaign_id);
+                      const fs = finalSubmissions?.find(f => f.campaign_id === campaign.campaign_id);
                       const isCampaignLive = campaign.campaign_status === "active" || campaign.campaign_status === "paused" || campaign.campaign_status === "private";
                       const isCampaignCompleted = campaign.campaign_status === "completed";
-
-                      // Detect if campaign was relaunched after a previous paid cycle
-                      // Check if there are submissions created after the final submission was paid
-                      const isRelaunchedAfterPaid = (() => {
-                        if (!rawFs || rawFs.status !== "paid" || !rawFs.paid_at) return false;
-                        const paidAt = new Date(rawFs.paid_at).getTime();
-                        const campaignSubs = (submissions || []).filter((s: any) => s.campaign_id === campaign.campaign_id);
-                        return campaignSubs.some((s: any) => new Date(s.created_at).getTime() > paidAt);
-                      })();
-
-                      // If campaign was reactivated and payout was already made, treat as fresh start
-                      const isRelaunchedAndPaid = (isCampaignLive || isRelaunchedAfterPaid) && rawFs?.status === "paid";
-                      const fs = isRelaunchedAndPaid ? undefined : rawFs;
                       const fsStatus = fs?.status;
-
-                      // Skip old paid payouts when campaign is relaunched (exclude payouts from before the relaunch)
-                      const excludePayoutsBefore = isRelaunchedAndPaid && rawFs?.paid_at ? new Date(rawFs.paid_at) : undefined;
-                      const hasPending = isRelaunchedAndPaid ? false : hasPendingOrPaidPayoutForCampaign(campaign.campaign_id, excludePayoutsBefore);
+                      const hasPending = hasPendingOrPaidPayoutForCampaign(campaign.campaign_id);
 
                       const isFinalApproved = fsStatus === "approved";
                       const isFinalPaid = fsStatus === "paid";
                       const canRequestPayout = isFinalApproved && campaign.total_earnings >= 10 && hasPaymentDetails() && !hasPending;
-                      const statusLabel = isRelaunchedAndPaid ? "Posting" : !fs ? "Posting" : fsStatus === "submitted" ? "Under Review" : fsStatus === "approved" ? "Approved" : fsStatus === "paid" ? "Paid" : fsStatus === "rejected" ? "Rejected" : "Posting";
-                      const statusColor = isRelaunchedAndPaid ? "bg-blue-500/10 text-blue-400" : !fs ? "bg-blue-500/10 text-blue-400" : fsStatus === "submitted" || fsStatus === "under_review" ? "bg-yellow-500/10 text-yellow-400" : fsStatus === "approved" ? "bg-emerald-500/10 text-emerald-400" : fsStatus === "paid" ? "bg-primary/10 text-primary" : "bg-red-500/10 text-red-400";
+                      const statusLabel = !fs ? "Posting" : fsStatus === "submitted" ? "Under Review" : fsStatus === "approved" ? "Approved" : fsStatus === "paid" ? "Paid" : fsStatus === "rejected" ? "Rejected" : "Posting";
+                      const statusColor = !fs ? "bg-blue-500/10 text-blue-400" : fsStatus === "submitted" || fsStatus === "under_review" ? "bg-yellow-500/10 text-yellow-400" : fsStatus === "approved" ? "bg-emerald-500/10 text-emerald-400" : fsStatus === "paid" ? "bg-primary/10 text-primary" : "bg-red-500/10 text-red-400";
 
                       // Determine payout button state
                       let payoutButtonLabel = "Request Payout";
