@@ -192,8 +192,17 @@ const Earnings = () => {
                       const isCampaignLive = campaign.campaign_status === "active" || campaign.campaign_status === "paused" || campaign.campaign_status === "private";
                       const isCampaignCompleted = campaign.campaign_status === "completed";
 
-                      // If campaign was reactivated (now live) and payout was already made, treat as fresh start
-                      const isRelaunchedAndPaid = isCampaignLive && rawFs?.status === "paid";
+                      // Detect if campaign was relaunched after a previous paid cycle
+                      // Check if there are submissions created after the final submission was paid
+                      const isRelaunchedAfterPaid = (() => {
+                        if (!rawFs || rawFs.status !== "paid" || !rawFs.paid_at) return false;
+                        const paidAt = new Date(rawFs.paid_at).getTime();
+                        const campaignSubs = (submissions || []).filter((s: any) => s.campaign_id === campaign.campaign_id);
+                        return campaignSubs.some((s: any) => new Date(s.created_at).getTime() > paidAt);
+                      })();
+
+                      // If campaign was reactivated and payout was already made, treat as fresh start
+                      const isRelaunchedAndPaid = (isCampaignLive || isRelaunchedAfterPaid) && rawFs?.status === "paid";
                       const fs = isRelaunchedAndPaid ? undefined : rawFs;
                       const fsStatus = fs?.status;
 
