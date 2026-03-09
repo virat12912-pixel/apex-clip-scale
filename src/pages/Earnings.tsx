@@ -214,8 +214,9 @@ const Earnings = () => {
                       const fs = isRelaunchedAndPaid ? undefined : rawFs;
                       const fsStatus = fs?.status;
 
-                      // Skip old paid payouts when campaign is relaunched
-                      const hasPending = isRelaunchedAndPaid ? false : hasPendingOrPaidPayoutForCampaign(campaign.campaign_id);
+                      // Skip old paid payouts when campaign is relaunched (exclude payouts from before the relaunch)
+                      const excludePayoutsBefore = isRelaunchedAndPaid && rawFs?.paid_at ? new Date(rawFs.paid_at) : undefined;
+                      const hasPending = isRelaunchedAndPaid ? false : hasPendingOrPaidPayoutForCampaign(campaign.campaign_id, excludePayoutsBefore);
 
                       const isFinalApproved = fsStatus === "approved";
                       const isFinalPaid = fsStatus === "paid";
