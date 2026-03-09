@@ -312,6 +312,7 @@ const CampaignDetail = () => {
             campaignId={id || ""}
             campaignStatus={campaign.status}
             trackedViews={trackedViews}
+            isRelaunched={isRelaunchedAfterPaid}
           />
         </div>
       </AppLayout>
