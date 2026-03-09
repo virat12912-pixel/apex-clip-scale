@@ -48,7 +48,7 @@ function ScreenshotUploader({ label, onUpload, uploading, url }: {
   );
 }
 
-export function FinalSubmissionForm({ campaignId, campaignStatus, trackedViews, isRelaunched }: FinalSubmissionFormProps) {
+export function FinalSubmissionForm({ campaignId, campaignStatus, trackedViews }: FinalSubmissionFormProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const { data: existing, isLoading } = useFinalSubmission(campaignId);
