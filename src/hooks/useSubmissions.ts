@@ -334,6 +334,7 @@ export function useCreateSubmission() {
 
       // Fetch views SEQUENTIALLY to avoid API rate-limiting returning wrong data
       const toInsert: any[] = [];
+      const processingMetrics: Array<{ views: number; likes: number; comments: number }> = [];
       for (const s of submissions) {
         const campaignReq = campaignMap.get(s.campaign_id)!;
 
@@ -388,10 +389,19 @@ export function useCreateSubmission() {
           throw new Error(parts.join(". "));
         }
 
+        // Keep insert payload compliant with creator INSERT RLS policy; metrics are applied by process-submission.
         toInsert.push({
           ...s,
           creator_id: user.id,
-          submitted_views: viewData.views,
+          status: "pending",
+          earnings: 0,
+          submitted_views: 0,
+          views: 0,
+          likes: 0,
+          comments: 0,
+        });
+
+        processingMetrics.push({
           views: viewData.views,
           likes: viewData.likes,
           comments: viewData.comments,
@@ -407,14 +417,15 @@ export function useCreateSubmission() {
 
       // Process all submissions in parallel for speed
       await Promise.all(
-        insertedSubmissions.map(async (sub) => {
+        insertedSubmissions.map(async (sub, index) => {
+          const metrics = processingMetrics[index] ?? { views: 0, likes: 0, comments: 0 };
           try {
             await supabase.functions.invoke("process-submission", {
               body: {
                 submission_id: sub.id,
-                views: Number(sub.views || 0),
-                likes: Number(sub.likes || 0),
-                comments: Number(sub.comments || 0),
+                views: metrics.views,
+                likes: metrics.likes,
+                comments: metrics.comments,
                 set_status: "pending",
               },
             });
