@@ -116,12 +116,12 @@ async function fetchViaApify(videoUrl: string): Promise<ScrapedResult | null> {
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 90000);
+  const timeout = setTimeout(() => controller.abort(), 210000);
 
   try {
     console.log("Trying Apify instagram-scraper for:", videoUrl);
     const response = await fetch(
-      "https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items?timeout=90",
+      "https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items?timeout=200",
       {
         method: "POST",
         headers: {
