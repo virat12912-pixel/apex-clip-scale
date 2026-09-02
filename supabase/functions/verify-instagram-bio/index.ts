@@ -10,7 +10,62 @@ interface VerifyRequest {
   verification_code: string;
 }
 
-// Fetch Instagram bio using Scrape Creators API
+// Fetch Instagram bio using Apify (primary)
+async function fetchBioViaApify(username: string): Promise<string | null> {
+  const token = Deno.env.get('APIFY_API_TOKEN');
+  if (!token) {
+    console.log('APIFY_API_TOKEN not configured, skipping Apify');
+    return null;
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 90000);
+
+  try {
+    console.log('Fetching Instagram profile via Apify:', username);
+    const response = await fetch(
+      'https://api.apify.com/v2/acts/apify~instagram-profile-scraper/run-sync-get-dataset-items?timeout=90',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ usernames: [username] }),
+        signal: controller.signal,
+      },
+    );
+
+    if (!response.ok) {
+      const body = await response.text();
+      console.error(`Apify error [${response.status}]: ${body.slice(0, 400)}`);
+      return null;
+    }
+
+    const items = await response.json();
+    const item = Array.isArray(items) ? items[0] : null;
+    if (!item) {
+      console.error('Apify returned no profile items for', username);
+      return null;
+    }
+    if (item.error) {
+      console.error('Apify profile error:', item.error, item.errorDescription || '');
+      return null;
+    }
+
+    const bio = item.biography ?? null;
+    if (bio !== null) console.log('Found bio via Apify');
+    return bio;
+  } catch (error) {
+    console.error('Apify request failed:', error);
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// Fetch Instagram bio using Scrape Creators API (fallback)
+
 async function fetchInstagramBio(username: string): Promise<string | null> {
   try {
     const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY') || 'yp6K8BEqORYJn6YZkZJLLIwgFkV2';
