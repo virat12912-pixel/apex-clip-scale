@@ -655,8 +655,16 @@ serve(async (req) => {
 
     console.log(`Fetching Instagram data for shortcode: ${reelId}`);
 
-    // Method 1: Try Scrape Creators API (primary)
-    let result = await fetchViaScrapeCreators(video_url, reelId);
+    // Method 0: Apify (primary)
+    let result = await fetchViaApify(video_url);
+
+    // Method 1: Scrape Creators API
+    if (!result || result.views <= 0) {
+      const scResult = await fetchViaScrapeCreators(video_url, reelId);
+      if (scResult && (scResult.views > 0 || scResult.author)) {
+        result = scResult;
+      }
+    }
 
     // Method 2: If Scrape Creators failed, try embed page
     if (!result || result.views <= 0) {
