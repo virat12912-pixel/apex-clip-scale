@@ -107,7 +107,74 @@ function parseScrapedPayload(payload: string): ScrapedResult {
   return { views, likes, comments, author, description };
 }
 
-// ─── Method 1: Scrape Creators API (primary) ─────────────────────────────
+// ─── Method 0: Apify Instagram scraper (primary) ─────────────────────────
+async function fetchViaApify(videoUrl: string): Promise<ScrapedResult | null> {
+  const token = Deno.env.get("APIFY_API_TOKEN");
+  if (!token) {
+    console.log("APIFY_API_TOKEN not configured, skipping Apify");
+    return null;
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 210000);
+
+  try {
+    console.log("Trying Apify instagram-scraper for:", videoUrl);
+    const response = await fetch(
+      "https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items?timeout=200",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          directUrls: [videoUrl],
+          resultsType: "posts",
+          resultsLimit: 1,
+          addParentData: false,
+        }),
+        signal: controller.signal,
+      },
+    );
+
+    if (!response.ok) {
+      const body = await response.text();
+      console.error(`Apify error [${response.status}]: ${body.slice(0, 400)}`);
+      return null;
+    }
+
+    const items = await response.json();
+    const item = Array.isArray(items) ? items[0] : null;
+    if (!item) {
+      console.error("Apify returned no items for", videoUrl);
+      return null;
+    }
+    if (item.error) {
+      console.error("Apify item error:", item.error, item.errorDescription || "");
+      return null;
+    }
+
+    const result: ScrapedResult = {
+      views: item.videoPlayCount || item.videoViewCount || item.playCount || item.viewCount || 0,
+      likes: item.likesCount && item.likesCount > 0 ? item.likesCount : 0,
+      comments: item.commentsCount && item.commentsCount > 0 ? item.commentsCount : 0,
+      author: item.ownerUsername || null,
+      description: item.caption || null,
+    };
+
+    console.log("Apify success - views:", result.views, "author:", result.author);
+    return result;
+  } catch (error) {
+    console.error("Apify request failed:", error);
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// ─── Method 1: Scrape Creators API ───────────────────────────────────────
+
 async function fetchViaScrapeCreators(videoUrl: string, shortcode: string): Promise<ScrapedResult | null> {
   try {
     const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY') || 'BYkwgH6v3kXbKlvvXcaXa9XNa5J2';
@@ -588,8 +655,16 @@ serve(async (req) => {
 
     console.log(`Fetching Instagram data for shortcode: ${reelId}`);
 
-    // Method 1: Try Scrape Creators API (primary)
-    let result = await fetchViaScrapeCreators(video_url, reelId);
+    // Method 0: Apify (primary)
+    let result = await fetchViaApify(video_url);
+
+    // Method 1: Scrape Creators API
+    if (!result || result.views <= 0) {
+      const scResult = await fetchViaScrapeCreators(video_url, reelId);
+      if (scResult && (scResult.views > 0 || scResult.author)) {
+        result = scResult;
+      }
+    }
 
     // Method 2: If Scrape Creators failed, try embed page
     if (!result || result.views <= 0) {
