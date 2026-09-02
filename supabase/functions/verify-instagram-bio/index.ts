@@ -128,7 +128,10 @@ serve(async (req) => {
     
     console.log('Verifying Instagram bio for:', cleanUsername);
 
-    const bio = await fetchInstagramBio(cleanUsername);
+    let bio = await fetchBioViaApify(cleanUsername);
+    if (bio === null) {
+      bio = await fetchInstagramBio(cleanUsername);
+    }
 
     if (bio === null) {
       return new Response(
