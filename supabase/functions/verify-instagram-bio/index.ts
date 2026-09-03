@@ -10,6 +10,15 @@ interface VerifyRequest {
   verification_code: string;
 }
 
+function normalizeInstagramUsername(value: string): string {
+  return value
+    .trim()
+    .replace(/^https?:\/\/(?:www\.)?instagram\.com\//i, '')
+    .replace(/^@/, '')
+    .split(/[/?#]/)[0]
+    .trim();
+}
+
 // Fetch Instagram bio using Apify (primary)
 async function fetchBioViaApify(username: string): Promise<string | null> {
   const token = Deno.env.get('APIFY_API_TOKEN');
@@ -68,7 +77,8 @@ async function fetchBioViaApify(username: string): Promise<string | null> {
 
 async function fetchInstagramBio(username: string): Promise<string | null> {
   try {
-    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY') || 'yp6K8BEqORYJn6YZkZJLLIwgFkV2';
+    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY');
+    if (!apiKey) return null;
     const cleanUsername = username.replace(/^@/, '');
     const apiUrl = `https://api.scrapecreators.com/v1/instagram/profile?username=${encodeURIComponent(cleanUsername)}`;
     
@@ -124,7 +134,15 @@ serve(async (req) => {
     }
 
     // Remove @ if present
-    const cleanUsername = username.replace(/^@/, '');
+    const cleanUsername = normalizeInstagramUsername(username);
+    const cleanCode = verification_code.trim();
+
+    if (!/^[A-Za-z0-9._]{1,30}$/.test(cleanUsername) || cleanCode.length < 4 || cleanCode.length > 100) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invalid Instagram username or verification code.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
     
     console.log('Verifying Instagram bio for:', cleanUsername);
 
@@ -144,11 +162,8 @@ serve(async (req) => {
       );
     }
 
-    console.log('User bio:', bio);
-    console.log('Looking for code:', verification_code);
-
     // Check if verification code is in bio
-    const isVerified = bio.includes(verification_code);
+    const isVerified = bio.toLocaleLowerCase().includes(cleanCode.toLocaleLowerCase());
 
     return new Response(
       JSON.stringify({
