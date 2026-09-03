@@ -334,8 +334,10 @@ export function useCreateSubmission() {
 
       // Fetch views SEQUENTIALLY to avoid API rate-limiting returning wrong data
       const toInsert: any[] = [];
+      const fetchedMetrics: Array<{ views: number; likes: number; comments: number }> = [];
       for (const s of submissions) {
-        const campaignReq = campaignMap.get(s.campaign_id)!;
+        const campaignReq = campaignMap.get(s.campaign_id);
+        if (!campaignReq) throw new Error("Campaign not found for submission.");
 
         // Add a small delay between API calls to avoid rate limits
         if (toInsert.length > 0) {
@@ -388,10 +390,20 @@ export function useCreateSubmission() {
           throw new Error(parts.join(". "));
         }
 
+        // The INSERT policy only permits creator-owned, zeroed pending rows.
+        // Trusted metrics and earnings are applied immediately afterward by
+        // process-submission using its server-side credentials.
         toInsert.push({
           ...s,
           creator_id: user.id,
-          submitted_views: viewData.views,
+          submitted_views: 0,
+          views: 0,
+          earnings: 0,
+          likes: 0,
+          comments: 0,
+          status: "pending" as const,
+        });
+        fetchedMetrics.push({
           views: viewData.views,
           likes: viewData.likes,
           comments: viewData.comments,
@@ -407,14 +419,20 @@ export function useCreateSubmission() {
 
       // Process all submissions in parallel for speed
       await Promise.all(
-        insertedSubmissions.map(async (sub) => {
+        insertedSubmissions.map(async (sub, index) => {
+          const metrics = fetchedMetrics[index];
+          if (!metrics) {
+            console.error("Missing fetched metrics for submission:", sub.id);
+            return;
+          }
+
           try {
             await supabase.functions.invoke("process-submission", {
               body: {
                 submission_id: sub.id,
-                views: Number(sub.views || 0),
-                likes: Number(sub.likes || 0),
-                comments: Number(sub.comments || 0),
+                views: metrics.views,
+                likes: metrics.likes,
+                comments: metrics.comments,
                 set_status: "pending",
               },
             });
