@@ -481,17 +481,23 @@ export function useDeleteSubmission() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from("submissions")
-        .delete()
-        .eq("id", id);
+      // Reverse earnings/budget server-side, then delete
+      const { data, error } = await supabase.functions.invoke("delete-submission", {
+        body: { submission_id: id },
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["submissions"] });
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign"] });
       queryClient.invalidateQueries({ queryKey: ["wallet"] });
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign-analytics"] });
     },
   });
 }
