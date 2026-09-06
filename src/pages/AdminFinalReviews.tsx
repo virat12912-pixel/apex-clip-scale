@@ -221,37 +221,21 @@ function ReviewCard({ submission }: { submission: FinalSubmission }) {
             ))}
           </div>
 
-          {/* Video Screenshots */}
+          {/* Video Recordings */}
           <div>
-            <Label className="text-xs text-muted-foreground/50 flex items-center gap-1 mb-2"><BarChart3 className="h-3 w-3" /> Video Analytics Screenshots</Label>
+            <Label className="text-xs text-muted-foreground/50 flex items-center gap-1 mb-2"><BarChart3 className="h-3 w-3" /> Video Analytics Recordings</Label>
             <ScreenshotGallery
               urls={[submission.video_screenshot_1, submission.video_screenshot_2, submission.video_screenshot_3]}
               labels={["Video 1 Analytics", "Video 2 Analytics", "Video 3 Analytics"]}
             />
           </div>
 
-          {/* Account & Demographics */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs text-muted-foreground/50 flex items-center gap-1 mb-2"><Users className="h-3 w-3" /> Account Analytics</Label>
-              <ScreenshotGallery urls={[submission.account_analytics_screenshot]} labels={["Account Analytics"]} />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground/50 flex items-center gap-1 mb-2"><Globe className="h-3 w-3" /> Demographics</Label>
-              <ScreenshotGallery urls={[submission.demographics_screenshot]} labels={["Demographics"]} />
-            </div>
+          {/* Account Analytics */}
+          <div>
+            <Label className="text-xs text-muted-foreground/50 flex items-center gap-1 mb-2"><Users className="h-3 w-3" /> Account Analytics Recording</Label>
+            <ScreenshotGallery urls={[submission.account_analytics_screenshot]} labels={["Account Analytics"]} />
           </div>
 
-          {/* Checklist */}
-          <div className="flex flex-wrap gap-2 text-xs">
-            <span className={`px-2.5 py-1 rounded-lg ${submission.ran_paid_ads ? "bg-yellow-500/10 text-yellow-400" : "bg-emerald-500/10 text-emerald-400"}`}>
-              {submission.ran_paid_ads ? "⚠ Ran paid ads" : "✓ No paid ads"}
-            </span>
-            <span className={`px-2.5 py-1 rounded-lg ${submission.videos_deleted ? "bg-red-500/10 text-red-400" : "bg-emerald-500/10 text-emerald-400"}`}>
-              {submission.videos_deleted ? "⚠ Videos deleted" : "✓ No videos deleted"}
-            </span>
-            <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400">✓ Original content</span>
-          </div>
 
           {/* Admin Actions */}
           {(submission.status === "submitted" || submission.status === "under_review") && (
