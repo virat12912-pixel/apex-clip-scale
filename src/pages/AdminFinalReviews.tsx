@@ -192,7 +192,7 @@ function ReviewCard({ submission }: { submission: FinalSubmission }) {
           <FinalSubmissionTimeline status={submission.status} />
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div className="p-3 rounded-xl bg-secondary/20 border border-border/20">
               <div className="text-xs text-muted-foreground/50">Tracked Views</div>
               <div className="font-bold">{submission.tracked_views.toLocaleString()}</div>
@@ -200,10 +200,6 @@ function ReviewCard({ submission }: { submission: FinalSubmission }) {
             <div className="p-3 rounded-xl bg-secondary/20 border border-border/20">
               <div className="text-xs text-muted-foreground/50">Verified Views</div>
               <div className="font-bold">{submission.verified_views?.toLocaleString() ?? "—"}</div>
-            </div>
-            <div className="p-3 rounded-xl bg-secondary/20 border border-border/20">
-              <div className="text-xs text-muted-foreground/50">Followers</div>
-              <div className="font-bold">{submission.followers_count.toLocaleString()}</div>
             </div>
             <div className="p-3 rounded-xl bg-secondary/20 border border-border/20">
               <div className="text-xs text-muted-foreground/50">Rate</div>
