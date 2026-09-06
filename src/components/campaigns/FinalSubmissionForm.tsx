@@ -1,9 +1,8 @@
 import { useState, useRef } from "react";
-import { Upload, Link2, Users, BarChart3, Globe, CheckCircle, Lock, AlertCircle, Loader2 } from "lucide-react";
+import { Upload, Link2, BarChart3, CheckCircle, Lock, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useFinalSubmission, useCreateFinalSubmission, uploadFinalSubmissionScreenshot, FinalSubmission } from "@/hooks/useFinalSubmissions";
@@ -15,7 +14,7 @@ interface FinalSubmissionFormProps {
   trackedViews: number;
 }
 
-function ScreenshotUploader({ label, onUpload, uploading, url }: {
+function RecordingUploader({ label, onUpload, uploading, url }: {
   label: string;
   onUpload: (file: File) => void;
   uploading: boolean;
@@ -25,14 +24,9 @@ function ScreenshotUploader({ label, onUpload, uploading, url }: {
   return (
     <div className="space-y-2">
       <Label className="text-xs text-muted-foreground">{label}</Label>
-      <input type="file" ref={ref} accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} />
+      <input type="file" ref={ref} accept="video/*" className="hidden" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} />
       {url ? (
-        <div className="relative group">
-          <img src={url} alt={label} className="w-full h-32 object-cover rounded-lg border border-border/30 cursor-pointer" onClick={() => window.open(url, "_blank")} />
-          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-            <span className="text-xs text-white">Click to view full</span>
-          </div>
-        </div>
+        <video src={url} controls className="w-full h-40 rounded-lg border border-border/30 bg-black object-contain" />
       ) : (
         <button
           type="button"
@@ -41,7 +35,7 @@ function ScreenshotUploader({ label, onUpload, uploading, url }: {
           className="w-full h-32 border-2 border-dashed border-border/50 rounded-lg flex flex-col items-center justify-center gap-2 text-muted-foreground/60 hover:border-primary/30 hover:text-primary/60 transition-all"
         >
           {uploading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Upload className="h-6 w-6" />}
-          <span className="text-xs">{uploading ? "Uploading..." : "Upload screenshot"}</span>
+          <span className="text-xs">{uploading ? "Uploading..." : "Upload screen recording"}</span>
         </button>
       )}
     </div>
@@ -62,12 +56,7 @@ export function FinalSubmissionForm({ campaignId, campaignStatus, trackedViews }
   const [videoScreenshot1, setVideoScreenshot1] = useState<string | null>(null);
   const [videoScreenshot2, setVideoScreenshot2] = useState<string | null>(null);
   const [videoScreenshot3, setVideoScreenshot3] = useState<string | null>(null);
-  const [followersCount, setFollowersCount] = useState("");
   const [accountScreenshot, setAccountScreenshot] = useState<string | null>(null);
-  const [demographicsScreenshot, setDemographicsScreenshot] = useState<string | null>(null);
-  const [ranPaidAds, setRanPaidAds] = useState(false);
-  const [videosDeleted, setVideosDeleted] = useState(false);
-  const [contentOriginal, setContentOriginal] = useState(false);
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
 
   if (isLoading) return null;
@@ -93,24 +82,12 @@ export function FinalSubmissionForm({ campaignId, campaignStatus, trackedViews }
       toast({ title: "All 3 video links required", variant: "destructive" });
       return;
     }
-    if (!followersCount || isNaN(Number(followersCount))) {
-      toast({ title: "Valid followers count required", variant: "destructive" });
-      return;
-    }
-    if (!contentOriginal) {
-      toast({ title: "Please confirm content is original", variant: "destructive" });
-      return;
-    }
     if (!videoScreenshot1 || !videoScreenshot2 || !videoScreenshot3) {
-      toast({ title: "Please upload analytics screenshots for all 3 videos", variant: "destructive" });
+      toast({ title: "Please upload screen recordings for all 3 videos", variant: "destructive" });
       return;
     }
     if (!accountScreenshot) {
-      toast({ title: "Please upload account analytics screenshot", variant: "destructive" });
-      return;
-    }
-    if (!demographicsScreenshot) {
-      toast({ title: "Please upload demographics screenshot", variant: "destructive" });
+      toast({ title: "Please upload the account analytics recording", variant: "destructive" });
       return;
     }
 
@@ -123,12 +100,11 @@ export function FinalSubmissionForm({ campaignId, campaignStatus, trackedViews }
         video_screenshot_1: videoScreenshot1,
         video_screenshot_2: videoScreenshot2,
         video_screenshot_3: videoScreenshot3,
-        followers_count: Number(followersCount),
+        followers_count: 0,
         account_analytics_screenshot: accountScreenshot,
-        demographics_screenshot: demographicsScreenshot,
-        ran_paid_ads: ranPaidAds,
-        videos_deleted: videosDeleted,
-        content_is_original: contentOriginal,
+        ran_paid_ads: false,
+        videos_deleted: false,
+        content_is_original: true,
         tracked_views: trackedViews,
       });
       toast({ title: "Final submission sent!", description: "Your submission is now under review." });
@@ -167,8 +143,8 @@ export function FinalSubmissionForm({ campaignId, campaignStatus, trackedViews }
           <div key={i} className="p-4 rounded-xl bg-secondary/20 border border-border/20 space-y-3">
             <Label className="text-xs">Video {i + 1} Link</Label>
             <Input placeholder="https://tiktok.com/..." value={v.val} onChange={(e) => v.set(e.target.value)} className="bg-secondary border-border" />
-            <ScreenshotUploader
-              label={`Analytics screenshot (Video ${i + 1})`}
+            <RecordingUploader
+              label={`Analytics screen recording (Video ${i + 1})`}
               onUpload={(f) => handleUpload(f, v.label, v.setSs as (url: string) => void)}
               uploading={!!uploading[v.label]}
               url={v.ss}
@@ -183,10 +159,8 @@ export function FinalSubmissionForm({ campaignId, campaignStatus, trackedViews }
           <BarChart3 className="h-4 w-4 text-primary" /> Account Analytics
         </div>
         <div className="p-4 rounded-xl bg-secondary/20 border border-border/20 space-y-3">
-          <Label className="text-xs">Current Followers Count</Label>
-          <Input type="number" placeholder="e.g. 15000" value={followersCount} onChange={(e) => setFollowersCount(e.target.value)} className="bg-secondary border-border" />
-          <ScreenshotUploader
-            label="Account analytics screenshot"
+          <RecordingUploader
+            label="Account analytics screen recording"
             onUpload={(f) => handleUpload(f, "account-analytics", setAccountScreenshot)}
             uploading={!!uploading["account-analytics"]}
             url={accountScreenshot}
@@ -194,45 +168,9 @@ export function FinalSubmissionForm({ campaignId, campaignStatus, trackedViews }
         </div>
       </div>
 
-      {/* Demographics */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <Globe className="h-4 w-4 text-primary" /> Account Demographics
-        </div>
-        <div className="p-4 rounded-xl bg-secondary/20 border border-border/20">
-          <ScreenshotUploader
-            label="Demographics (countries, gender, age distribution)"
-            onUpload={(f) => handleUpload(f, "demographics", setDemographicsScreenshot)}
-            uploading={!!uploading["demographics"]}
-            url={demographicsScreenshot}
-          />
-        </div>
-      </div>
-
-      {/* Confirmation Checklist */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-semibold">
-          <CheckCircle className="h-4 w-4 text-primary" /> Confirmation Checklist
-        </div>
-        <div className="space-y-3 p-4 rounded-xl bg-secondary/20 border border-border/20">
-          <div className="flex items-center gap-3">
-            <Checkbox id="paid-ads" checked={ranPaidAds} onCheckedChange={(c) => setRanPaidAds(c === true)} />
-            <label htmlFor="paid-ads" className="text-sm cursor-pointer">I ran paid ads on my content</label>
-          </div>
-          <div className="flex items-center gap-3">
-            <Checkbox id="deleted" checked={videosDeleted} onCheckedChange={(c) => setVideosDeleted(c === true)} />
-            <label htmlFor="deleted" className="text-sm cursor-pointer">Some videos were deleted</label>
-          </div>
-          <div className="flex items-center gap-3">
-            <Checkbox id="original" checked={contentOriginal} onCheckedChange={(c) => setContentOriginal(c === true)} />
-            <label htmlFor="original" className="text-sm cursor-pointer">I confirm all content is original *</label>
-          </div>
-        </div>
-      </div>
-
       <Button
         onClick={handleSubmit}
-        disabled={createFinalSubmission.isPending || !contentOriginal}
+        disabled={createFinalSubmission.isPending}
         className="w-full bg-gradient-primary hover:opacity-90 btn-shimmer rounded-xl font-display font-bold h-12"
       >
         {createFinalSubmission.isPending ? "Submitting..." : "Submit Final Report"}
@@ -300,10 +238,6 @@ function LockedFinalSubmission({ submission }: { submission: FinalSubmission }) 
           <div className="text-xs text-muted-foreground/50">Earnings</div>
           <div className="font-display font-bold text-primary">${Number(submission.final_earnings || 0).toFixed(2)}</div>
         </div>
-        <div className="p-3 rounded-xl bg-secondary/20 border border-border/20">
-          <div className="text-xs text-muted-foreground/50">Followers</div>
-          <div className="font-display font-bold">{submission.followers_count.toLocaleString()}</div>
-        </div>
       </div>
 
       {/* Video links */}
@@ -316,18 +250,6 @@ function LockedFinalSubmission({ submission }: { submission: FinalSubmission }) 
         ))}
       </div>
 
-      {/* Checklist */}
-      <div className="flex flex-wrap gap-3 text-xs">
-        <span className={`px-2.5 py-1 rounded-lg ${submission.ran_paid_ads ? "bg-yellow-500/10 text-yellow-400" : "bg-emerald-500/10 text-emerald-400"}`}>
-          {submission.ran_paid_ads ? "Ran paid ads" : "No paid ads"}
-        </span>
-        <span className={`px-2.5 py-1 rounded-lg ${submission.videos_deleted ? "bg-red-500/10 text-red-400" : "bg-emerald-500/10 text-emerald-400"}`}>
-          {submission.videos_deleted ? "Some videos deleted" : "No videos deleted"}
-        </span>
-        <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400">
-          Original content ✓
-        </span>
-      </div>
     </div>
   );
 }
