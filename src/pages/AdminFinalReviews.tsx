@@ -13,10 +13,17 @@ import { Eye, ExternalLink, CheckCircle, XCircle, Users, BarChart3, Globe, Chevr
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 
+const isVideoUrl = (url: string) => /\.(mp4|mov|webm|m4v|avi|mkv|quicktime)(\?|$)/i.test(url);
+
 function ScreenshotGallery({ urls, labels }: { urls: (string | null)[]; labels: string[] }) {
   return (
     <div className="grid grid-cols-3 gap-2">
       {urls.map((url, i) => url ? (
+        isVideoUrl(url) ? (
+          <div key={i} className="rounded-lg overflow-hidden border border-border/30 aspect-video bg-black">
+            <video src={url} controls className="w-full h-full object-contain" />
+          </div>
+        ) : (
         <Dialog key={i}>
           <DialogTrigger asChild>
             <button className="relative group rounded-lg overflow-hidden border border-border/30 aspect-video">
@@ -32,6 +39,7 @@ function ScreenshotGallery({ urls, labels }: { urls: (string | null)[]; labels: 
             <p className="text-xs text-muted-foreground text-center mt-1">{labels[i]}</p>
           </DialogContent>
         </Dialog>
+        )
       ) : (
         <div key={i} className="rounded-lg border border-dashed border-border/30 aspect-video flex items-center justify-center">
           <Image className="h-5 w-5 text-muted-foreground/30" />
@@ -184,7 +192,7 @@ function ReviewCard({ submission }: { submission: FinalSubmission }) {
           <FinalSubmissionTimeline status={submission.status} />
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div className="p-3 rounded-xl bg-secondary/20 border border-border/20">
               <div className="text-xs text-muted-foreground/50">Tracked Views</div>
               <div className="font-bold">{submission.tracked_views.toLocaleString()}</div>
@@ -192,10 +200,6 @@ function ReviewCard({ submission }: { submission: FinalSubmission }) {
             <div className="p-3 rounded-xl bg-secondary/20 border border-border/20">
               <div className="text-xs text-muted-foreground/50">Verified Views</div>
               <div className="font-bold">{submission.verified_views?.toLocaleString() ?? "—"}</div>
-            </div>
-            <div className="p-3 rounded-xl bg-secondary/20 border border-border/20">
-              <div className="text-xs text-muted-foreground/50">Followers</div>
-              <div className="font-bold">{submission.followers_count.toLocaleString()}</div>
             </div>
             <div className="p-3 rounded-xl bg-secondary/20 border border-border/20">
               <div className="text-xs text-muted-foreground/50">Rate</div>
@@ -213,37 +217,21 @@ function ReviewCard({ submission }: { submission: FinalSubmission }) {
             ))}
           </div>
 
-          {/* Video Screenshots */}
+          {/* Video Recordings */}
           <div>
-            <Label className="text-xs text-muted-foreground/50 flex items-center gap-1 mb-2"><BarChart3 className="h-3 w-3" /> Video Analytics Screenshots</Label>
+            <Label className="text-xs text-muted-foreground/50 flex items-center gap-1 mb-2"><BarChart3 className="h-3 w-3" /> Video Analytics Recordings</Label>
             <ScreenshotGallery
               urls={[submission.video_screenshot_1, submission.video_screenshot_2, submission.video_screenshot_3]}
               labels={["Video 1 Analytics", "Video 2 Analytics", "Video 3 Analytics"]}
             />
           </div>
 
-          {/* Account & Demographics */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs text-muted-foreground/50 flex items-center gap-1 mb-2"><Users className="h-3 w-3" /> Account Analytics</Label>
-              <ScreenshotGallery urls={[submission.account_analytics_screenshot]} labels={["Account Analytics"]} />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground/50 flex items-center gap-1 mb-2"><Globe className="h-3 w-3" /> Demographics</Label>
-              <ScreenshotGallery urls={[submission.demographics_screenshot]} labels={["Demographics"]} />
-            </div>
+          {/* Account Analytics */}
+          <div>
+            <Label className="text-xs text-muted-foreground/50 flex items-center gap-1 mb-2"><Users className="h-3 w-3" /> Account Analytics Recording</Label>
+            <ScreenshotGallery urls={[submission.account_analytics_screenshot]} labels={["Account Analytics"]} />
           </div>
 
-          {/* Checklist */}
-          <div className="flex flex-wrap gap-2 text-xs">
-            <span className={`px-2.5 py-1 rounded-lg ${submission.ran_paid_ads ? "bg-yellow-500/10 text-yellow-400" : "bg-emerald-500/10 text-emerald-400"}`}>
-              {submission.ran_paid_ads ? "⚠ Ran paid ads" : "✓ No paid ads"}
-            </span>
-            <span className={`px-2.5 py-1 rounded-lg ${submission.videos_deleted ? "bg-red-500/10 text-red-400" : "bg-emerald-500/10 text-emerald-400"}`}>
-              {submission.videos_deleted ? "⚠ Videos deleted" : "✓ No videos deleted"}
-            </span>
-            <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400">✓ Original content</span>
-          </div>
 
           {/* Admin Actions */}
           {(submission.status === "submitted" || submission.status === "under_review") && (
