@@ -13,10 +13,17 @@ import { Eye, ExternalLink, CheckCircle, XCircle, Users, BarChart3, Globe, Chevr
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 
+const isVideoUrl = (url: string) => /\.(mp4|mov|webm|m4v|avi|mkv|quicktime)(\?|$)/i.test(url);
+
 function ScreenshotGallery({ urls, labels }: { urls: (string | null)[]; labels: string[] }) {
   return (
     <div className="grid grid-cols-3 gap-2">
       {urls.map((url, i) => url ? (
+        isVideoUrl(url) ? (
+          <div key={i} className="rounded-lg overflow-hidden border border-border/30 aspect-video bg-black">
+            <video src={url} controls className="w-full h-full object-contain" />
+          </div>
+        ) : (
         <Dialog key={i}>
           <DialogTrigger asChild>
             <button className="relative group rounded-lg overflow-hidden border border-border/30 aspect-video">
@@ -32,6 +39,7 @@ function ScreenshotGallery({ urls, labels }: { urls: (string | null)[]; labels: 
             <p className="text-xs text-muted-foreground text-center mt-1">{labels[i]}</p>
           </DialogContent>
         </Dialog>
+        )
       ) : (
         <div key={i} className="rounded-lg border border-dashed border-border/30 aspect-video flex items-center justify-center">
           <Image className="h-5 w-5 text-muted-foreground/30" />
