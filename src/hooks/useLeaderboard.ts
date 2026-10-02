@@ -25,7 +25,7 @@ export function useCampaignLeaderboard(campaignId: string) {
           creator_profile:profiles!submissions_creator_id_fkey(full_name, avatar_url)
         `)
         .eq("campaign_id", campaignId)
-        .in("status", ["pending", "approved", "paid"]);
+        .in("status", ["approved", "paid"]);
 
       if (error) throw error;
 

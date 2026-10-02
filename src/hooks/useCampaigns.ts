@@ -35,6 +35,20 @@ export interface Campaign {
   };
 }
 
+// Budget used shown in the UI only counts accepted (approved/paid) clips.
+// Pending clips stay private to the creator until approved.
+async function withApprovedSpend<T extends { id: string; spent_budget: number }>(campaigns: T[]): Promise<T[]> {
+  if (!campaigns.length) return campaigns;
+  const { data } = await supabase
+    .from("submissions")
+    .select("campaign_id, earnings")
+    .in("campaign_id", campaigns.map((c) => c.id))
+    .in("status", ["approved", "paid"]);
+  const totals = new Map<string, number>();
+  (data || []).forEach((s: any) => totals.set(s.campaign_id, (totals.get(s.campaign_id) || 0) + Number(s.earnings || 0)));
+  return campaigns.map((c) => ({ ...c, spent_budget: totals.get(c.id) || 0 }));
+}
+
 export function useCampaigns(filters?: { status?: CampaignStatus | "all"; niche?: string; search?: string }) {
   return useQuery({
     queryKey: ["campaigns", filters],
@@ -62,7 +76,7 @@ export function useCampaigns(filters?: { status?: CampaignStatus | "all"; niche?
       const { data, error } = await query;
 
       if (error) throw error;
-      return data as Campaign[];
+      return withApprovedSpend(data as Campaign[]);
     },
   });
 }
@@ -81,7 +95,8 @@ export function useCampaign(id: string) {
         .single();
 
       if (error) throw error;
-      return data as Campaign;
+      const [c] = await withApprovedSpend([data as Campaign]);
+      return c;
     },
     enabled: !!id,
   });
