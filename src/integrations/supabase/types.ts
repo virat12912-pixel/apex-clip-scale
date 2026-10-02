@@ -390,6 +390,7 @@ export type Database = {
           account_analytics_screenshot: string | null
           admin_notes: string | null
           approved_at: string | null
+          attempt_count: number
           campaign_id: string
           client_payment_received: boolean
           content_is_original: boolean
@@ -419,6 +420,7 @@ export type Database = {
           account_analytics_screenshot?: string | null
           admin_notes?: string | null
           approved_at?: string | null
+          attempt_count?: number
           campaign_id: string
           client_payment_received?: boolean
           content_is_original?: boolean
@@ -448,6 +450,7 @@ export type Database = {
           account_analytics_screenshot?: string | null
           admin_notes?: string | null
           approved_at?: string | null
+          attempt_count?: number
           campaign_id?: string
           client_payment_received?: boolean
           content_is_original?: boolean
@@ -529,6 +532,7 @@ export type Database = {
           amount: number
           campaign_id: string | null
           created_at: string
+          discord_username: string | null
           id: string
           payout_email: string
           payout_method: string
@@ -541,6 +545,7 @@ export type Database = {
           amount: number
           campaign_id?: string | null
           created_at?: string
+          discord_username?: string | null
           id?: string
           payout_email: string
           payout_method: string
@@ -553,6 +558,7 @@ export type Database = {
           amount?: number
           campaign_id?: string | null
           created_at?: string
+          discord_username?: string | null
           id?: string
           payout_email?: string
           payout_method?: string
