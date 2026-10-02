@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.guard_final_submission_resubmit() FROM PUBLIC, anon, authenticated;

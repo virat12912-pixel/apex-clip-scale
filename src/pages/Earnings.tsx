@@ -1,10 +1,13 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { AppLayout } from "@/components/app/AppLayout";
 import { DollarSign, TrendingUp, Clock, Eye, AlertCircle, ChevronRight, CheckCircle, XCircle, Film, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWallet, usePayouts, useRequestPayout } from "@/hooks/useWallet";
 import { useMySubmissions } from "@/hooks/useSubmissions";
-import { useMyFinalSubmissions } from "@/hooks/useFinalSubmissions";
+import { useMyFinalSubmissions, MAX_FINAL_ATTEMPTS } from "@/hooks/useFinalSubmissions";
 import { FinalSubmissionTimeline } from "@/components/campaigns/FinalSubmissionTimeline";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -35,6 +38,9 @@ const Earnings = () => {
   const { profile } = useAuth();
   const requestPayout = useRequestPayout();
   const { toast } = useToast();
+  const [payoutTarget, setPayoutTarget] = useState<{ campaignId: string; amount: number; name: string } | null>(null);
+  const [payoutEmail, setPayoutEmail] = useState("");
+  const [discordUsername, setDiscordUsername] = useState("");
 
   const campaignEarnings = useMemo(() => {
     if (!submissions && !finalSubmissions) return [];
@@ -113,14 +119,20 @@ const Earnings = () => {
     return payouts?.some(p => (p.status === "pending" || p.status === "approved" || p.status === "paid") && (p as any).campaign_id === campaignId);
   };
 
-  const handleRequestPayout = async (campaignId: string, amount: number) => {
-    if (requestPayout.isPending) return;
+  const openPayoutForm = (campaignId: string, amount: number, name: string) => {
     if (amount < 10) { toast({ title: "Minimum $10 required", variant: "destructive" }); return; }
-    if (!hasPaymentDetails()) { toast({ title: "Payment details required", description: "Please add your payment details in your profile before requesting a payout", variant: "destructive" }); return; }
-    if (hasPendingOrPaidPayoutForCampaign(campaignId)) { toast({ title: "Payout already exists", description: "You already have a payout request for this campaign", variant: "destructive" }); return; }
+    setPayoutEmail(profile?.payout_method === "usdc_solana" ? (profile?.solana_wallet_address || "") : (profile?.payout_email || profile?.email || ""));
+    setDiscordUsername("");
+    setPayoutTarget({ campaignId, amount, name });
+  };
+
+  const submitPayout = async () => {
+    if (!payoutTarget || requestPayout.isPending) return;
+    if (!payoutEmail.trim()) { toast({ title: "Payment details required", description: "Enter where we should send your payout.", variant: "destructive" }); return; }
     try {
-      await requestPayout.mutateAsync({ amount, campaign_id: campaignId });
+      await requestPayout.mutateAsync({ amount: payoutTarget.amount, campaign_id: payoutTarget.campaignId, payout_email: payoutEmail, discord_username: discordUsername });
       toast({ title: "Payout requested" });
+      setPayoutTarget(null);
     } catch (error: any) { toast({ title: "Error", description: error.message, variant: "destructive" }); }
   };
 
@@ -130,8 +142,13 @@ const Earnings = () => {
     return num.toString();
   };
 
+  const paidTotal = (payouts || []).filter(p => p.status === "paid").reduce((s, p) => s + Number(p.amount || 0), 0);
+  const processingTotal = Number(wallet?.locked_earnings || 0);
+  const pendingTotal = Math.max(0, totalEarnings - paidTotal - processingTotal);
+
   const statCards = [
-    { icon: DollarSign, label: "Total Earnings", value: `$${totalEarnings.toFixed(2)}`, bg: "bg-emerald-500/10", text: "text-emerald-400" },
+    { icon: DollarSign, label: "Total Earnings", value: `$${paidTotal.toFixed(2)}`, bg: "bg-emerald-500/10", text: "text-emerald-400" },
+    { icon: Clock, label: "Pending", value: `$${pendingTotal.toFixed(2)}`, bg: "bg-blue-500/10", text: "text-blue-400" },
     { icon: Clock, label: "Available", value: `$${availableBalance.toFixed(2)}`, bg: "bg-yellow-500/10", text: "text-yellow-400" },
     { icon: Clock, label: "Processing", value: `$${(wallet?.locked_earnings || 0).toFixed(2)}`, bg: "bg-orange-500/10", text: "text-orange-400" },
   ];
@@ -140,7 +157,7 @@ const Earnings = () => {
     <AppLayout title="Earnings">
       <div className="page-enter">
         {/* Stats Cards */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8 stagger-enter">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 stagger-enter">
           {walletLoading ? Array(5).fill(0).map((_, i) => <Skeleton key={i} className="h-32 rounded-2xl" />) : (
             statCards.map((stat) => (
               <div key={stat.label} className="p-5 rounded-2xl bg-card/50 border border-border/30 transition-all duration-300 hover:border-primary/15 hover:-translate-y-0.5 hover:shadow-lg group">
@@ -202,7 +219,9 @@ const Earnings = () => {
 
                       const isFinalApproved = fsStatus === "approved";
                       const isFinalPaid = fsStatus === "paid";
-                      const canRequestPayout = isFinalApproved && campaign.total_earnings >= 10 && hasPaymentDetails() && !hasPending;
+                      const canRequestPayout = isFinalApproved && !hasPending;
+                      const isFinalRejected = fsStatus === "rejected";
+                      const canResend = isFinalRejected && (fs?.attempt_count ?? 1) < MAX_FINAL_ATTEMPTS;
                       const statusLabel = isRelaunchedAndPaid ? "Posting" : !fs ? "Posting" : fsStatus === "submitted" ? "Under Review" : fsStatus === "approved" ? "Approved" : fsStatus === "paid" ? "Paid" : fsStatus === "rejected" ? "Rejected" : "Posting";
                       const statusColor = isRelaunchedAndPaid ? "bg-blue-500/10 text-blue-400" : !fs ? "bg-blue-500/10 text-blue-400" : fsStatus === "submitted" || fsStatus === "under_review" ? "bg-yellow-500/10 text-yellow-400" : fsStatus === "approved" ? "bg-emerald-500/10 text-emerald-400" : fsStatus === "paid" ? "bg-primary/10 text-primary" : "bg-red-500/10 text-red-400";
 
@@ -220,6 +239,13 @@ const Earnings = () => {
                       } else if (isFinalPaid) {
                         payoutButtonLabel = "Paid";
                         payoutButtonDisabled = true;
+                      } else if (canRequestPayout) {
+                        payoutButtonLabel = "Request Payout";
+                        payoutButtonDisabled = false;
+                      } else if (isFinalRejected) {
+                        payoutButtonLabel = canResend ? "Analytics Rejected — Resend" : "Analytics Rejected";
+                        payoutButtonDisabled = !canResend;
+                        payoutTooltip = fs?.admin_notes ? `Reason: ${fs.admin_notes}` : "";
                       } else if (isCampaignLive) {
                         payoutButtonLabel = "Request Payout";
                         payoutButtonDisabled = true;
@@ -228,13 +254,18 @@ const Earnings = () => {
                         payoutButtonLabel = "Verify Demographics";
                         payoutButtonDisabled = false;
                         payoutTooltip = "Verify your demographics to request a payout.";
-                      } else if (canRequestPayout) {
-                        payoutButtonLabel = "Request Payout";
-                        payoutButtonDisabled = false;
                       }
 
                       const handlePayoutClick = () => {
                         if (hasPending || isFinalPaid) return;
+                        if (canRequestPayout) {
+                          openPayoutForm(campaign.campaign_id, Number(fs?.final_earnings || campaign.total_earnings), campaign.campaign_name);
+                          return;
+                        }
+                        if (isFinalRejected) {
+                          if (canResend) window.location.href = `/campaigns/${campaign.campaign_id}`;
+                          return;
+                        }
                         if (isCampaignLive) {
                           toast({ title: "Campaign Still Live", description: "This campaign is still live. Please wait for it to complete before requesting a payout.", variant: "destructive" });
                           return;
@@ -242,9 +273,6 @@ const Earnings = () => {
                         if (isCampaignCompleted && !isFinalApproved) {
                           window.location.href = `/campaigns/${campaign.campaign_id}`;
                           return;
-                        }
-                        if (canRequestPayout) {
-                          handleRequestPayout(campaign.campaign_id, campaign.total_earnings);
                         }
                       };
 
@@ -281,6 +309,13 @@ const Earnings = () => {
 
 
 
+                          {isFinalRejected && (
+                            <div className="mt-3 p-3 rounded-xl bg-destructive/10 border border-destructive/20 text-sm">
+                              <p className="font-display font-bold text-destructive">Your analytics have been REJECTED</p>
+                              {fs?.admin_notes && <p className="text-destructive/80 mt-1">Reason: {fs.admin_notes}</p>}
+                              <p className="text-xs text-muted-foreground mt-1">{canResend ? `Fix it and resend — ${MAX_FINAL_ATTEMPTS - (fs?.attempt_count ?? 1)} resend(s) left.` : "No resend attempts left."}</p>
+                            </div>
+                          )}
                           {fs && <FinalSubmissionTimeline status={fs.status} />}
 
                           {/* Payout Button - Central */}
@@ -358,6 +393,29 @@ const Earnings = () => {
           </div>
         </div>
       </div>
+      <Dialog open={!!payoutTarget} onOpenChange={(o) => !o && setPayoutTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Payout</DialogTitle>
+            <DialogDescription>{payoutTarget?.name} — ${payoutTarget?.amount.toFixed(2)}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{profile?.payout_method === "usdc_solana" ? "Solana wallet address" : "PayPal email"}</Label>
+              <Input value={payoutEmail} onChange={(e) => setPayoutEmail(e.target.value)} maxLength={255} />
+            </div>
+            <div className="space-y-2">
+              <Label>Discord username <span className="text-muted-foreground">(optional)</span></Label>
+              <Input value={discordUsername} onChange={(e) => setDiscordUsername(e.target.value)} placeholder="yourname" maxLength={64} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={submitPayout} disabled={requestPayout.isPending} className="w-full bg-gradient-primary">
+              {requestPayout.isPending ? "Requesting..." : "Confirm Payout Request"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };

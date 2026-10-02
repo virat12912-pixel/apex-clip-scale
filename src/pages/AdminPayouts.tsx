@@ -101,6 +101,9 @@ const AdminPayouts = () => {
                   {payout.payout_method === "paypal" && !payout.payout_email && (
                     <p className="text-xs text-yellow-500">No PayPal email on file</p>
                   )}
+                  {payout.discord_username && (
+                    <p className="text-xs text-muted-foreground">Discord: <span className="text-foreground">{payout.discord_username}</span></p>
+                  )}
                 </div>
 
                 {/* Status + Actions */}
