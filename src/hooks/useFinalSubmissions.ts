@@ -31,6 +31,7 @@ export interface FinalSubmission {
   paid_at: string | null;
   created_at: string;
   updated_at: string;
+  attempt_count?: number;
   // Joined fields
   campaign?: {
     name: string;
@@ -191,6 +192,33 @@ export function useCreateFinalSubmission() {
       const { data, error } = await supabase
         .from("final_submissions")
         .insert({ ...params, user_id: user.id })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["final-submission"] });
+      queryClient.invalidateQueries({ queryKey: ["final-submissions"] });
+    },
+  });
+}
+
+// Clipper: resend analytics after rejection (max 2 resends)
+export const MAX_FINAL_ATTEMPTS = 3;
+export function useResubmitFinalSubmission() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, attempt_count, ...updates }: {
+      id: string; attempt_count: number;
+      video_link_1: string; video_link_2: string; video_link_3: string;
+      video_screenshot_1: string; video_screenshot_2: string; video_screenshot_3: string;
+      account_analytics_screenshot: string;
+    }) => {
+      const { data, error } = await supabase
+        .from("final_submissions")
+        .update({ ...updates, attempt_count: attempt_count + 1, status: "submitted", final_earnings: 0, verified_views: null } as any)
+        .eq("id", id)
         .select()
         .single();
       if (error) throw error;

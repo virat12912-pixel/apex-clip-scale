@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { useFinalSubmission, useCreateFinalSubmission, uploadFinalSubmissionScreenshot, FinalSubmission } from "@/hooks/useFinalSubmissions";
+import { useFinalSubmission, useCreateFinalSubmission, useResubmitFinalSubmission, MAX_FINAL_ATTEMPTS, uploadFinalSubmissionScreenshot, FinalSubmission } from "@/hooks/useFinalSubmissions";
 import { FinalSubmissionTimeline } from "./FinalSubmissionTimeline";
 
 interface FinalSubmissionFormProps {
@@ -47,6 +47,7 @@ export function FinalSubmissionForm({ campaignId, campaignStatus, trackedViews }
   const { toast } = useToast();
   const { data: existing, isLoading } = useFinalSubmission(campaignId);
   const createFinalSubmission = useCreateFinalSubmission();
+  const resubmit = useResubmitFinalSubmission();
 
   const isCampaignEnded = campaignStatus === "completed";
 
@@ -63,6 +64,10 @@ export function FinalSubmissionForm({ campaignId, campaignStatus, trackedViews }
 
   // If not completed campaign, don't show
   if (!isCampaignEnded) return null;
+
+  const attemptsUsed = existing?.attempt_count ?? 1;
+  const resendsLeft = MAX_FINAL_ATTEMPTS - attemptsUsed;
+  const canResubmit = existing?.status === "rejected" && resendsLeft > 0;
 
   const handleUpload = async (file: File, label: string, setter: (url: string) => void) => {
     if (!user) return;
@@ -92,6 +97,17 @@ export function FinalSubmissionForm({ campaignId, campaignStatus, trackedViews }
     }
 
     try {
+      if (canResubmit && existing) {
+        await resubmit.mutateAsync({
+          id: existing.id,
+          attempt_count: existing.attempt_count ?? 1,
+          video_link_1: videoLink1, video_link_2: videoLink2, video_link_3: videoLink3,
+          video_screenshot_1: videoScreenshot1, video_screenshot_2: videoScreenshot2, video_screenshot_3: videoScreenshot3,
+          account_analytics_screenshot: accountScreenshot,
+        });
+        toast({ title: "Analytics resent!", description: "Your submission is back under review." });
+        return;
+      }
       await createFinalSubmission.mutateAsync({
         campaign_id: campaignId,
         video_link_1: videoLink1,
@@ -113,8 +129,8 @@ export function FinalSubmissionForm({ campaignId, campaignStatus, trackedViews }
     }
   };
 
-  // If already submitted, show locked view
-  if (existing) {
+  // If already submitted, show locked view (unless rejected with attempts left)
+  if (existing && !canResubmit) {
     return <LockedFinalSubmission submission={existing} />;
   }
 
@@ -129,6 +145,17 @@ export function FinalSubmissionForm({ campaignId, campaignStatus, trackedViews }
           <p className="text-sm text-muted-foreground/60">Campaign ended — submit your final report</p>
         </div>
       </div>
+
+      {canResubmit && existing && (
+        <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-destructive mt-0.5 shrink-0" />
+          <div>
+            <h4 className="font-display font-bold text-destructive">Your analytics were REJECTED</h4>
+            {existing.admin_notes && <p className="text-sm text-destructive/80 mt-1">Reason: {existing.admin_notes}</p>}
+            <p className="text-xs text-muted-foreground mt-2">Fix the issue above and resend. {resendsLeft} resend{resendsLeft !== 1 ? "s" : ""} left.</p>
+          </div>
+        </div>
+      )}
 
       {/* Top 3 Performing Videos */}
       <div className="space-y-4">
@@ -170,10 +197,10 @@ export function FinalSubmissionForm({ campaignId, campaignStatus, trackedViews }
 
       <Button
         onClick={handleSubmit}
-        disabled={createFinalSubmission.isPending}
+        disabled={createFinalSubmission.isPending || resubmit.isPending}
         className="w-full bg-gradient-primary hover:opacity-90 btn-shimmer rounded-xl font-display font-bold h-12"
       >
-        {createFinalSubmission.isPending ? "Submitting..." : "Submit Final Report"}
+        {createFinalSubmission.isPending || resubmit.isPending ? "Submitting..." : canResubmit ? "Resend Analytics" : "Submit Final Report"}
       </Button>
     </div>
   );
@@ -201,6 +228,7 @@ function LockedFinalSubmission({ submission }: { submission: FinalSubmission }) 
           <div>
             <h4 className="font-display font-bold text-destructive">Your submission has been rejected</h4>
             {submission.admin_notes && <p className="text-sm text-destructive/70 mt-1">Reason: {submission.admin_notes}</p>}
+            <p className="text-xs text-muted-foreground mt-1">No resend attempts left.</p>
           </div>
         </div>
       )}

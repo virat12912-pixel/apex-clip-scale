@@ -102,7 +102,7 @@ export function useRequestPayout() {
   const { user, profile } = useAuth();
 
   return useMutation({
-    mutationFn: async ({ amount, campaign_id }: { amount: number; campaign_id?: string }) => {
+    mutationFn: async ({ amount, campaign_id, payout_email, discord_username }: { amount: number; campaign_id?: string; payout_email?: string; discord_username?: string }) => {
       if (!user || !profile) throw new Error("Not authenticated");
 
       // Call the edge function to handle payout with locking
@@ -118,9 +118,10 @@ export function useRequestPayout() {
             user_id: user.id,
             amount,
             payout_method: profile.payout_method || "paypal",
-            payout_email: profile.payout_method === "usdc_solana" 
+            discord_username: discord_username?.trim() || undefined,
+            payout_email: payout_email?.trim() || (profile.payout_method === "usdc_solana" 
               ? profile.solana_wallet_address 
-              : (profile.payout_email || profile.email),
+              : (profile.payout_email || profile.email)),
             campaign_id,
           }),
         }

@@ -11,6 +11,7 @@ interface RequestPayoutBody {
   payout_method: string;
   payout_email: string;
   campaign_id?: string;
+  discord_username?: string;
 }
 
 Deno.serve(async (req) => {
@@ -50,7 +51,7 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { user_id, amount, payout_method, payout_email, campaign_id }: RequestPayoutBody =
+    const { user_id, amount, payout_method, payout_email, campaign_id, discord_username }: RequestPayoutBody =
       await req.json();
 
     if (user_id && user_id !== user.id) {
@@ -190,6 +191,7 @@ Deno.serve(async (req) => {
         payout_email,
         status: "pending",
         campaign_id: campaign_id || null,
+        discord_username: typeof discord_username === "string" && discord_username.trim() ? discord_username.trim().slice(0, 64) : null,
       })
       .select()
       .single();
