@@ -535,41 +535,41 @@ const Launch = () => {
                   </div>
                 </div>
 
-                {/* Required Hashtags & Links */}
+                 {/* Caption and profile-link requirements */}
                 <div className="p-4 rounded-lg bg-secondary/50 space-y-4">
                   <h3 className="font-medium text-sm">Smart Requirements (Auto-validation)</h3>
                   
                   <div className="space-y-2">
                     <Label htmlFor="required_hashtags" className="flex items-center gap-2">
                       <Hash className="h-4 w-4 text-primary" />
-                      Required Hashtags
+                       Required Caption Text
                     </Label>
                     <Input
                       id="required_hashtags"
-                      placeholder="#gaming, #clips, #viral"
+                       placeholder="#gaming, @yourbrand, campaign name"
                       value={formData.required_hashtags}
                       onChange={(e) => handleInputChange("required_hashtags", e.target.value)}
                       className="bg-background"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Comma-separated. Submissions missing these will be auto-rejected.
+                       Comma-separated hashtags, mentions, or words. Each item must appear in the full video caption.
                     </p>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="required_links" className="flex items-center gap-2">
                       <LinkIcon className="h-4 w-4 text-primary" />
-                      Required Links/Mentions
+                       Required Clickable Bio Link
                     </Label>
                     <Input
                       id="required_links"
-                      placeholder="@yourbrand, linkin.bio/brand"
+                       placeholder="https://yourbrand.com/offer"
                       value={formData.required_links}
                       onChange={(e) => handleInputChange("required_links", e.target.value)}
                       className="bg-background"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Comma-separated. Submissions missing these will be auto-rejected.
+                       The required link must be in the account’s clickable profile link area, not typed into the caption. TikTok accounts below 1,000 followers are exempt.
                     </p>
                   </div>
                 </div>
@@ -686,13 +686,13 @@ const Launch = () => {
                     {formData.required_hashtags && (
                       <div className="flex items-center gap-2 mb-2">
                         <Hash className="h-4 w-4 text-primary" />
-                        <span className="text-sm">{formData.required_hashtags}</span>
+                        <span className="text-sm">Caption: {formData.required_hashtags}</span>
                       </div>
                     )}
                     {formData.required_links && (
                       <div className="flex items-center gap-2">
                         <LinkIcon className="h-4 w-4 text-primary" />
-                        <span className="text-sm">{formData.required_links}</span>
+                        <span className="text-sm">Bio link: {formData.required_links}</span>
                       </div>
                     )}
                   </div>

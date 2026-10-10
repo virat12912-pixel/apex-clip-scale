@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { mapErrorToUserMessage, logError } from "@/lib/errorMapping";
+import { getMissingCaptionRequirements, isBioLinkRequirementSatisfied, ProfileLinkData } from "@/lib/campaignRequirements";
 import { useEffect } from "react";
 
 export interface Submission {
@@ -172,30 +173,6 @@ interface VerifiedAccount {
   verified: boolean | null;
 }
 
-function normalizeRequirementToken(value: string) {
-  return value.trim().toLowerCase();
-}
-
-function validateTextRequirements(
-  description: string | null | undefined,
-  requiredHashtags: string[] | null,
-  requiredLinks: string[] | null,
-) {
-  const text = (description || "").toLowerCase();
-
-  const missingHashtags = (requiredHashtags || [])
-    .map(normalizeRequirementToken)
-    .filter(Boolean)
-    .filter((h) => !text.includes(h));
-
-  const missingLinks = (requiredLinks || [])
-    .map(normalizeRequirementToken)
-    .filter(Boolean)
-    .filter((l) => !text.includes(l));
-
-  return { missingHashtags, missingLinks };
-}
-
 async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -335,6 +312,7 @@ export function useCreateSubmission() {
       // Fetch views SEQUENTIALLY to avoid API rate-limiting returning wrong data
       const toInsert: any[] = [];
       const fetchedMetrics: Array<{ views: number; likes: number; comments: number }> = [];
+      const profileCache = new Map<string, ProfileLinkData>();
       for (const s of submissions) {
         const campaignReq = campaignMap.get(s.campaign_id);
         if (!campaignReq) throw new Error("Campaign not found for submission.");
@@ -377,17 +355,36 @@ export function useCreateSubmission() {
           );
         }
 
-        const { missingHashtags, missingLinks } = validateTextRequirements(
-          viewData.description,
-          campaignReq.required_hashtags,
-          campaignReq.required_links,
-        );
+        const missingCaption = getMissingCaptionRequirements(viewData.description, campaignReq.required_hashtags);
+        if (missingCaption.length) {
+          throw new Error(`Missing caption: ${missingCaption.join(", ")}`);
+        }
 
-        if (missingHashtags.length || missingLinks.length) {
-          const parts: string[] = [];
-          if (missingHashtags.length) parts.push(`Missing hashtags: ${missingHashtags.join(", ")}`);
-          if (missingLinks.length) parts.push(`Missing links/mentions: ${missingLinks.join(", ")}`);
-          throw new Error(parts.join(". "));
+        if (campaignReq.required_links?.length && (s.platform === "tiktok" || s.platform === "instagram")) {
+          const linkedAccount = verifiedAccounts.find(
+            (account) => account.platform === s.platform && account.verified === true &&
+              account.username.toLowerCase().replace(/^@/, "") === viewData.author?.toLowerCase().replace(/^@/, ""),
+          );
+          if (!linkedAccount) throw new Error("Verify the account that posted this clip before submitting.");
+
+          const cacheKey = `${s.platform}:${linkedAccount.username.toLowerCase()}`;
+          let profile = profileCache.get(cacheKey);
+          if (!profile) {
+            const { data, error } = await supabase.functions.invoke("fetch-social-profile", {
+              body: { platform: s.platform, username: linkedAccount.username },
+            });
+            if (error) throw error;
+            if (!data?.success) throw new Error(data?.error || "Could not check the account's profile link.");
+            profile = {
+              followersCount: typeof data.followers_count === "number" ? data.followers_count : null,
+              bioLinks: Array.isArray(data.bio_links) ? data.bio_links.filter((link: unknown): link is string => typeof link === "string") : [],
+            };
+            profileCache.set(cacheKey, profile);
+          }
+
+          if (!isBioLinkRequirementSatisfied(s.platform, campaignReq.required_links, profile)) {
+            throw new Error(`Missing bio link: add ${campaignReq.required_links.join(", ")} to your clickable profile link area.`);
+          }
         }
 
         // The INSERT policy only permits creator-owned, zeroed pending rows.
