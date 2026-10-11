@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Invalid updates" }, 400, corsHeaders);
     }
     if (typeof user_id !== "string" || !/^[0-9a-f-]{36}$/i.test(user_id) ||
-        (action !== undefined && action !== "delete_user" && action !== "update_user")) {
+        (action !== undefined && !["delete_user", "update_user", "ban_user", "unban_user"].includes(action))) {
       return jsonResponse({ error: "Invalid request" }, 400, corsHeaders);
     }
 
