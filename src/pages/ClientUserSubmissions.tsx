@@ -89,17 +89,6 @@ const ClientUserSubmissions = () => {
         return;
       }
 
-      // Send notification to creator
-      await supabase.functions.invoke("create-notification", {
-        body: {
-          user_id: userId,
-          type: "submission_approved",
-          title: "Clip Approved! 🎉",
-          message: `Your clip for "${campaign?.name}" has been approved. Earnings: $${data.earnings}`,
-          related_id: id,
-        },
-      });
-
       toast({ title: "Submission approved!", description: `Earnings: $${data.earnings}` });
       refetch();
     } catch (error: unknown) {
@@ -132,17 +121,6 @@ const ClientUserSubmissions = () => {
         toast({ title: "Error", description: data.error, variant: "destructive" });
         return;
       }
-
-      // Send notification to creator with the reason
-      await supabase.functions.invoke("create-notification", {
-        body: {
-          user_id: userId,
-          type: "submission_rejected",
-          title: "Clip Rejected",
-          message: `Your clip for "${campaign?.name}" has been rejected. Reason: ${rejectReason.trim()}`,
-          related_id: submissionId,
-        },
-      });
 
       const reversedAmount = parseFloat(data?.reversed_earnings || "0");
       if (reversedAmount > 0) {
