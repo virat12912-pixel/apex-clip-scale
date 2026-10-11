@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/app/AppLayout";
-import { useAllFinalSubmissions, useUpdateFinalSubmission, useCreateFinalSubmissionReview, FinalSubmission } from "@/hooks/useFinalSubmissions";
+import { useAllFinalSubmissions, useUpdateFinalSubmission, useCreateFinalSubmissionReview, getFinalSubmissionFilePath, FinalSubmission } from "@/hooks/useFinalSubmissions";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,22 @@ function ReviewCard({ submission }: { submission: FinalSubmission }) {
   const updateSubmission = useUpdateFinalSubmission();
   const createReview = useCreateFinalSubmissionReview();
   const { toast } = useToast();
+  const [recordingUrls, setRecordingUrls] = useState<(string | null)[]>([null, null, null]);
+  const [accountRecordingUrl, setAccountRecordingUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const signedUrl = async (publicUrl: string | null) => {
+      const path = getFinalSubmissionFilePath(publicUrl);
+      if (!path) return null;
+      const { data, error } = await supabase.storage.from("final-submissions").createSignedUrl(path, 300);
+      return error ? null : data.signedUrl;
+    };
+    Promise.all([submission.video_screenshot_1, submission.video_screenshot_2, submission.video_screenshot_3].map(signedUrl))
+      .then((urls) => { if (!cancelled) setRecordingUrls(urls); });
+    signedUrl(submission.account_analytics_screenshot).then((url) => { if (!cancelled) setAccountRecordingUrl(url); });
+    return () => { cancelled = true; };
+  }, [submission.video_screenshot_1, submission.video_screenshot_2, submission.video_screenshot_3, submission.account_analytics_screenshot]);
 
   const rate = submission.campaign?.rate_value || 0;
   const rateUnit = submission.campaign?.rate_unit || 1000;
@@ -221,7 +237,7 @@ function ReviewCard({ submission }: { submission: FinalSubmission }) {
           <div>
             <Label className="text-xs text-muted-foreground/50 flex items-center gap-1 mb-2"><BarChart3 className="h-3 w-3" /> Video Analytics Recordings</Label>
             <ScreenshotGallery
-              urls={[submission.video_screenshot_1, submission.video_screenshot_2, submission.video_screenshot_3]}
+              urls={recordingUrls}
               labels={["Video 1 Analytics", "Video 2 Analytics", "Video 3 Analytics"]}
             />
           </div>
@@ -229,7 +245,7 @@ function ReviewCard({ submission }: { submission: FinalSubmission }) {
           {/* Account Analytics */}
           <div>
             <Label className="text-xs text-muted-foreground/50 flex items-center gap-1 mb-2"><Users className="h-3 w-3" /> Account Analytics Recording</Label>
-            <ScreenshotGallery urls={[submission.account_analytics_screenshot]} labels={["Account Analytics"]} />
+            <ScreenshotGallery urls={[accountRecordingUrl]} labels={["Account Analytics"]} />
           </div>
 
 
