@@ -635,7 +635,10 @@ serve(async (req) => {
 
   try {
     const auth = await authenticateRequest(req);
-    if (!auth) return jsonResponse({ success: false, error: "Unauthorized" }, 401, corsHeaders);
+    const cronSecret = Deno.env.get("UPDATE_VIEWS_CRON_SECRET");
+    const internalToken = req.headers.get("x-internal-update-token");
+    const trustedInternal = Boolean(cronSecret && internalToken && internalToken === cronSecret);
+    if (!auth && !trustedInternal) return jsonResponse({ success: false, error: "Unauthorized" }, 401, corsHeaders);
     const { video_url } = (await req.json()) as InstagramRequest;
 
     if (!video_url) {
@@ -732,16 +735,16 @@ serve(async (req) => {
     }
 
     if (result && result.views > 0) {
-      if (!await isAdminOrOwnVerifiedAccount(auth.serviceClient, auth.user.id, result.author)) {
+      if (!trustedInternal && auth && !await isAdminOrOwnVerifiedAccount(auth.serviceClient, auth.user.id, result.author)) {
         return jsonResponse({ success: false, error: "The video must belong to one of your verified Instagram accounts" }, 403, corsHeaders);
       }
-      const metricsAssertion = await signMetricsAssertion({
+      const metricsAssertion = auth ? await signMetricsAssertion({
         userId: auth.user.id,
         videoUrl: video_url.trim(),
         views: result.views,
         likes: result.likes,
         comments: result.comments,
-      });
+      }) : undefined;
       return new Response(
         JSON.stringify({
           success: true,

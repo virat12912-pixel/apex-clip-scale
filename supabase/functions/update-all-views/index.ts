@@ -193,7 +193,7 @@ async function fetchTikTokViews(videoUrl: string, apiKey: string): Promise<TikTo
   }
 }
 
-async function fetchInstagramViews(clipUrl: string, apiKey: string, authorization: string): Promise<{ views: number; likes: number; comments: number } | null> {
+async function fetchInstagramViews(clipUrl: string, apiKey: string, authorization: string, isCron = false): Promise<{ views: number; likes: number; comments: number } | null> {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
@@ -203,7 +203,7 @@ async function fetchInstagramViews(clipUrl: string, apiKey: string, authorizatio
         headers: {
           "Content-Type": "application/json",
           "apikey": supabaseAnonKey,
-          "Authorization": authorization,
+          ...(isCron ? { "x-internal-update-token": authorization } : { "Authorization": authorization }),
         },
         body: JSON.stringify({ video_url: clipUrl }),
       });
@@ -305,7 +305,10 @@ serve(async (req) => {
 
   try {
     const auth = await authenticateRequest(req);
-    if (!auth) return jsonResponse({ success: false, error: "Unauthorized" }, 401, corsHeaders);
+    const cronSecret = Deno.env.get("UPDATE_VIEWS_CRON_SECRET");
+    const suppliedCronSecret = req.headers.get("x-update-views-token");
+    const trustedCron = Boolean(cronSecret && suppliedCronSecret && suppliedCronSecret === cronSecret);
+    if (!auth && !trustedCron) return jsonResponse({ success: false, error: "Unauthorized" }, 401, corsHeaders);
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const tiktokApiKey = Deno.env.get("TIKTOK_API_KEY");
@@ -313,7 +316,7 @@ serve(async (req) => {
     const youtubeApiKey = Deno.env.get("YOUTUBE_API_KEY");
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
-    if (!await hasRole(supabase, auth.user.id, "admin") && !await hasRole(supabase, auth.user.id, "platform_admin")) {
+    if (!trustedCron && auth && !await hasRole(supabase, auth.user.id, "admin") && !await hasRole(supabase, auth.user.id, "platform_admin")) {
       return jsonResponse({ success: false, error: "Forbidden" }, 403, corsHeaders);
     }
 
@@ -348,7 +351,7 @@ serve(async (req) => {
       if (sub.platform === "tiktok" && tiktokApiKey) {
         result = await fetchTikTokViews(sub.clip_url, tiktokApiKey);
       } else if (sub.platform === "instagram" && instagramApiKey) {
-        result = await fetchInstagramViews(sub.clip_url, instagramApiKey, auth.authorization);
+        result = await fetchInstagramViews(sub.clip_url, instagramApiKey, trustedCron ? cronSecret! : auth!.authorization, trustedCron);
       } else if (sub.platform === "youtube" && youtubeApiKey) {
         result = await fetchYouTubeViews(sub.clip_url, youtubeApiKey);
       }
