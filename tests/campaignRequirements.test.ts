@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { getMissingCaptionRequirements, isBioLinkRequirementSatisfied } from "./campaignRequirements";
+import { getMissingCaptionRequirements, isBioLinkRequirementSatisfied } from "../src/lib/campaignRequirements";
 
 describe("campaign caption requirements", () => {
   it("finds required text across the full caption", () => {
