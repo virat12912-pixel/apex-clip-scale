@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1791716388362,
+      "tag": "0000_scope_selected_storage_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791716928284,
+      "tag": "0001_scope_storage_list_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791717054832,
+      "tag": "0002_remove_public_avatar_listing",
+      "breakpoints": true
+    }
+  ]
+}

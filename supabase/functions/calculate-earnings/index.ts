@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { authenticateRequest, hasRole, jsonResponse } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -17,6 +18,8 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const auth = await authenticateRequest(req);
+    if (!auth) return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders);
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     
@@ -48,6 +51,20 @@ Deno.serve(async (req) => {
       );
     }
 
+    const isAdmin = await hasRole(supabase, auth.user.id, "admin");
+    const isClientReviewer = await hasRole(supabase, auth.user.id, "client_admin") ||
+      await hasRole(supabase, auth.user.id, "client_manager");
+    if (!isAdmin && !(isClientReviewer && await isAssignedReviewer(supabase, auth.user.id, submission.campaign_id))) {
+      return jsonResponse({ error: "Forbidden" }, 403, corsHeaders);
+    }
+    const verifiedViews = Number(verified_views);
+    if (!Number.isSafeInteger(verifiedViews) || verifiedViews <= 0) {
+      return jsonResponse({ error: "verified_views must be a positive whole number" }, 400, corsHeaders);
+    }
+    if (submission.status !== "pending") {
+      return jsonResponse({ error: "Only pending submissions can be approved" }, 409, corsHeaders);
+    }
+
     const campaign = submission.campaign;
     if (!campaign) {
       return new Response(
@@ -57,7 +74,7 @@ Deno.serve(async (req) => {
     }
 
     // Calculate earnings: (views / rate_unit) * rate_value
-    let earnings = (verified_views / campaign.rate_unit) * campaign.rate_value;
+    let earnings = (verifiedViews / campaign.rate_unit) * campaign.rate_value;
     
     // Apply max_earnings_per_post cap if set
     if (campaign.max_earnings_per_post && earnings > campaign.max_earnings_per_post) {
@@ -68,18 +85,22 @@ Deno.serve(async (req) => {
     console.log(`Calculated earnings: $${earnings.toFixed(2)}`);
 
     // Update submission with views and earnings
-    const { error: updateSubError } = await supabase
+    const { data: updatedSubmission, error: updateSubError } = await supabase
       .from("submissions")
       .update({
-        views: verified_views,
+        views: verifiedViews,
         earnings: earnings,
         status: "approved",
       })
-      .eq("id", submission_id);
+      .eq("id", submission_id)
+      .eq("status", "pending")
+      .select("id")
+      .maybeSingle();
 
-    if (updateSubError) {
+    if (updateSubError || !updatedSubmission) {
       console.error("Failed to update submission:", updateSubError);
-      throw updateSubError;
+      if (updateSubError) throw updateSubError;
+      return jsonResponse({ error: "Submission has already been reviewed" }, 409, corsHeaders);
     }
 
     // Update creator's wallet pending_balance
@@ -113,6 +134,14 @@ Deno.serve(async (req) => {
         throw walletUpdateError;
       }
     }
+
+    await supabase.from("admin_logs").insert({
+      admin_id: auth.user.id,
+      action: "approve_submission",
+      target_type: "submission",
+      target_id: submission.id,
+      details: { verified_views: verifiedViews, earnings },
+    });
 
     // Update campaign spent_budget
     const newSpentBudget = Number(campaign.spent_budget) + earnings;
@@ -161,3 +190,13 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+async function isAssignedReviewer(supabase: any, userId: string, campaignId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("campaign_assignments")
+    .select("id")
+    .eq("campaign_id", campaignId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return !error && Boolean(data);
+}

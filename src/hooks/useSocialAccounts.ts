@@ -143,7 +143,7 @@ export function useVerifySocialAccount() {
       }
 
       const { data, error } = await supabase.functions.invoke(functionName, {
-        body: { username, verification_code },
+        body: { account_id: id },
       });
 
       if (error) throw error;

@@ -165,6 +165,7 @@ interface ViewData {
   comments: number;
   description?: string | null;
   author?: string | null;
+  metricsAssertion?: string;
 }
 
 interface VerifiedAccount {
@@ -235,6 +236,7 @@ async function fetchViewsForPlatform(
           comments: Number(data.comment_count ?? 0),
           description: (data.description as string | null | undefined) ?? null,
           author: (data.author as string | null | undefined) ?? null,
+          metricsAssertion: typeof data.metrics_assertion === "string" ? data.metrics_assertion : undefined,
         };
       }
 
@@ -311,7 +313,7 @@ export function useCreateSubmission() {
 
       // Fetch views SEQUENTIALLY to avoid API rate-limiting returning wrong data
       const toInsert: any[] = [];
-      const fetchedMetrics: Array<{ views: number; likes: number; comments: number }> = [];
+      const fetchedMetrics: Array<{ views: number; likes: number; comments: number; assertion?: string }> = [];
       const profileCache = new Map<string, ProfileLinkData>();
       for (const s of submissions) {
         const campaignReq = campaignMap.get(s.campaign_id);
@@ -322,10 +324,14 @@ export function useCreateSubmission() {
           await sleep(1000);
         }
 
-        const viewData = await fetchViewsForPlatform(s.clip_url, s.platform, 3, 2000);
+        const clipUrl = s.clip_url.trim();
+        const viewData = await fetchViewsForPlatform(clipUrl, s.platform, 3, 2000);
 
         if (viewData.views <= 0) {
           throw new Error(`Could not fetch views for ${s.clip_url}. Please double-check the URL and try again.`);
+        }
+        if (!viewData.metricsAssertion) {
+          throw new Error("Could not securely verify clip metrics. Please retry the submission.");
         }
 
         if (viewData.views < campaignReq.min_views) {
@@ -392,6 +398,7 @@ export function useCreateSubmission() {
         // process-submission using its server-side credentials.
         toInsert.push({
           ...s,
+          clip_url: clipUrl,
           creator_id: user.id,
           submitted_views: 0,
           views: 0,
@@ -404,6 +411,7 @@ export function useCreateSubmission() {
           views: viewData.views,
           likes: viewData.likes,
           comments: viewData.comments,
+          assertion: viewData.metricsAssertion,
         });
       }
 
@@ -424,17 +432,18 @@ export function useCreateSubmission() {
           }
 
           try {
-            await supabase.functions.invoke("process-submission", {
+            const { data: processed, error: processError } = await supabase.functions.invoke("process-submission", {
               body: {
                 submission_id: sub.id,
-                views: metrics.views,
-                likes: metrics.likes,
-                comments: metrics.comments,
-                set_status: "pending",
+                metrics_assertion: metrics.assertion,
               },
             });
+            if (processError || !processed?.success) {
+              throw processError || new Error(processed?.error || "Submission processing failed");
+            }
           } catch (processError) {
             console.error("Failed to process submission:", processError);
+            throw new Error("Your clip was saved but could not be processed. Please contact support before submitting it again.");
           }
         })
       );

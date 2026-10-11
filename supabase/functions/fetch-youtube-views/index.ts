@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { authenticateRequest, jsonResponse, signMetricsAssertion } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,9 +27,10 @@ function extractYouTubeVideoId(url: string): string | null {
 }
 
 // Fetch YouTube video stats using Scrape Creators API
-async function fetchViaScrapeCreators(videoUrl: string, videoId: string): Promise<{ views: number; likes: number; comments: number; author: string | null; description: string | null } | null> {
+async function fetchViaScrapeCreators(videoUrl: string, videoId: string): Promise<{ views: number; likes: number; comments: number; author: string | null; ownerIds: string[]; description: string | null } | null> {
   try {
-    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY') || 'BYkwgH6v3kXbKlvvXcaXa9XNa5J2';
+    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY');
+    if (!apiKey) return null;
     console.log("Trying Scrape Creators API...");
     
     // Try with full URL first, then with video ID
@@ -72,6 +74,7 @@ async function fetchViaScrapeCreators(videoUrl: string, videoId: string): Promis
       likes: data.likeCountInt || 0,
       comments: data.commentCountInt || 0,
       author: data.channel?.title || null,
+      ownerIds: [data.channel?.id, data.channel?.handle, data.channel?.customUrl].filter((v): v is string => typeof v === "string"),
       description: data.title || null,
     };
 
@@ -89,6 +92,8 @@ serve(async (req) => {
   }
 
   try {
+    const auth = await authenticateRequest(req);
+    if (!auth) return jsonResponse({ success: false, error: "Unauthorized" }, 401, corsHeaders);
     const { video_url } = (await req.json()) as YouTubeRequest;
 
     if (!video_url) {
@@ -98,6 +103,11 @@ serve(async (req) => {
       });
     }
 
+    let parsedUrl: URL;
+    try { parsedUrl = new URL(video_url); } catch { return jsonResponse({ success: false, error: "Invalid YouTube URL" }, 400, corsHeaders); }
+    if (parsedUrl.protocol !== "https:" || !["youtube.com", "www.youtube.com", "youtu.be", "m.youtube.com"].includes(parsedUrl.hostname.toLowerCase())) {
+      return jsonResponse({ success: false, error: "A valid YouTube video URL is required" }, 400, corsHeaders);
+    }
     const videoId = extractYouTubeVideoId(video_url);
 
     if (!videoId) {
@@ -137,6 +147,7 @@ serve(async (req) => {
               likes: parseInt(stats.likeCount || "0", 10),
               comments: parseInt(stats.commentCount || "0", 10),
               author: snippet.channelTitle || null,
+              ownerIds: [snippet.channelId, snippet.customUrl].filter((v): v is string => typeof v === "string"),
               description: snippet.title || null,
             };
           }
@@ -145,6 +156,16 @@ serve(async (req) => {
     }
 
     if (result && result.views > 0) {
+      if (!await isAdminOrOwnVerifiedChannel(auth.serviceClient, auth.user.id, result.ownerIds)) {
+        return jsonResponse({ success: false, error: "The video must belong to one of your verified YouTube accounts" }, 403, corsHeaders);
+      }
+      const metricsAssertion = await signMetricsAssertion({
+        userId: auth.user.id,
+        videoUrl: video_url.trim(),
+        views: result.views,
+        likes: result.likes,
+        comments: result.comments,
+      });
       const response = {
         success: true,
         video_id: videoId,
@@ -153,9 +174,10 @@ serve(async (req) => {
         comment_count: result.comments,
         author: result.author,
         description: result.description,
+        metrics_assertion: metricsAssertion,
       };
 
-      console.log("Processed result:", response);
+      console.log("YouTube metrics lookup completed", { videoId });
       return new Response(JSON.stringify(response), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -178,3 +200,19 @@ serve(async (req) => {
     });
   }
 });
+
+async function isAdminOrOwnVerifiedChannel(serviceClient: any, userId: string, ownerIds: string[]): Promise<boolean> {
+  const { data: isAdmin } = await serviceClient.rpc("has_role", { _user_id: userId, _role: "admin" });
+  if (isAdmin === true) return true;
+  if (!ownerIds.length) return false;
+  const { data: accounts, error } = await serviceClient
+    .from("social_accounts")
+    .select("username")
+    .eq("user_id", userId)
+    .eq("platform", "youtube")
+    .eq("verified", true);
+  if (error) return false;
+  const normalize = (value: string) => value.trim().replace(/^@/, "").replace(/^https?:\/\/(www\.)?youtube\.com\//i, "").replace(/^\//, "").toLowerCase();
+  const candidates = new Set(ownerIds.map(normalize));
+  return (accounts ?? []).some((account: { username: string }) => candidates.has(normalize(account.username)));
+}

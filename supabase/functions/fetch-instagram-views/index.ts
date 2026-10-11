@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { authenticateRequest, jsonResponse, signMetricsAssertion } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -177,7 +178,8 @@ async function fetchViaApify(videoUrl: string): Promise<ScrapedResult | null> {
 
 async function fetchViaScrapeCreators(videoUrl: string, shortcode: string): Promise<ScrapedResult | null> {
   try {
-    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY') || 'BYkwgH6v3kXbKlvvXcaXa9XNa5J2';
+    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY');
+    if (!apiKey) return null;
     console.log("Trying Scrape Creators API...");
     
     // Try with full URL first, then with shortcode
@@ -632,6 +634,8 @@ serve(async (req) => {
   }
 
   try {
+    const auth = await authenticateRequest(req);
+    if (!auth) return jsonResponse({ success: false, error: "Unauthorized" }, 401, corsHeaders);
     const { video_url } = (await req.json()) as InstagramRequest;
 
     if (!video_url) {
@@ -641,6 +645,11 @@ serve(async (req) => {
       );
     }
 
+    let parsedVideoUrl: URL;
+    try { parsedVideoUrl = new URL(video_url); } catch { return jsonResponse({ success: false, error: "Invalid Instagram URL" }, 400, corsHeaders); }
+    if (parsedVideoUrl.protocol !== "https:" || !["instagram.com", "www.instagram.com", "instagr.am", "www.instagr.am"].includes(parsedVideoUrl.hostname.toLowerCase())) {
+      return jsonResponse({ success: false, error: "A valid Instagram video URL is required" }, 400, corsHeaders);
+    }
     const reelId = extractReelId(video_url);
     if (!reelId) {
       return new Response(
@@ -723,6 +732,16 @@ serve(async (req) => {
     }
 
     if (result && result.views > 0) {
+      if (!await isAdminOrOwnVerifiedAccount(auth.serviceClient, auth.user.id, result.author)) {
+        return jsonResponse({ success: false, error: "The video must belong to one of your verified Instagram accounts" }, 403, corsHeaders);
+      }
+      const metricsAssertion = await signMetricsAssertion({
+        userId: auth.user.id,
+        videoUrl: video_url.trim(),
+        views: result.views,
+        likes: result.likes,
+        comments: result.comments,
+      });
       return new Response(
         JSON.stringify({
           success: true,
@@ -732,6 +751,7 @@ serve(async (req) => {
           comment_count: result.comments,
           author: result.author,
           description: result.description,
+          metrics_assertion: metricsAssertion,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
@@ -781,3 +801,18 @@ serve(async (req) => {
     });
   }
 });
+
+async function isAdminOrOwnVerifiedAccount(serviceClient: any, userId: string, author: string | null): Promise<boolean> {
+  const { data: isAdmin } = await serviceClient.rpc("has_role", { _user_id: userId, _role: "admin" });
+  if (isAdmin) return true;
+  if (!author) return false;
+  const { data: accounts, error } = await serviceClient
+    .from("social_accounts")
+    .select("username")
+    .eq("user_id", userId)
+    .eq("platform", "instagram")
+    .eq("verified", true);
+  if (error) return false;
+  const normalize = (value: string) => value.trim().replace(/^@/, "").toLowerCase();
+  return (accounts ?? []).some((account: { username: string }) => normalize(account.username) === normalize(author));
+}

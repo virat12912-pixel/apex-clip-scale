@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { authenticateRequest, hasRole, jsonResponse } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -45,19 +46,19 @@ function isShortUrl(url: string): boolean {
 
 // Expand short URL by following redirects
 async function expandShortUrl(url: string): Promise<string> {
-  try {
-    const response = await fetch(url, {
-      method: "GET",
-      redirect: "follow",
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      },
-    });
-    return response.url;
-  } catch (err) {
-    console.error("Error expanding URL:", err);
-    return url;
+  let current = new URL(url);
+  const hosts = ["vm.tiktok.com", "vt.tiktok.com", "tiktok.com", "www.tiktok.com"];
+  if (current.protocol !== "https:" || !hosts.includes(current.hostname.toLowerCase())) throw new Error("Invalid TikTok short link");
+  for (let i = 0; i < 5; i++) {
+    const response = await fetch(current, { method: "HEAD", redirect: "manual" });
+    const location = response.headers.get("location");
+    if (![301, 302, 303, 307, 308].includes(response.status) || !location) return current.href;
+    const next = new URL(location, current);
+    if (next.protocol !== "https:" || !hosts.includes(next.hostname.toLowerCase())) throw new Error("TikTok short link redirected to an unapproved host");
+    current = next;
+    if (current.pathname.includes("/video/")) return current.href;
   }
+  return current.href;
 }
 
 // Extract video ID from TikTok URL
@@ -142,6 +143,8 @@ async function fetchTikTokViews(videoUrl: string, apiKey: string): Promise<TikTo
       targetUrl = await expandShortUrl(targetUrl);
       console.log(`Expanded TikTok URL: ${videoUrl} -> ${targetUrl}`);
     }
+    const parsed = new URL(targetUrl);
+    if (parsed.protocol !== "https:" || !["tiktok.com", "www.tiktok.com"].includes(parsed.hostname.toLowerCase())) return null;
 
     if (!targetUrl.startsWith("http")) {
       targetUrl = "https://" + targetUrl;
@@ -190,38 +193,27 @@ async function fetchTikTokViews(videoUrl: string, apiKey: string): Promise<TikTo
   }
 }
 
-async function fetchInstagramViews(clipUrl: string, apiKey: string): Promise<{ views: number; likes: number; comments: number } | null> {
+async function fetchInstagramViews(clipUrl: string, apiKey: string, authorization: string): Promise<{ views: number; likes: number; comments: number } | null> {
   try {
-    // Primary path: reuse dedicated scraper function (includes free fallbacks)
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
-
     if (supabaseUrl && supabaseAnonKey) {
-      const fnResponse = await fetch(`${supabaseUrl}/functions/v1/fetch-instagram-views`, {
+      const response = await fetch(`${supabaseUrl}/functions/v1/fetch-instagram-views`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "apikey": supabaseAnonKey,
-          "Authorization": `Bearer ${supabaseAnonKey}`,
+          "Authorization": authorization,
         },
         body: JSON.stringify({ video_url: clipUrl }),
       });
-
-      if (fnResponse.ok) {
-        const fnData = await fnResponse.json();
-        if (fnData?.success && Number(fnData.play_count) > 0) {
-          return {
-            views: Number(fnData.play_count || 0),
-            likes: Number(fnData.like_count || 0),
-            comments: Number(fnData.comment_count || 0),
-          };
+      if (response.ok) {
+        const data = await response.json();
+        if (data?.success && Number(data.play_count) > 0) {
+          return { views: Number(data.play_count), likes: Number(data.like_count || 0), comments: Number(data.comment_count || 0) };
         }
-      } else {
-        await fnResponse.text();
       }
     }
-
-    // Fallback path: direct RapidAPI request
     const reelId = extractInstagramReelId(clipUrl);
     if (!reelId) {
       console.error("Could not extract Instagram reel ID from:", clipUrl);
@@ -312,6 +304,8 @@ serve(async (req) => {
   }
 
   try {
+    const auth = await authenticateRequest(req);
+    if (!auth) return jsonResponse({ success: false, error: "Unauthorized" }, 401, corsHeaders);
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const tiktokApiKey = Deno.env.get("TIKTOK_API_KEY");
@@ -319,6 +313,9 @@ serve(async (req) => {
     const youtubeApiKey = Deno.env.get("YOUTUBE_API_KEY");
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    if (!await hasRole(supabase, auth.user.id, "admin") && !await hasRole(supabase, auth.user.id, "platform_admin")) {
+      return jsonResponse({ success: false, error: "Forbidden" }, 403, corsHeaders);
+    }
 
     console.log("Starting daily view update job...");
 
@@ -351,7 +348,7 @@ serve(async (req) => {
       if (sub.platform === "tiktok" && tiktokApiKey) {
         result = await fetchTikTokViews(sub.clip_url, tiktokApiKey);
       } else if (sub.platform === "instagram" && instagramApiKey) {
-        result = await fetchInstagramViews(sub.clip_url, instagramApiKey);
+        result = await fetchInstagramViews(sub.clip_url, instagramApiKey, auth.authorization);
       } else if (sub.platform === "youtube" && youtubeApiKey) {
         result = await fetchYouTubeViews(sub.clip_url, youtubeApiKey);
       }

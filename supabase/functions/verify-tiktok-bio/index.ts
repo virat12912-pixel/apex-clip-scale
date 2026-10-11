@@ -1,19 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { authenticateRequest, getOwnedSocialAccount, jsonResponse } from "../_shared/security.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
-interface VerifyRequest {
-  username: string;
-  verification_code: string;
-}
-
 // Fetch TikTok bio using Scrape Creators API
 async function fetchTikTokBio(username: string): Promise<string | null> {
   try {
-    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY') || 'yp6K8BEqORYJn6YZkZJLLIwgFkV2';
+    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY');
+    if (!apiKey) return null;
     const cleanUsername = username.replace(/^@/, '');
     const apiUrl = `https://api.scrapecreators.com/v1/tiktok/profile?uniqueId=${encodeURIComponent(cleanUsername)}`;
     
@@ -54,16 +51,13 @@ serve(async (req) => {
   }
 
   try {
-    const { username, verification_code } = await req.json() as VerifyRequest;
-
-    if (!username || !verification_code) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'username and verification_code are required' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const cleanUsername = username.replace(/^@/, '');
+    const auth = await authenticateRequest(req);
+    if (!auth) return jsonResponse({ success: false, error: "Unauthorized" }, 401, corsHeaders);
+    const { account_id } = await req.json();
+    const account = await getOwnedSocialAccount(auth.serviceClient, auth.user.id, account_id, "tiktok");
+    if (!account) return jsonResponse({ success: false, error: "TikTok account was not found or is already verified" }, 400, corsHeaders);
+    const cleanUsername = account.username.replace(/^@/, "").trim();
+    if (!/^[A-Za-z0-9._]{1,24}$/.test(cleanUsername)) return jsonResponse({ success: false, error: "Invalid TikTok account" }, 400, corsHeaders);
     console.log('Verifying TikTok bio for:', cleanUsername);
 
     const bio = await fetchTikTokBio(cleanUsername);
@@ -79,16 +73,13 @@ serve(async (req) => {
       );
     }
 
-    console.log('User bio:', bio);
-    console.log('Looking for code:', verification_code);
-
-    const isVerified = bio.includes(verification_code);
+    const isVerified = bio.includes(account.verification_code);
 
     return new Response(
       JSON.stringify({
         success: true,
         verified: isVerified,
-        bio,
+        bio: undefined,
         message: isVerified
           ? 'Verification successful! Code found in bio.'
           : 'Verification code not found in bio. Please add it and try again.'
