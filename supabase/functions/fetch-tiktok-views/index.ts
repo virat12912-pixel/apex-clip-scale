@@ -104,7 +104,7 @@ async function fetchViaScrapeCreators(videoUrl: string): Promise<{ views: number
       views: statistics.play_count || 0,
       likes: statistics.digg_count || 0,
       comments: statistics.comment_count || 0,
-      author: author.unique_id || author.nickname || null,
+      author: author.unique_id || null,
       description: awemeDetail.desc || null,
     };
 

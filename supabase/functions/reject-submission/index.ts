@@ -9,6 +9,7 @@ const corsHeaders = {
 interface RejectSubmissionRequest {
   submission_id: string;
   rejection_reason?: string;
+  reason?: string;
 }
 
 Deno.serve(async (req) => {
@@ -23,7 +24,7 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { submission_id, rejection_reason }: RejectSubmissionRequest = await req.json();
+    const { submission_id, rejection_reason, reason: requestReason }: RejectSubmissionRequest = await req.json();
 
     if (!submission_id) {
       return new Response(
@@ -61,7 +62,8 @@ Deno.serve(async (req) => {
     if (submission.status !== "pending" && submission.status !== "approved") {
       return jsonResponse({ error: "This submission cannot be rejected in its current status" }, 409, corsHeaders);
     }
-    const reason = typeof rejection_reason === "string" ? rejection_reason.trim().slice(0, 1000) : "";
+    const rawReason = typeof rejection_reason === "string" ? rejection_reason : requestReason;
+    const reason = typeof rawReason === "string" ? rawReason.trim().slice(0, 1000) : "";
 
     const previousStatus = submission.status;
     const previousEarnings = Number(submission.earnings || 0);
