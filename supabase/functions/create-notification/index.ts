@@ -56,6 +56,10 @@ Deno.serve(async (req) => {
         if (!finalSubmission || finalSubmission.user_id !== user_id ||
             (type === "final_submission_approved" && finalSubmission.status !== "approved") ||
             (type === "final_submission_rejected" && finalSubmission.status !== "rejected")) return jsonResponse({ error: "Forbidden" }, 403, corsHeaders);
+      } else if (["payout_approved", "payout_paid", "payout_rejected"].includes(type) && related_id && isAdmin) {
+        const expectedStatus = type === "payout_approved" ? "approved" : type === "payout_paid" ? "paid" : "rejected";
+        const { data: payout } = await supabase.from("payouts").select("user_id, status").eq("id", related_id).maybeSingle();
+        if (!payout || payout.user_id !== user_id || payout.status !== expectedStatus) return jsonResponse({ error: "Forbidden" }, 403, corsHeaders);
       } else {
         return jsonResponse({ error: "Forbidden" }, 403, corsHeaders);
       }
