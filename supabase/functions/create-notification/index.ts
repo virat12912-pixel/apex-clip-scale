@@ -43,6 +43,11 @@ Deno.serve(async (req) => {
       if (user_id === auth.user.id && type === "payout_requested" && related_id) {
         const { data: payout } = await supabase.from("payouts").select("id, status").eq("id", related_id).eq("user_id", auth.user.id).maybeSingle();
         if (!payout || payout.status !== "pending") return jsonResponse({ error: "Forbidden" }, 403, corsHeaders);
+      } else if (["submission_pending", "earnings_updated"].includes(type) && related_id && user_id === auth.user.id) {
+        const { data: submission } = await supabase.from("submissions").select("creator_id, status").eq("id", related_id).maybeSingle();
+        if (!submission || submission.creator_id !== auth.user.id || submission.status !== "pending") {
+          return jsonResponse({ error: "Forbidden" }, 403, corsHeaders);
+        }
       } else if (["submission_approved", "submission_rejected"].includes(type) && related_id) {
         const { data: submission } = await supabase.from("submissions").select("creator_id, campaign_id, status").eq("id", related_id).maybeSingle();
         if (!submission || submission.creator_id !== user_id ||

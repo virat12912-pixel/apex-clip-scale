@@ -220,6 +220,7 @@ Deno.serve(async (req) => {
     }
 
     await supabase.functions.invoke("create-notification", {
+      headers: { Authorization: req.headers.get("Authorization") || "" },
       body: {
         user_id: userId,
         type: "payout_requested",
