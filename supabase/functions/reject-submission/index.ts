@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { authenticateRequest, hasRole, jsonResponse } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,6 +9,7 @@ const corsHeaders = {
 interface RejectSubmissionRequest {
   submission_id: string;
   rejection_reason?: string;
+  reason?: string;
 }
 
 Deno.serve(async (req) => {
@@ -16,11 +18,13 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const auth = await authenticateRequest(req);
+    if (!auth) return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders);
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { submission_id, rejection_reason }: RejectSubmissionRequest = await req.json();
+    const { submission_id, rejection_reason, reason: requestReason }: RejectSubmissionRequest = await req.json();
 
     if (!submission_id) {
       return new Response(
@@ -46,6 +50,21 @@ Deno.serve(async (req) => {
       );
     }
 
+    const isAdmin = await hasRole(supabase, auth.user.id, "admin");
+    const isClientReviewer = await hasRole(supabase, auth.user.id, "client_admin") ||
+      await hasRole(supabase, auth.user.id, "client_manager");
+    if (!isAdmin && !(isClientReviewer && await isAssignedReviewer(supabase, auth.user.id, submission.campaign_id))) {
+      return jsonResponse({ error: "Forbidden" }, 403, corsHeaders);
+    }
+    if (submission.status === "rejected" || submission.status === "paid") {
+      return jsonResponse({ error: "This submission cannot be rejected in its current status" }, 409, corsHeaders);
+    }
+    if (submission.status !== "pending" && submission.status !== "approved") {
+      return jsonResponse({ error: "This submission cannot be rejected in its current status" }, 409, corsHeaders);
+    }
+    const rawReason = typeof rejection_reason === "string" ? rejection_reason : requestReason;
+    const reason = typeof rawReason === "string" ? rawReason.trim().slice(0, 1000) : "";
+
     const previousStatus = submission.status;
     const previousEarnings = Number(submission.earnings || 0);
     const campaign = submission.campaign;
@@ -53,7 +72,7 @@ Deno.serve(async (req) => {
     console.log(`Previous status: ${previousStatus}, Previous earnings: $${previousEarnings}`);
 
     // If submission was already approved and had earnings, we need to reverse them
-    if ((previousStatus === "approved" || previousStatus === "paid" || previousStatus === "pending") && previousEarnings > 0) {
+    if ((previousStatus === "approved" || previousStatus === "pending") && previousEarnings > 0) {
       console.log(`Reversing earnings of $${previousEarnings}`);
 
       // Reduce creator's wallet pending_balance
@@ -105,18 +124,22 @@ Deno.serve(async (req) => {
     }
 
     // Update submission to rejected with 0 earnings
-    const { error: updateSubError } = await supabase
+    const { data: updatedSubmission, error: updateSubError } = await supabase
       .from("submissions")
       .update({
         status: "rejected",
         earnings: 0,
-        rejection_reason: rejection_reason || null,
+        rejection_reason: reason || null,
       })
-      .eq("id", submission_id);
+      .eq("id", submission_id)
+      .eq("status", previousStatus)
+      .select("id")
+      .maybeSingle();
 
-    if (updateSubError) {
+    if (updateSubError || !updatedSubmission) {
       console.error("Failed to update submission:", updateSubError);
-      throw updateSubError;
+      if (updateSubError) throw updateSubError;
+      return jsonResponse({ error: "Submission has already been reviewed" }, 409, corsHeaders);
     }
 
     // Send notification to creator about rejection
@@ -127,8 +150,8 @@ Deno.serve(async (req) => {
           user_id: submission.creator_id,
           type: "submission_rejected",
           title: "Submission Rejected",
-          message: rejection_reason 
-            ? `Your clip submission for "${campaignName}" was rejected. Reason: ${rejection_reason}`
+          message: reason
+            ? `Your clip submission for "${campaignName}" was rejected. Reason: ${reason}`
             : `Your clip submission for "${campaignName}" was rejected.`,
           related_id: submission_id,
         },
@@ -156,3 +179,13 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+async function isAssignedReviewer(supabase: any, userId: string, campaignId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("campaign_assignments")
+    .select("id")
+    .eq("campaign_id", campaignId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return !error && Boolean(data);
+}

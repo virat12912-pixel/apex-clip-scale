@@ -1,14 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { authenticateRequest, getOwnedSocialAccount, jsonResponse } from "../_shared/security.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
-
-interface VerifyRequest {
-  username: string;
-  verification_code: string;
-}
 
 function normalizeInstagramUsername(value: string): string {
   return value
@@ -124,25 +120,14 @@ serve(async (req) => {
   }
 
   try {
-    const { username, verification_code } = await req.json() as VerifyRequest;
-    
-    if (!username || !verification_code) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'username and verification_code are required' }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Remove @ if present
-    const cleanUsername = normalizeInstagramUsername(username);
-    const cleanCode = verification_code.trim();
-
-    if (!/^[A-Za-z0-9._]{1,30}$/.test(cleanUsername) || cleanCode.length < 4 || cleanCode.length > 100) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Invalid Instagram username or verification code.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    const auth = await authenticateRequest(req);
+    if (!auth) return jsonResponse({ success: false, error: "Unauthorized" }, 401, corsHeaders);
+    const { account_id } = await req.json();
+    const account = await getOwnedSocialAccount(auth.serviceClient, auth.user.id, account_id, "instagram");
+    if (!account) return jsonResponse({ success: false, error: "Instagram account was not found or is already verified" }, 400, corsHeaders);
+    const cleanUsername = normalizeInstagramUsername(account.username);
+    const cleanCode = account.verification_code.trim();
+    if (!/^[A-Za-z0-9._]{1,30}$/.test(cleanUsername)) return jsonResponse({ success: false, error: "Invalid Instagram account" }, 400, corsHeaders);
     
     console.log('Verifying Instagram bio for:', cleanUsername);
 
@@ -169,7 +154,7 @@ serve(async (req) => {
       JSON.stringify({
         success: true,
         verified: isVerified,
-        bio: bio,
+        bio: undefined,
         message: isVerified 
           ? 'Verification successful! Code found in bio.' 
           : 'Verification code not found in bio. Please add it and try again.'

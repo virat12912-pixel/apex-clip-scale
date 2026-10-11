@@ -277,38 +277,8 @@ export function useUpdateUserStatus(campaignId?: string) {
         // Success via function
         console.debug("Profile updated via admin function", fnData);
       } catch (fnInvokeErr) {
-        // Fallback: try direct update (may fail due to RLS)
-        console.debug("Falling back to direct supabase update", fnInvokeErr);
-
-        const { data, error, status, statusText } = await supabase
-          .from("profiles")
-          .update(updates)
-          .eq("id", userId)
-          .select()
-          .maybeSingle();
-
-        console.debug("Supabase direct update response", {
-          data,
-          error,
-          status,
-          statusText,
-        });
-
-        if (error) {
-          console.error("Error updating user status (direct):", error);
-          (error as any).status = status;
-          (error as any).statusText = statusText;
-          throw error;
-        }
-
-        if (!data) {
-          // No rows updated, likely due to RLS or missing id — surface a clearer error
-          const msg = "No rows updated (verify RLS/policies and id)";
-          console.warn(msg, { userId, updates });
-          const e: any = new Error(msg);
-          e.details = { userId, updates };
-          throw e;
-        }
+        console.error("Admin profile update failed:", fnInvokeErr);
+        throw fnInvokeErr;
       }
 
       // Create an admin log but don't let logging failures block the primary update.

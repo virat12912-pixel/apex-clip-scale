@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { authenticateRequest, jsonResponse, verifyMetricsAssertion } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,10 +8,7 @@ const corsHeaders = {
 
 interface ProcessSubmissionRequest {
   submission_id: string;
-  views: number;
-  likes: number;
-  comments: number;
-  set_status?: string; // optional: defaults to "approved", can be "pending" to keep status unchanged
+  metrics_assertion?: string;
 }
 
 Deno.serve(async (req) => {
@@ -19,11 +17,14 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const auth = await authenticateRequest(req);
+    if (!auth) return jsonResponse({ error: "Unauthorized" }, 401, corsHeaders);
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { submission_id, views, likes, comments, set_status }: ProcessSubmissionRequest = await req.json();
+    const body = await req.json() as ProcessSubmissionRequest;
+    const { submission_id, metrics_assertion } = body;
 
     if (!submission_id) {
       return new Response(
@@ -32,8 +33,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const targetStatus = set_status || "pending";
-    console.log(`Processing submission ${submission_id} with views: ${views}, likes: ${likes}, comments: ${comments}, status: ${targetStatus}`);
+    const targetStatus = "pending";
+    console.log(`Processing new pending submission ${submission_id}`);
 
     // Get submission with campaign data
     const { data: submission, error: subError } = await supabase
@@ -50,6 +51,19 @@ Deno.serve(async (req) => {
       );
     }
 
+    if (submission.creator_id !== auth.user.id) {
+      return jsonResponse({ error: "Forbidden" }, 403, corsHeaders);
+    }
+    if (submission.status !== "pending" || Number(submission.views) !== 0 || Number(submission.earnings) !== 0 || Number(submission.submitted_views ?? 0) !== 0) {
+      return jsonResponse({ error: "Only newly created pending submissions can be processed" }, 409, corsHeaders);
+    }
+    const metrics = await verifyMetricsAssertion(metrics_assertion, {
+      userId: auth.user.id,
+      videoUrl: submission.clip_url.trim(),
+    });
+    if (!metrics) return jsonResponse({ error: "Metrics could not be verified. Please fetch the clip details again." }, 403, corsHeaders);
+    const { views, likes, comments } = metrics;
+
     const campaign = submission.campaign;
     if (!campaign) {
       return new Response(
@@ -61,14 +75,7 @@ Deno.serve(async (req) => {
     // Check if campaign is active (allow processing for active campaigns)
     if (campaign.status !== "active") {
       console.log(`Campaign ${campaign.id} is not active (status: ${campaign.status})`);
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: "Campaign is not active, no earnings calculated",
-          earnings: 0 
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ success: false, error: "Campaign is not accepting submissions" }, 409, corsHeaders);
     }
 
     // Check remaining budget
@@ -115,7 +122,7 @@ Deno.serve(async (req) => {
     console.log(`Calculated earnings: $${earnings.toFixed(2)}`);
 
     // Update submission with views, likes, comments, and earnings
-    const { error: updateSubError } = await supabase
+    const { data: updatedSubmission, error: updateSubError } = await supabase
       .from("submissions")
       .update({
         views: views,
@@ -125,11 +132,17 @@ Deno.serve(async (req) => {
         earnings: earnings,
         status: targetStatus,
       })
-      .eq("id", submission_id);
+      .eq("id", submission_id)
+      .eq("creator_id", auth.user.id)
+      .eq("status", "pending")
+      .eq("views", 0)
+      .select("id")
+      .maybeSingle();
 
-    if (updateSubError) {
+    if (updateSubError || !updatedSubmission) {
       console.error("Failed to update submission:", updateSubError);
-      throw updateSubError;
+      if (updateSubError) throw updateSubError;
+      return jsonResponse({ error: "Submission has already been processed" }, 409, corsHeaders);
     }
 
     // Update creator's wallet pending_balance

@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { authenticateRequest, jsonResponse, signMetricsAssertion } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -30,7 +31,12 @@ function extractVideoId(url: string): string | null {
 }
 
 function isShortUrl(url: string): boolean {
-  return url.includes("vm.tiktok.com") || url.includes("vt.tiktok.com");
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && ["vm.tiktok.com", "vt.tiktok.com"].includes(parsed.hostname.toLowerCase());
+  } catch {
+    return false;
+  }
 }
 
 async function expandShortUrl(shortUrl: string): Promise<string> {
@@ -45,7 +51,9 @@ async function expandShortUrl(shortUrl: string): Promise<string> {
       if ([301, 302, 303, 307, 308].includes(response.status)) {
         const location = response.headers.get("location");
         if (location) {
-          currentUrl = new URL(location, currentUrl).href;
+          const nextUrl = new URL(location, currentUrl);
+          if (nextUrl.protocol !== "https:" || !["vm.tiktok.com", "vt.tiktok.com", "tiktok.com", "www.tiktok.com"].includes(nextUrl.hostname.toLowerCase())) break;
+          currentUrl = nextUrl.href;
           if (currentUrl.includes("/video/")) return currentUrl;
           continue;
         }
@@ -61,7 +69,8 @@ async function expandShortUrl(shortUrl: string): Promise<string> {
 // Scrape Creators API
 async function fetchViaScrapeCreators(videoUrl: string): Promise<{ views: number; likes: number; comments: number; author: string | null; description: string | null } | null> {
   try {
-    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY') || 'BYkwgH6v3kXbKlvvXcaXa9XNa5J2';
+    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY');
+    if (!apiKey) return null;
     console.log("Trying Scrape Creators API...");
     
     const apiUrl = `https://api.scrapecreators.com/v2/tiktok/video?url=${encodeURIComponent(videoUrl)}`;
@@ -95,7 +104,7 @@ async function fetchViaScrapeCreators(videoUrl: string): Promise<{ views: number
       views: statistics.play_count || 0,
       likes: statistics.digg_count || 0,
       comments: statistics.comment_count || 0,
-      author: author.unique_id || author.nickname || null,
+      author: author.unique_id || null,
       description: awemeDetail.desc || null,
     };
 
@@ -114,6 +123,8 @@ serve(async (req) => {
   }
 
   try {
+    const auth = await authenticateRequest(req);
+    if (!auth) return jsonResponse({ success: false, error: "Unauthorized" }, 401, corsHeaders);
     const { video_url } = (await req.json()) as TikTokRequest;
 
     if (!video_url) {
@@ -123,13 +134,28 @@ serve(async (req) => {
       });
     }
 
-    let targetUrl = video_url;
+    let targetUrl = video_url.trim();
+    if (!/^https?:\/\//i.test(targetUrl)) targetUrl = `https://${targetUrl}`;
+    let parsedTarget: URL;
+    try {
+      parsedTarget = new URL(targetUrl);
+    } catch {
+      return jsonResponse({ success: false, error: "Invalid TikTok URL" }, 400, corsHeaders);
+    }
+    const approvedHosts = ["tiktok.com", "www.tiktok.com", "vm.tiktok.com", "vt.tiktok.com"];
+    if (parsedTarget.protocol !== "https:" || !approvedHosts.includes(parsedTarget.hostname.toLowerCase())) {
+      return jsonResponse({ success: false, error: "A valid TikTok video URL is required" }, 400, corsHeaders);
+    }
     console.log(`Original URL: ${targetUrl}`);
 
     // Expand short URLs
     if (isShortUrl(targetUrl)) {
       targetUrl = await expandShortUrl(targetUrl);
       console.log(`Expanded URL: ${targetUrl}`);
+    }
+
+    if (!extractVideoId(targetUrl)) {
+      return jsonResponse({ success: false, error: "Could not extract video ID from URL", error_code: "invalid_url" }, 400, corsHeaders);
     }
 
     if (!targetUrl.startsWith("http")) {
@@ -141,6 +167,16 @@ serve(async (req) => {
 
     // If we got stats, return them
     if (result && result.views > 0) {
+      if (!await isAdminOrOwnVerifiedAccount(auth.serviceClient, auth.user.id, result.author)) {
+        return jsonResponse({ success: false, error: "The video must belong to one of your verified TikTok accounts" }, 403, corsHeaders);
+      }
+      const metricsAssertion = await signMetricsAssertion({
+        userId: auth.user.id,
+        videoUrl: video_url.trim(),
+        views: result.views,
+        likes: result.likes,
+        comments: result.comments,
+      });
       const response = {
         success: true,
         video_id: extractVideoId(targetUrl),
@@ -149,9 +185,10 @@ serve(async (req) => {
         comment_count: result.comments,
         author: result.author,
         description: result.description,
+        metrics_assertion: metricsAssertion,
       };
 
-      console.log("Result:", JSON.stringify(response));
+      console.log("TikTok metrics lookup completed", { videoId: response.video_id });
       return new Response(JSON.stringify(response), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -175,3 +212,18 @@ serve(async (req) => {
     });
   }
 });
+
+async function isAdminOrOwnVerifiedAccount(serviceClient: any, userId: string, author: string | null): Promise<boolean> {
+  const { data: isAdmin } = await serviceClient.rpc("has_role", { _user_id: userId, _role: "admin" });
+  if (isAdmin) return true;
+  if (!author) return false;
+  const { data: accounts, error } = await serviceClient
+    .from("social_accounts")
+    .select("username")
+    .eq("user_id", userId)
+    .eq("platform", "tiktok")
+    .eq("verified", true);
+  if (error) return false;
+  const normalize = (value: string) => value.trim().replace(/^@/, "").toLowerCase();
+  return (accounts ?? []).some((account: { username: string }) => normalize(account.username) === normalize(author));
+}

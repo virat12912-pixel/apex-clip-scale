@@ -99,11 +99,9 @@ export function downloadCSV(content: string, filename: string): void {
 
 function escapeCSV(value: string): string {
   if (!value) return "";
-  // Escape quotes and wrap in quotes if contains comma, newline, or quote
-  if (value.includes(",") || value.includes("\n") || value.includes('"')) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return value;
+  // Neutralize spreadsheet formulas before CSV quoting.
+  const safeValue = /^[\s\u0000-\u001f]*[=+@-]/.test(value) ? `'${value}` : value;
+  return `"${safeValue.replace(/"/g, '""')}"`;
 }
 
 // Platform Analytics Export

@@ -1,12 +1,13 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Upload, Link2, BarChart3, CheckCircle, Lock, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { useFinalSubmission, useCreateFinalSubmission, useResubmitFinalSubmission, MAX_FINAL_ATTEMPTS, uploadFinalSubmissionScreenshot, FinalSubmission } from "@/hooks/useFinalSubmissions";
+import { useFinalSubmission, useCreateFinalSubmission, useResubmitFinalSubmission, MAX_FINAL_ATTEMPTS, uploadFinalSubmissionScreenshot, getFinalSubmissionFilePath, FinalSubmission } from "@/hooks/useFinalSubmissions";
 import { FinalSubmissionTimeline } from "./FinalSubmissionTimeline";
+import { supabase } from "@/integrations/supabase/client";
 
 interface FinalSubmissionFormProps {
   campaignId: string;
@@ -21,12 +22,25 @@ function RecordingUploader({ label, onUpload, uploading, url }: {
   url: string | null;
 }) {
   const ref = useRef<HTMLInputElement>(null);
+  const [playableUrl, setPlayableUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const path = getFinalSubmissionFilePath(url);
+    if (!path) {
+      setPlayableUrl(url);
+      return () => { cancelled = true; };
+    }
+    supabase.storage.from("final-submissions").createSignedUrl(path, 300).then(({ data, error }) => {
+      if (!cancelled) setPlayableUrl(error ? null : data.signedUrl);
+    });
+    return () => { cancelled = true; };
+  }, [url]);
   return (
     <div className="space-y-2">
       <Label className="text-xs text-muted-foreground">{label}</Label>
       <input type="file" ref={ref} accept="video/*" className="hidden" onChange={(e) => e.target.files?.[0] && onUpload(e.target.files[0])} />
       {url ? (
-        <video src={url} controls className="w-full h-40 rounded-lg border border-border/30 bg-black object-contain" />
+        playableUrl ? <video src={playableUrl} controls className="w-full h-40 rounded-lg border border-border/30 bg-black object-contain" /> : <p className="text-xs text-muted-foreground">Loading recording…</p>
       ) : (
         <button
           type="button"

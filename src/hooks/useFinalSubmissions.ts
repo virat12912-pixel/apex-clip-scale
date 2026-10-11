@@ -305,3 +305,15 @@ export async function uploadFinalSubmissionScreenshot(
 
   return urlData.publicUrl;
 }
+
+export function getFinalSubmissionFilePath(publicUrl: string | null): string | null {
+  if (!publicUrl) return null;
+  const marker = "/storage/v1/object/public/final-submissions/";
+  const markerIndex = publicUrl.indexOf(marker);
+  if (markerIndex < 0) return null;
+  try {
+    return decodeURIComponent(publicUrl.slice(markerIndex + marker.length));
+  } catch {
+    return null;
+  }
+}

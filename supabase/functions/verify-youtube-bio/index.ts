@@ -1,19 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { authenticateRequest, getOwnedSocialAccount, jsonResponse } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-interface VerifyRequest {
-  username: string;
-  verification_code: string;
-}
-
 // Fetch YouTube channel description using Scrape Creators API
 async function fetchYouTubeDescription(username: string): Promise<string | null> {
   try {
-    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY') || 'yp6K8BEqORYJn6YZkZJLLIwgFkV2';
+    const apiKey = Deno.env.get('SCRAPE_CREATORS_API_KEY');
+    if (!apiKey) return null;
     const cleanUsername = username.replace(/^@/, '').trim();
     
     // Handle different YouTube URL formats
@@ -66,17 +63,12 @@ serve(async (req) => {
   }
 
   try {
-    const { username, verification_code } = (await req.json()) as VerifyRequest;
-
-    if (!username || !verification_code) {
-      return new Response(
-        JSON.stringify({ success: false, error: "username and verification_code are required" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
-
-    // Clean username - remove @ and leading/trailing whitespace
-    const cleanUsername = username.replace(/^@/, "").trim();
+    const auth = await authenticateRequest(req);
+    if (!auth) return jsonResponse({ success: false, error: "Unauthorized" }, 401, corsHeaders);
+    const { account_id } = await req.json();
+    const account = await getOwnedSocialAccount(auth.serviceClient, auth.user.id, account_id, "youtube");
+    if (!account) return jsonResponse({ success: false, error: "YouTube account was not found or is already verified" }, 400, corsHeaders);
+    const cleanUsername = account.username.replace(/^@/, "").trim();
 
     console.log("Verifying YouTube channel for:", cleanUsername);
 
@@ -93,17 +85,14 @@ serve(async (req) => {
       );
     }
 
-    console.log('Channel description:', description.substring(0, 200));
-    console.log('Looking for code:', verification_code);
-
     // Check if verification code is in description
-    const isVerified = description.includes(verification_code);
+    const isVerified = description.includes(account.verification_code);
 
     return new Response(
       JSON.stringify({
         success: true,
         verified: isVerified,
-        bio: description,
+        bio: undefined,
         message: isVerified
           ? "Verification successful! Code found in channel description."
           : "Verification code not found in channel description. Please add it to your YouTube channel's About section and try again.",
