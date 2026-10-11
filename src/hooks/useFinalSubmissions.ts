@@ -299,20 +299,17 @@ export async function uploadFinalSubmissionScreenshot(
 
   if (error) throw error;
 
-  const { data: urlData } = supabase.storage
-    .from("final-submissions")
-    .getPublicUrl(path);
-
-  return urlData.publicUrl;
+  return path;
 }
 
-export function getFinalSubmissionFilePath(publicUrl: string | null): string | null {
-  if (!publicUrl) return null;
+export function getFinalSubmissionFilePath(fileRef: string | null): string | null {
+  if (!fileRef) return null;
+  if (!/^https?:\/\//i.test(fileRef)) return fileRef;
   const marker = "/storage/v1/object/public/final-submissions/";
-  const markerIndex = publicUrl.indexOf(marker);
+  const markerIndex = fileRef.indexOf(marker);
   if (markerIndex < 0) return null;
   try {
-    return decodeURIComponent(publicUrl.slice(markerIndex + marker.length));
+    return decodeURIComponent(fileRef.slice(markerIndex + marker.length));
   } catch {
     return null;
   }

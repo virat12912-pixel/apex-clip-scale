@@ -146,6 +146,7 @@ Deno.serve(async (req) => {
     try {
       const campaignName = campaign?.name || "a campaign";
       await supabase.functions.invoke("create-notification", {
+        headers: { Authorization: req.headers.get("Authorization") || "" },
         body: {
           user_id: submission.creator_id,
           type: "submission_rejected",

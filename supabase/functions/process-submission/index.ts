@@ -205,6 +205,7 @@ Deno.serve(async (req) => {
         : `Your clip earned $${earnings.toFixed(2)} from ${views.toLocaleString()} views on "${campaign.name}".`;
       
       await supabase.functions.invoke("create-notification", {
+        headers: { Authorization: req.headers.get("Authorization") || "" },
         body: {
           user_id: submission.creator_id,
           type: targetStatus === "pending" ? "submission_pending" : "earnings_updated",

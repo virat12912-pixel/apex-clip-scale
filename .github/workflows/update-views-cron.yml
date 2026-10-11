@@ -18,7 +18,7 @@ jobs:
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
             "https://htkcortbngtlkjkmgbca.supabase.co/functions/v1/update-all-views" \
             -H "Content-Type: application/json" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+            -H "x-update-views-token: ${{ secrets.UPDATE_VIEWS_CRON_SECRET }}")
           
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           BODY=$(echo "$RESPONSE" | sed '$d')
