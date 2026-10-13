@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
     const previousEarnings = Number(submission.earnings || 0);
     const campaign = submission.campaign;
 
-    if (previousEarnings > 0) {
+    if ((submission.status === "approved" || submission.status === "paid") && previousEarnings > 0) {
       const { data: wallet } = await supabase
         .from("wallets")
         .select("*")

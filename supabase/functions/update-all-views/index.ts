@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { authenticateRequest, hasRole, jsonResponse } from "../_shared/security.ts";
+import { calculateAcceptedBudgetChange } from "../_shared/accepted-budget.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -362,6 +363,7 @@ serve(async (req) => {
         const previousEarnings = sub.earnings || 0;
 
         let newEarnings = previousEarnings;
+        let acceptedBudgetChange: ReturnType<typeof calculateAcceptedBudgetChange> | null = null;
         let shouldRecalculate = false;
 
         // Always recalculate earnings when views increase (no min_payout_views gate)
@@ -377,12 +379,16 @@ serve(async (req) => {
             newEarnings = Number(campaign.max_earnings_per_post);
           }
 
-          // Check remaining budget
-          const remainingBudget = Number(campaign.total_budget) - Number(campaign.spent_budget);
           const earningsDiff = newEarnings - previousEarnings;
 
-          if (earningsDiff > remainingBudget) {
-            newEarnings = previousEarnings + remainingBudget;
+          if (sub.status === "approved") {
+            acceptedBudgetChange = calculateAcceptedBudgetChange({
+              status: "approved",
+              totalBudget: Number(campaign.total_budget),
+              spentBudget: Number(campaign.spent_budget),
+              requestedDelta: earningsDiff,
+            });
+            newEarnings = previousEarnings + acceptedBudgetChange.appliedDelta;
           }
         }
 
@@ -403,35 +409,34 @@ serve(async (req) => {
           results.push({ submission_id: sub.id, success: false, error: updateError.message });
           errorCount++;
         } else {
-          // Update wallet and campaign budget if earnings changed
-          if (shouldRecalculate && newEarnings > previousEarnings && campaign) {
+          // Pending metrics are creator-only; update financial aggregates only
+          // for submissions that were already accepted.
+          if (shouldRecalculate && sub.status === "approved" && campaign && acceptedBudgetChange) {
             const earningsDiff = newEarnings - previousEarnings;
 
-            // Update creator's wallet
-            const { data: wallet } = await supabase
-              .from("wallets")
-              .select("pending_balance")
-              .eq("user_id", sub.creator_id)
-              .maybeSingle();
-
-            if (wallet) {
-              await supabase
+            if (earningsDiff !== 0) {
+              const { data: wallet } = await supabase
                 .from("wallets")
-                .update({ pending_balance: Number(wallet.pending_balance) + earningsDiff })
-                .eq("user_id", sub.creator_id);
+                .select("pending_balance")
+                .eq("user_id", sub.creator_id)
+                .maybeSingle();
+
+              if (wallet) {
+                await supabase
+                  .from("wallets")
+                  .update({ pending_balance: Math.max(0, Number(wallet.pending_balance) + earningsDiff) })
+                  .eq("user_id", sub.creator_id);
+              }
             }
 
-            // Update campaign spent budget
-            const newSpentBudget = Number(campaign.spent_budget) + earningsDiff;
-            const newRemainingBudget = Number(campaign.total_budget) - newSpentBudget;
-
-            const campaignUpdate: Record<string, unknown> = { spent_budget: newSpentBudget };
-            if (newRemainingBudget <= 0) {
+            const campaignUpdate: Record<string, unknown> = { spent_budget: acceptedBudgetChange.spentBudget };
+            if (acceptedBudgetChange.campaignCompleted) {
               campaignUpdate.status = "completed";
-              console.log(`Campaign ${campaign.id} budget exhausted, marking as completed`);
+              console.log(`Campaign ${campaign.id} accepted budget exhausted, marking as completed`);
             }
 
             await supabase.from("campaigns").update(campaignUpdate).eq("id", campaign.id);
+            campaign.spent_budget = acceptedBudgetChange.spentBudget;
           }
 
           console.log(
@@ -474,7 +479,7 @@ serve(async (req) => {
         .from("submissions")
         .select("id, views, earnings, creator_id")
         .eq("campaign_id", campaign.id)
-        .in("status", ["pending", "approved"])
+        .eq("status", "approved")
         .gt("earnings", 0);
 
       for (const sub of belowThresholdSubs || []) {
