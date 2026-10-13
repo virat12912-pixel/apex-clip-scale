@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { authenticateRequest, hasRole, jsonResponse } from "../_shared/security.ts";
+import { calculateAcceptedBudgetChange } from "../_shared/accepted-budget.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -73,14 +74,33 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Calculate earnings: (views / rate_unit) * rate_value
-    let earnings = (verifiedViews / campaign.rate_unit) * campaign.rate_value;
+    // Calculate requested earnings, then limit payment to remaining accepted budget.
+    let requestedEarnings = (verifiedViews / campaign.rate_unit) * campaign.rate_value;
     
     // Apply max_earnings_per_post cap if set
-    if (campaign.max_earnings_per_post && earnings > campaign.max_earnings_per_post) {
-      earnings = campaign.max_earnings_per_post;
+    if (campaign.max_earnings_per_post && requestedEarnings > campaign.max_earnings_per_post) {
+      requestedEarnings = campaign.max_earnings_per_post;
       console.log(`Capped earnings at ${campaign.max_earnings_per_post}`);
     }
+
+    const { data: acceptedSubmissions, error: acceptedError } = await supabase
+      .from("submissions")
+      .select("earnings")
+      .eq("campaign_id", campaign.id)
+      .in("status", ["approved", "paid"]);
+    if (acceptedError) throw acceptedError;
+
+    const acceptedSpend = (acceptedSubmissions || []).reduce(
+      (total, row) => total + Number(row.earnings || 0),
+      0,
+    );
+    const budgetChange = calculateAcceptedBudgetChange({
+      status: "approved",
+      totalBudget: Number(campaign.total_budget),
+      spentBudget: acceptedSpend,
+      requestedDelta: requestedEarnings,
+    });
+    const earnings = budgetChange.appliedDelta;
 
     console.log(`Calculated earnings: $${earnings.toFixed(2)}`);
 
@@ -143,11 +163,13 @@ Deno.serve(async (req) => {
       details: { verified_views: verifiedViews, earnings },
     });
 
-    // Update campaign spent_budget
-    const newSpentBudget = Number(campaign.spent_budget) + earnings;
+    // Store canonical spend from accepted submissions only.
+    const newSpentBudget = budgetChange.spentBudget;
+    const campaignUpdate: Record<string, unknown> = { spent_budget: newSpentBudget };
+    if (budgetChange.campaignCompleted) campaignUpdate.status = "completed";
     const { error: campaignUpdateError } = await supabase
       .from("campaigns")
-      .update({ spent_budget: newSpentBudget })
+      .update(campaignUpdate)
       .eq("id", campaign.id);
 
     if (campaignUpdateError) {
