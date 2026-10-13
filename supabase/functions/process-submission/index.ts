@@ -78,26 +78,11 @@ Deno.serve(async (req) => {
       return jsonResponse({ success: false, error: "Campaign is not accepting submissions" }, 409, corsHeaders);
     }
 
-    // Check remaining budget
+    // Pending submissions may show an estimate to their creator but must not
+    // reserve or consume accepted campaign budget.
     const remainingBudget = Number(campaign.total_budget) - Number(campaign.spent_budget);
     if (remainingBudget <= 0) {
-      console.log(`Campaign ${campaign.id} has no remaining budget`);
-      
-      // Auto-pause the campaign
-      await supabase
-        .from("campaigns")
-        .update({ status: "paused" })
-        .eq("id", campaign.id);
-      
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: "Campaign budget exhausted, campaign paused",
-          earnings: 0,
-          campaign_paused: true
-        }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return jsonResponse({ success: false, error: "Campaign budget is fully spent" }, 409, corsHeaders);
     }
 
     // Note: We always calculate earnings regardless of min_payout_views.
@@ -111,12 +96,6 @@ Deno.serve(async (req) => {
     if (campaign.max_earnings_per_post && earnings > campaign.max_earnings_per_post) {
       earnings = Number(campaign.max_earnings_per_post);
       console.log(`Capped earnings at max_earnings_per_post: ${earnings}`);
-    }
-
-    // Cap earnings to remaining budget
-    if (earnings > remainingBudget) {
-      earnings = remainingBudget;
-      console.log(`Capped earnings to remaining budget: ${earnings}`);
     }
 
     console.log(`Calculated earnings: $${earnings.toFixed(2)}`);
@@ -143,58 +122,6 @@ Deno.serve(async (req) => {
       console.error("Failed to update submission:", updateSubError);
       if (updateSubError) throw updateSubError;
       return jsonResponse({ error: "Submission has already been processed" }, 409, corsHeaders);
-    }
-
-    // Update creator's wallet pending_balance
-    const { data: wallet, error: walletFetchError } = await supabase
-      .from("wallets")
-      .select("*")
-      .eq("user_id", submission.creator_id)
-      .maybeSingle();
-
-    if (walletFetchError) {
-      console.error("Failed to fetch wallet:", walletFetchError);
-    } else if (!wallet) {
-      // Create wallet if it doesn't exist
-      const { error: createWalletError } = await supabase
-        .from("wallets")
-        .insert({ user_id: submission.creator_id, pending_balance: earnings });
-      
-      if (createWalletError) {
-        console.error("Failed to create wallet:", createWalletError);
-      }
-    } else {
-      // Update existing wallet
-      const newPendingBalance = Number(wallet.pending_balance) + earnings;
-      const { error: walletUpdateError } = await supabase
-        .from("wallets")
-        .update({ pending_balance: newPendingBalance })
-        .eq("user_id", submission.creator_id);
-
-      if (walletUpdateError) {
-        console.error("Failed to update wallet:", walletUpdateError);
-      }
-    }
-
-    // Update campaign spent_budget
-    const newSpentBudget = Number(campaign.spent_budget) + earnings;
-    const newRemainingBudget = Number(campaign.total_budget) - newSpentBudget;
-    
-    const campaignUpdate: Record<string, unknown> = { spent_budget: newSpentBudget };
-    
-    // Auto-complete campaign if budget is exhausted
-    if (newRemainingBudget <= 0) {
-      campaignUpdate.status = "completed";
-      console.log(`Campaign ${campaign.id} budget exhausted, marking as completed`);
-    }
-    
-    const { error: campaignUpdateError } = await supabase
-      .from("campaigns")
-      .update(campaignUpdate)
-      .eq("id", campaign.id);
-
-    if (campaignUpdateError) {
-      console.error("Failed to update campaign budget:", campaignUpdateError);
     }
 
     // Send notification to creator about earnings
@@ -228,7 +155,7 @@ Deno.serve(async (req) => {
         likes,
         comments,
         earnings: earnings.toFixed(2),
-        campaign_paused: newRemainingBudget <= 0,
+        campaign_paused: false,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
