@@ -1,7 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { authenticateRequest, hasRole, jsonResponse } from "../_shared/security.ts";
-import { calculateAcceptedBudgetChange } from "../_shared/accepted-budget.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -352,104 +351,21 @@ serve(async (req) => {
       if (sub.platform === "tiktok" && tiktokApiKey) {
         result = await fetchTikTokViews(sub.clip_url, tiktokApiKey);
       } else if (sub.platform === "instagram" && instagramApiKey) {
-        result = await fetchInstagramViews(sub.clip_url, instagramApiKey, trustedCron ? cronSecret! : auth!.authorization, trustedCron);
+        result = await fetchInstagramViews(sub.clip_url, instagramApiKey, trustedCron ? (cronSecret ?? "") : (auth?.authorization ?? ""), trustedCron);
       } else if (sub.platform === "youtube" && youtubeApiKey) {
         result = await fetchYouTubeViews(sub.clip_url, youtubeApiKey);
       }
 
       if (result && result.views > 0) {
-        const campaign = sub.campaign;
-        const previousViews = sub.views || 0;
-        const previousEarnings = sub.earnings || 0;
-
-        let newEarnings = previousEarnings;
-        let acceptedBudgetChange: ReturnType<typeof calculateAcceptedBudgetChange> | null = null;
-        let shouldRecalculate = false;
-
-        // Always recalculate earnings when views increase (no min_payout_views gate)
-        // min_payout_views is only enforced at campaign end or payout time
-        if (campaign && campaign.status === "active" && (result.views > previousViews || (previousEarnings === 0 && result.views > 0))) {
-          shouldRecalculate = true;
-
-          // Calculate new earnings based on new views
-          newEarnings = (result.views / campaign.rate_unit) * campaign.rate_value;
-
-          // Apply max_earnings_per_post cap
-          if (campaign.max_earnings_per_post && newEarnings > campaign.max_earnings_per_post) {
-            newEarnings = Number(campaign.max_earnings_per_post);
-          }
-
-          const earningsDiff = newEarnings - previousEarnings;
-
-          if (sub.status === "approved") {
-            acceptedBudgetChange = calculateAcceptedBudgetChange({
-              status: "approved",
-              totalBudget: Number(campaign.total_budget),
-              spentBudget: Number(campaign.spent_budget),
-              requestedDelta: earningsDiff,
-            });
-            newEarnings = previousEarnings + acceptedBudgetChange.appliedDelta;
-          }
-        }
-
-        // Update submission
-        const { error: updateError } = await supabase
-          .from("submissions")
-          .update({
-            views: result.views,
-            likes: result.likes,
-            comments: result.comments,
-            earnings: newEarnings,
-            // Preserve current status - don't auto-approve
-          })
-          .eq("id", sub.id);
-
+        const { error: updateError } = await supabase.rpc("accounting_clip", {
+          p_actor: trustedCron ? null : auth?.user.id,
+          p_submission: sub.id, p_action: "refresh", p_views: result.views,
+          p_likes: result.likes, p_comments: result.comments,
+        });
         if (updateError) {
-          console.error(`Failed to update submission ${sub.id}:`, updateError);
-          results.push({ submission_id: sub.id, success: false, error: updateError.message });
-          errorCount++;
+          results.push({submission_id:sub.id,success:false,error:updateError.message}); errorCount++;
         } else {
-          // Pending metrics are creator-only; update financial aggregates only
-          // for submissions that were already accepted.
-          if (shouldRecalculate && sub.status === "approved" && campaign && acceptedBudgetChange) {
-            const earningsDiff = newEarnings - previousEarnings;
-
-            if (earningsDiff !== 0) {
-              const { data: wallet } = await supabase
-                .from("wallets")
-                .select("pending_balance")
-                .eq("user_id", sub.creator_id)
-                .maybeSingle();
-
-              if (wallet) {
-                await supabase
-                  .from("wallets")
-                  .update({ pending_balance: Math.max(0, Number(wallet.pending_balance) + earningsDiff) })
-                  .eq("user_id", sub.creator_id);
-              }
-            }
-
-            const campaignUpdate: Record<string, unknown> = { spent_budget: acceptedBudgetChange.spentBudget };
-            if (acceptedBudgetChange.campaignCompleted) {
-              campaignUpdate.status = "completed";
-              console.log(`Campaign ${campaign.id} accepted budget exhausted, marking as completed`);
-            }
-
-            await supabase.from("campaigns").update(campaignUpdate).eq("id", campaign.id);
-            campaign.spent_budget = acceptedBudgetChange.spentBudget;
-          }
-
-          console.log(
-            `Updated submission ${sub.id}: ${previousViews} -> ${result.views} views, earnings: $${newEarnings.toFixed(2)}`,
-          );
-          results.push({
-            submission_id: sub.id,
-            success: true,
-            views: result.views,
-            likes: result.likes,
-            comments: result.comments,
-          });
-          successCount++;
+          results.push({submission_id:sub.id,success:true,...result}); successCount++;
         }
       } else {
         results.push({ submission_id: sub.id, success: false, error: "Could not fetch views" });
@@ -484,40 +400,11 @@ serve(async (req) => {
 
       for (const sub of belowThresholdSubs || []) {
         if (Number(sub.views) < minPayoutViews && Number(sub.earnings) > 0) {
-          const earningsToReverse = Number(sub.earnings);
-
-          // Zero out earnings on submission
-          await supabase
-            .from("submissions")
-            .update({ earnings: 0 })
-            .eq("id", sub.id);
-
-          // Reverse from creator's wallet
-          const { data: wallet } = await supabase
-            .from("wallets")
-            .select("pending_balance")
-            .eq("user_id", sub.creator_id)
-            .maybeSingle();
-
-          if (wallet) {
-            const newBalance = Math.max(0, Number(wallet.pending_balance) - earningsToReverse);
-            await supabase
-              .from("wallets")
-              .update({ pending_balance: newBalance })
-              .eq("user_id", sub.creator_id);
-          }
-
-          // Return to campaign budget
-          const newSpent = Math.max(0, Number(campaign.spent_budget) - earningsToReverse);
-          await supabase
-            .from("campaigns")
-            .update({ spent_budget: newSpent })
-            .eq("id", campaign.id);
-
-          // Update local reference for subsequent iterations
-          campaign.spent_budget = newSpent;
-
-          console.log(`Reversed $${earningsToReverse.toFixed(2)} for submission ${sub.id} (${sub.views} views < ${minPayoutViews} threshold, campaign ended)`);
+          const { error } = await supabase.rpc("accounting_clip", {
+            p_actor: trustedCron ? null : auth?.user.id,
+            p_submission: sub.id, p_action: "threshold",
+          });
+          if (error) { console.error("Threshold reversal failed:", error.message); continue; }
           reversedCount++;
         }
       }
