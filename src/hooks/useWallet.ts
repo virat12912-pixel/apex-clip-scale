@@ -83,7 +83,7 @@ export function useAllPayouts() {
         .from("payouts")
         .select(`
           *,
-          user_profile:profiles!payouts_user_id_fkey(full_name, email)
+          user_profile:profiles!payouts_user_id_fkey(full_name, email, solana_wallet_address)
         `)
         .order("created_at", { ascending: false });
 
@@ -138,30 +138,6 @@ export function useRequestPayout() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payouts"] });
       queryClient.invalidateQueries({ queryKey: ["wallet"] });
-    },
-  });
-}
-
-export function useUpdatePayout() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<Payout> & { id: string }) => {
-      const { data, error } = await supabase
-        .from("payouts")
-        .update({
-          ...updates,
-          processed_at: updates.status === "paid" ? new Date().toISOString() : null,
-        })
-        .eq("id", id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["payouts"] });
     },
   });
 }

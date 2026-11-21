@@ -130,8 +130,8 @@ const AdminUsers = () => {
         title: "Role updated",
         description: `${pendingChange.userName || "User"}'s role changed to ${pendingChange.newRole.replace(/_/g, " ")}`,
       });
-    } catch (error: any) {
-      toast({ title: "Error", description: error?.message || "Failed to change role", variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to change role", variant: "destructive" });
     } finally {
       setPendingChange(null);
     }
@@ -147,8 +147,8 @@ const AdminUsers = () => {
       });
       queryClient.invalidateQueries({ queryKey: ["admin_all_users_with_roles"] });
       toast({ title: banDialog.isBanned ? "User unbanned" : "User banned" });
-    } catch (error: any) {
-      toast({ title: "Error", description: error?.message || "Failed to update user", variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to update user", variant: "destructive" });
     } finally {
       setBanDialog(null);
     }
@@ -163,8 +163,8 @@ const AdminUsers = () => {
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["admin_all_users_with_roles"] });
       toast({ title: "User deleted", description: `${deleteDialog.userName}'s account has been removed` });
-    } catch (error: any) {
-      toast({ title: "Error", description: error?.message || "Failed to delete user", variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to delete user", variant: "destructive" });
     } finally {
       setDeleteDialog(null);
     }

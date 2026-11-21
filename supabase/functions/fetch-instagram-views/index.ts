@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { authenticateRequest, jsonResponse, signMetricsAssertion } from "../_shared/security.ts";
+import { authenticateRequest, jsonResponse, signMetricsAssertion, timingSafeEqualString, type AuthContext } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,6 +8,8 @@ const corsHeaders = {
 
 interface InstagramRequest {
   video_url: string;
+  /** Optional: bind the minted assertion to this submission (audit H-04). */
+  submission_id?: string;
 }
 
 interface ScrapedResult {
@@ -93,7 +95,7 @@ function parseScrapedPayload(payload: string): ScrapedResult {
   const commentCountMatch = payload.match(/"comment_count"\s*:\s*(\d+)/);
   if (!comments && commentCountMatch?.[1]) comments = Number.parseInt(commentCountMatch[1], 10);
 
-  const authorMatch = payload.match(/"username"\s*:\s*"([^\"]+)"/);
+  const authorMatch = payload.match(/"username"\s*:\s*"([^"]+)"/);
   if (authorMatch?.[1]) author = authorMatch[1];
 
   const captionJsonMatch = payload.match(/"text"\s*:\s*"((?:[^"\\]|\\.)*)"/);
@@ -637,9 +639,13 @@ serve(async (req) => {
     const auth = await authenticateRequest(req);
     const cronSecret = Deno.env.get("UPDATE_VIEWS_CRON_SECRET");
     const internalToken = req.headers.get("x-internal-update-token");
-    const trustedInternal = Boolean(cronSecret && internalToken && internalToken === cronSecret);
+    // L-06: timing-safe comparison for the internal cron token (never `===`).
+    const trustedInternal = Boolean(cronSecret && internalToken && timingSafeEqualString(internalToken, cronSecret));
     if (!auth && !trustedInternal) return jsonResponse({ success: false, error: "Unauthorized" }, 401, corsHeaders);
-    const { video_url } = (await req.json()) as InstagramRequest;
+    // M-27: banned callers cannot fetch metrics (the trusted internal /
+    // cron path has no user and is unaffected).
+    if (!trustedInternal && auth?.banned) return jsonResponse({ success: false, error: "This account is banned" }, 403, corsHeaders);
+    const { video_url, submission_id } = (await req.json()) as InstagramRequest;
 
     if (!video_url) {
       return new Response(
@@ -666,6 +672,19 @@ serve(async (req) => {
     }
 
     console.log(`Fetching Instagram data for shortcode: ${reelId}`);
+
+    // M-25: resolve the author for free via oEmbed (no key, no quota) and
+    // check ownership BEFORE any paid call (Apify / Scrape Creators /
+    // RapidAPI). Instagram reel URLs carry no author, so oEmbed is the
+    // only free author lookup. If oEmbed cannot resolve the author, the
+    // paid methods run and ownership is checked on their author afterwards
+    // (documented fallback: oEmbed is not guaranteed to answer).
+    if (!trustedInternal && auth) {
+      const oembedAuthor = await fetchOEmbed(video_url);
+      if (oembedAuthor?.author && !await isAdminOrOwnVerifiedAccount(auth.serviceClient, auth.user.id, oembedAuthor.author)) {
+        return jsonResponse({ success: false, error: "The video must belong to one of your verified Instagram accounts" }, 403, corsHeaders);
+      }
+    }
 
     // Method 0: Apify (primary)
     let result = await fetchViaApify(video_url);
@@ -744,6 +763,9 @@ serve(async (req) => {
         views: result.views,
         likes: result.likes,
         comments: result.comments,
+        // H-04: bind the assertion to the submission when the caller knows
+        // it (insert-first flow); omitted for the legacy fetch-first flow.
+        ...(typeof submission_id === "string" && submission_id ? { submissionId: submission_id } : {}),
       }) : undefined;
       return new Response(
         JSON.stringify({
@@ -797,15 +819,14 @@ serve(async (req) => {
     );
   } catch (error: unknown) {
     console.error("Error in fetch-instagram-views:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: message }), {
+    return new Response(JSON.stringify({ error: "Could not fetch video data" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
 
-async function isAdminOrOwnVerifiedAccount(serviceClient: any, userId: string, author: string | null): Promise<boolean> {
+async function isAdminOrOwnVerifiedAccount(serviceClient: AuthContext["serviceClient"], userId: string, author: string | null): Promise<boolean> {
   const { data: isAdmin } = await serviceClient.rpc("has_role", { _user_id: userId, _role: "admin" });
   if (isAdmin) return true;
   if (!author) return false;

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +37,13 @@ export function CampaignFiltersModal({
   currentFilters,
 }: CampaignFiltersModalProps) {
   const [filters, setFilters] = useState<FilterValues>(currentFilters);
+
+  // H-27: sync local state from the current filters every time the modal
+  // opens — otherwise a "Clear Filters" elsewhere leaves stale values
+  // here, and applying re-applies filters the user already cleared.
+  useEffect(() => {
+    if (open) setFilters(currentFilters);
+  }, [open, currentFilters]);
 
   const handlePlatformToggle = (platform: string) => {
     setFilters((prev) => ({
@@ -96,7 +103,7 @@ export function CampaignFiltersModal({
           {/* Rate Range */}
           <div className="space-y-3">
             <div className="flex justify-between">
-              <Label>Rate per 100K views</Label>
+              <Label>RPM ($ per 1,000 views)</Label>
               <span className="text-sm text-muted-foreground">
                 ${filters.minRate} - ${filters.maxRate}
               </span>

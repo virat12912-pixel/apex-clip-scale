@@ -62,10 +62,10 @@ const ResetPassword = () => {
         title: "Password updated!",
         description: "You can now sign in with your new password.",
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast({
         title: "Error",
-        description: err.message,
+        description: err instanceof Error ? err.message : "Something went wrong",
         variant: "destructive",
       });
     } finally {
@@ -110,7 +110,7 @@ const ResetPassword = () => {
             <div className="w-10 h-10 rounded-xl bg-gradient-primary glow-primary-sm flex items-center justify-center">
               <span className="text-lg font-bold text-primary-foreground">A</span>
             </div>
-            <span className="font-display font-bold text-2xl">Apex Clipping</span>
+            <span className="font-display font-bold text-2xl">Amplify</span>
           </div>
 
           <h1 className="text-3xl font-display font-bold mb-2">Reset Password</h1>

@@ -1,5 +1,6 @@
-import { useCampaignSubmissions } from "@/hooks/useSubmissions";
+import { useCampaignSubmissions, Submission } from "@/hooks/useSubmissions";
 import { useCampaignAnalytics } from "@/hooks/useCampaignAnalytics";
+import { Campaign, sumApprovedSpend } from "@/hooks/useCampaigns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ElevatedCard, ElevatedCardContent, ElevatedCardHeader, ElevatedCardTitle } from "@/components/ui/elevated-card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -28,32 +29,36 @@ const PLATFORM_LABELS: Record<string, string> = {
   youtube: "Shorts",
 };
 
+type WorkspaceSubmission = Omit<Submission, "admin_notes">;
+
 interface Props {
   campaignId: string;
-  campaigns: any[];
+  campaigns: Campaign[];
 }
 
 export function ClientCampaignWorkspace({ campaignId, campaigns }: Props) {
-  const campaign = campaigns.find((c: any) => c.id === campaignId);
+  const campaign = campaigns.find((c: Campaign) => c.id === campaignId);
   const { data: submissions, isLoading: subsLoading } = useCampaignSubmissions(campaignId);
   const { data: analyticsData } = useCampaignAnalytics(campaignId, 30);
 
   if (!campaign) return null;
 
   const totalBudget = Number(campaign.total_budget);
-  const spentBudget = Number(campaign.spent_budget);
+  // M-01: spent is the approved-only recompute, not the raw spent_budget
+  // column (which can diverge from it).
+  const spentBudget = sumApprovedSpend(submissions || []);
   const remaining = totalBudget - spentBudget;
   const budgetPct = totalBudget > 0 ? (spentBudget / totalBudget) * 100 : 0;
 
-  const approvedSubs = (submissions || []).filter((s: any) => s.status === "approved" || s.status === "paid");
-  const totalViews = approvedSubs.reduce((sum: number, s: any) => sum + (s.views || 0), 0);
+  const approvedSubs = (submissions || []).filter((s: WorkspaceSubmission) => s.status === "approved" || s.status === "paid");
+  const totalViews = approvedSubs.reduce((sum: number, s: WorkspaceSubmission) => sum + (s.views || 0), 0);
   const totalClips = approvedSubs.length;
   const avgViewsPerClip = totalClips > 0 ? Math.round(totalViews / totalClips) : 0;
   const cpm = totalViews > 0 ? (spentBudget / totalViews) * 1000 : 0;
 
   // Best performing clip
   const bestClip = approvedSubs.length
-    ? approvedSubs.reduce((best: any, s: any) => (s.views || 0) > (best.views || 0) ? s : best, approvedSubs[0])
+    ? approvedSubs.reduce((best: WorkspaceSubmission, s: WorkspaceSubmission) => (s.views || 0) > (best.views || 0) ? s : best, approvedSubs[0])
     : null;
 
   // Platform breakdown
@@ -213,7 +218,7 @@ export function ClientCampaignWorkspace({ campaignId, campaigns }: Props) {
             <EmptyState icon={Film} title="No content yet" description="No clips have been published to this campaign yet." variant="minimal" />
           ) : (
             <div className="space-y-3">
-              {submissions.map((sub: any) => (
+              {submissions.map((sub) => (
                 <div key={sub.id} className="flex items-center gap-4 p-4 rounded-xl bg-secondary/30 border border-border/20 hover:bg-secondary/50 transition-all">
                   <div className={`p-2 rounded-lg ${
                     sub.status === "approved" || sub.status === "paid"

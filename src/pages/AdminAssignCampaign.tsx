@@ -43,18 +43,18 @@ function useAllAssignments() {
       if (error) throw error;
 
       // Fetch campaign names and user info
-      const campaignIds = [...new Set((assignments || []).map((a: any) => a.campaign_id))];
-      const userIds = [...new Set((assignments || []).map((a: any) => a.user_id))];
+      const campaignIds = [...new Set((assignments || []).map((a) => a.campaign_id))];
+      const userIds = [...new Set((assignments || []).map((a) => a.user_id))];
 
       const [campaignsRes, profilesRes] = await Promise.all([
         campaignIds.length ? supabase.from("campaigns").select("id, name").in("id", campaignIds) : { data: [], error: null },
         userIds.length ? supabase.from("profiles").select("id, full_name, email").in("id", userIds) : { data: [], error: null },
       ]);
 
-      const campaignMap = new Map((campaignsRes.data || []).map((c: any) => [c.id, c.name]));
-      const profileMap = new Map((profilesRes.data || []).map((p: any) => [p.id, { name: p.full_name, email: p.email }]));
+      const campaignMap = new Map((campaignsRes.data || []).map((c) => [c.id, c.name]));
+      const profileMap = new Map((profilesRes.data || []).map((p) => [p.id, { name: p.full_name, email: p.email }]));
 
-      return (assignments || []).map((a: any) => ({
+      return (assignments || []).map((a) => ({
         ...a,
         campaign_name: campaignMap.get(a.campaign_id) || "Unknown",
         user_name: profileMap.get(a.user_id)?.name || "Unknown",
@@ -122,8 +122,8 @@ const AdminAssignCampaign = () => {
       toast({ title: "Campaign assigned successfully" });
       setSelectedCampaign("");
       setSelectedUser("");
-    } catch (err: any) {
-      toast({ title: "Error", description: err?.message || "Failed to assign", variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to assign", variant: "destructive" });
     }
   };
 
@@ -132,8 +132,8 @@ const AdminAssignCampaign = () => {
       await unassignCampaign.mutateAsync({ campaignId, userId });
       queryClient.invalidateQueries({ queryKey: ["campaign-assignments"] });
       toast({ title: "Assignment removed" });
-    } catch (err: any) {
-      toast({ title: "Error", description: err?.message || "Failed to unassign", variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to unassign", variant: "destructive" });
     }
   };
 
@@ -166,7 +166,7 @@ const AdminAssignCampaign = () => {
                 <SelectValue placeholder="Select campaign..." />
               </SelectTrigger>
               <SelectContent>
-                {(campaigns || []).map((c: any) => (
+                {(campaigns || []).map((c) => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -176,7 +176,7 @@ const AdminAssignCampaign = () => {
                 <SelectValue placeholder="Select client user..." />
               </SelectTrigger>
               <SelectContent>
-                {(clientUsers || []).map((u: any) => (
+                {(clientUsers || []).map((u) => (
                   <SelectItem key={u.id} value={u.id}>
                     {u.full_name || u.email} ({u.role.replace(/_/g, " ")})
                   </SelectItem>

@@ -44,7 +44,7 @@ const MySubmissionClips = () => {
 
   const submissions = useMemo(() => {
     if (!allSubmissions || !campaignId) return [];
-    return allSubmissions.filter((s: any) => s.campaign_id === campaignId);
+    return allSubmissions.filter((s) => s.campaign_id === campaignId);
   }, [allSubmissions, campaignId]);
 
   const getStatusBadge = (status: string) => {
@@ -99,7 +99,7 @@ const MySubmissionClips = () => {
           </div>
         ) : (
           <div className="space-y-4 stagger-enter">
-            {submissions.map((sub: any) => (
+            {submissions.map((sub) => (
               <div key={sub.id} className="p-4 sm:p-5 rounded-2xl bg-card/50 border border-border/30 hover:border-primary/15 transition-all duration-300">
                 <div className="flex items-start justify-between gap-2 mb-4">
                   <div className="flex items-center gap-2 sm:gap-3 min-w-0">

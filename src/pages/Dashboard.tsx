@@ -4,8 +4,10 @@ import {
   Clock, CheckCircle, AlertCircle, Activity, Target
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { isClipperRole, isClientRole, isAdminRole, isBrandRole, canLaunchCampaigns } from "@/lib/roles";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { useCreatorStats, useBrandStats } from "@/hooks/useStats";
 import { useCampaigns } from "@/hooks/useCampaigns";
 import { useMySubmissions } from "@/hooks/useSubmissions";
@@ -22,14 +24,63 @@ import { SectionDivider } from "@/components/ui/section-divider";
 import { ClientBalanceSection } from "@/components/dashboard/ClientBalanceSection";
 
 const Dashboard = () => {
-  const { profile, role } = useAuth();
-  const { data: creatorStats, isLoading: creatorLoading } = useCreatorStats();
-  const { data: brandStats, isLoading: brandLoading } = useBrandStats();
-  const { data: campaigns, isLoading: campaignsLoading } = useCampaigns({ status: "active" });
-  const { data: submissions, isLoading: submissionsLoading } = useMySubmissions();
+  const { profile, role, user, roleLoaded } = useAuth();
+  const { data: creatorStats, isLoading: creatorLoading, isError: creatorError, refetch: refetchCreatorStats } = useCreatorStats();
+  const { data: brandStats, isLoading: brandLoading, isError: brandError, refetch: refetchBrandStats } = useBrandStats();
+  // H-31: the brand view's "Your Campaigns" list is scoped to the signed-in
+  // brand's own campaigns; creators keep browsing all active campaigns.
+  const { data: campaigns, isLoading: campaignsLoading, isError: campaignsError, refetch: refetchCampaigns } = useCampaigns({
+    status: "active",
+    createdBy: role === "brand" ? user?.id : undefined,
+  });
+  const { data: submissions, isLoading: submissionsLoading, isError: submissionsError, refetch: refetchSubmissions } = useMySubmissions();
   const { data: analyticsData } = useCreatorAnalytics(30);
 
-  const isLoading = role === "creator" ? creatorLoading : brandLoading;
+  // H-21: never render KPIs until the role is resolved — otherwise the
+  // first frame flashes the wrong (brand) KPIs to creators/clippers.
+  // Client roles get their own dashboard; admins get the admin dashboard.
+  if (!roleLoaded) {
+    return (
+      <AppLayout title="Dashboard">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {Array(4).fill(0).map((_, i) => (
+            <Skeleton key={i} className="h-40 rounded-2xl" />
+          ))}
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (isClientRole(role)) {
+    return <Navigate to="/client" replace />;
+  }
+
+  if (isAdminRole(role)) {
+    return <Navigate to="/admin" replace />;
+  }
+
+  const isCreatorView = isClipperRole(role);
+  const isLoading = isCreatorView ? creatorLoading : brandLoading;
+  const hasLoadError = creatorError || brandError || campaignsError || submissionsError;
+
+  // H-29: a failed fetch renders an error state with retry — never the
+  // empty state ("No active campaigns") as if there were simply no data.
+  if (hasLoadError) {
+    return (
+      <AppLayout title="Dashboard">
+        <ErrorState
+          title="Couldn't load your dashboard"
+          message="Your stats, campaigns and activity couldn't be loaded. Check your connection and try again."
+          onRetry={() => {
+            void refetchCreatorStats();
+            void refetchBrandStats();
+            void refetchCampaigns();
+            void refetchSubmissions();
+          }}
+        />
+      </AppLayout>
+    );
+  }
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
@@ -58,12 +109,12 @@ const Dashboard = () => {
             <h2 className="text-2xl sm:text-3xl font-display font-bold tracking-tight">
               Welcome back, <span className="text-gradient">{profile?.full_name?.split(" ")[0] || "there"}</span>
             </h2>
-            {role === "creator" && (
-              <ClipperTierBadge tier={(profile as any)?.clipper_tier || "standard"} size="sm" />
+            {isCreatorView && (
+              <ClipperTierBadge tier={profile?.clipper_tier || "standard"} size="sm" />
             )}
           </div>
           <p className="text-muted-foreground/70 mb-6 text-base sm:text-lg">
-            {role === "creator" 
+            {isCreatorView
               ? `You have ${submissions?.filter(s => s.status === "pending").length || 0} pending submissions.`
               : `You have ${campaigns?.length || 0} active campaigns running.`
             }
@@ -75,7 +126,7 @@ const Dashboard = () => {
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
-            {(role === "brand" || role === "admin") && (
+            {canLaunchCampaigns(role) && (
               <Button variant="outline" asChild className="h-10 sm:h-11 px-4 sm:px-6 rounded-xl border-primary/20 hover:border-primary/40 hover:bg-primary/5 text-sm">
                 <Link to="/launch">Launch Campaign</Link>
               </Button>
@@ -90,10 +141,10 @@ const Dashboard = () => {
           Array(4).fill(0).map((_, i) => (
             <Skeleton key={i} className="h-40 rounded-2xl" />
           ))
-        ) : role === "creator" ? (
+        ) : isCreatorView ? (
           <>
-            <ExecutiveKPICard icon={DollarSign} label="Total Earnings" value={`$${(creatorStats?.totalEarnings || 0).toFixed(2)}`} subValue={`$${(creatorStats?.pendingBalance || 0).toFixed(2)} pending`} trend={{ value: "12.5%", positive: true }} variant="success" />
-            <ExecutiveKPICard icon={Eye} label="Total Views" value={formatNumber(creatorStats?.totalViews || 0)} trend={{ value: "8.2%", positive: true }} variant="primary" />
+            <ExecutiveKPICard icon={DollarSign} label="Total Earnings" value={`$${(creatorStats?.totalEarnings || 0).toFixed(2)}`} subValue={`$${(creatorStats?.pendingBalance || 0).toFixed(2)} pending`} variant="success" />
+            <ExecutiveKPICard icon={Eye} label="Total Views" value={formatNumber(creatorStats?.totalViews || 0)} variant="primary" />
             <ExecutiveKPICard icon={Film} label="Clips Submitted" value={creatorStats?.totalClips?.toString() || "0"} subValue={`${creatorStats?.approvedClips || 0} approved`} variant="default" />
             <ExecutiveKPICard icon={Target} label="Approval Rate" value={`${creatorStats?.totalClips ? ((creatorStats?.approvedClips || 0) / creatorStats.totalClips * 100).toFixed(0) : 0}%`} variant="default" />
           </>
@@ -101,21 +152,21 @@ const Dashboard = () => {
           <>
             <ExecutiveKPICard icon={Activity} label="Active Campaigns" value={brandStats?.activeCampaigns?.toString() || "0"} subValue={`${brandStats?.totalCampaigns || 0} total campaigns`} variant="primary" />
             <ExecutiveKPICard icon={DollarSign} label="Total Spent" value={`$${(brandStats?.spentBudget || 0).toFixed(2)}`} subValue={`$${(brandStats?.totalBudget || 0).toFixed(0)} total budget`} variant="warning" />
-            <ExecutiveKPICard icon={Eye} label="Total Views" value={formatNumber(brandStats?.totalViews || 0)} trend={{ value: "15.3%", positive: true }} variant="success" />
+            <ExecutiveKPICard icon={Eye} label="Total Views" value={formatNumber(brandStats?.totalViews || 0)} variant="success" />
             <ExecutiveKPICard icon={TrendingUp} label="CPV (Cost per 1K Views)" value={`$${cpv}`} variant="default" />
           </>
         )}
       </div>
 
       {/* Analytics Chart */}
-      {role === "creator" && analyticsData && analyticsData.length > 0 && (
+      {isCreatorView && analyticsData && analyticsData.length > 0 && (
         <div className="mb-8">
           <ViewsChart data={analyticsData} title="Your Performance (Last 30 Days)" showEarnings={true} />
         </div>
       )}
 
       {/* Client Balance Section - for brands/admins */}
-      {(role === "brand" || role === "admin") && (
+      {isBrandRole(role) && (
         <>
           <SectionDivider variant="gradient" size="md" />
           <div className="mb-2">
@@ -135,7 +186,7 @@ const Dashboard = () => {
           <ElevatedCardHeader>
             <div className="flex items-center justify-between">
               <ElevatedCardTitle className="section-header font-display">
-                {role === "creator" ? "Available Campaigns" : "Your Campaigns"}
+                {isCreatorView ? "Available Campaigns" : "Your Campaigns"}
               </ElevatedCardTitle>
               <Button variant="ghost" size="sm" asChild className="group text-primary/80 hover:text-primary">
                 <Link to="/campaigns">
@@ -162,8 +213,8 @@ const Dashboard = () => {
                       <Link to={`/campaigns/${campaign.id}`} className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <h4 className="font-semibold group-hover:text-primary transition-colors duration-200">{campaign.name}</h4>
-                          {(campaign as any).health_status && (
-                            <CampaignHealthBadge status={(campaign as any).health_status} size="sm" />
+                          {(campaign.health_status) && (
+                            <CampaignHealthBadge status={campaign.health_status} size="sm" />
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground/70">
@@ -171,7 +222,7 @@ const Dashboard = () => {
                         </p>
                       </Link>
                       <div className="flex items-center gap-2">
-                        {role !== "creator" && (
+                        {(!isCreatorView) && (
                           <CampaignExportButton campaignId={campaign.id} campaignName={campaign.name} variant="ghost" size="sm" />
                         )}
                         <div className="text-right">

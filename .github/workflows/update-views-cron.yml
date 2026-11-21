@@ -13,22 +13,44 @@ jobs:
     steps:
       - name: Update All Submission Views
         run: |
+          # The update-all-views function is idempotent per run: it recomputes
+          # views/earnings from current data, so a retry never double-applies.
+          # Retries cover transient network / cold-start failures only.
           echo "Triggering daily view update..."
-          
-          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
-            "https://htkcortbngtlkjkmgbca.supabase.co/functions/v1/update-all-views" \
-            -H "Content-Type: application/json" \
-            -H "x-update-views-token: ${{ secrets.UPDATE_VIEWS_CRON_SECRET }}")
-          
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          BODY=$(echo "$RESPONSE" | sed '$d')
-          
-          echo "Response: $BODY"
-          echo "HTTP Code: $HTTP_CODE"
-          
+
+          ATTEMPT=1
+          MAX_ATTEMPTS=3
+          HTTP_CODE=0
+          BODY=""
+
+          while [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; do
+            echo "Attempt $ATTEMPT of $MAX_ATTEMPTS..."
+
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+              "https://htkcortbngtlkjkmgbca.supabase.co/functions/v1/update-all-views" \
+              -H "Content-Type: application/json" \
+              -H "x-update-views-token: ${{ secrets.UPDATE_VIEWS_CRON_SECRET }}")
+
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+            BODY=$(echo "$RESPONSE" | sed '$d')
+
+            echo "Response: $BODY"
+            echo "HTTP Code: $HTTP_CODE"
+
+            if [ "$HTTP_CODE" -eq 200 ]; then
+              break
+            fi
+
+            echo "Attempt $ATTEMPT failed (HTTP $HTTP_CODE)."
+            ATTEMPT=$((ATTEMPT + 1))
+            if [ "$ATTEMPT" -le "$MAX_ATTEMPTS" ]; then
+              sleep $((30 * (ATTEMPT - 1)))
+            fi
+          done
+
           if [ "$HTTP_CODE" -ne 200 ]; then
-            echo "Error: Edge function returned non-200 status"
+            echo "Error: Edge function returned non-200 status after $MAX_ATTEMPTS attempts"
             exit 1
           fi
-          
+
           echo "Daily view update completed successfully!"

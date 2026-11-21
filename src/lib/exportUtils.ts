@@ -99,8 +99,19 @@ export function downloadCSV(content: string, filename: string): void {
 
 function escapeCSV(value: string): string {
   if (!value) return "";
-  // Neutralize spreadsheet formulas before CSV quoting.
-  const safeValue = /^[\s\u0000-\u001f]*[=+@-]/.test(value) ? `'${value}` : value;
+  // Neutralize spreadsheet formulas before CSV quoting: if the value starts
+  // (after leading whitespace/control characters) with =, +, @ or -, prefix
+  // it so spreadsheet apps don't evaluate it as a formula.
+  const trimmed = value.trimStart();
+  let firstVisible = 0;
+  while (firstVisible < trimmed.length && trimmed.charCodeAt(firstVisible) < 0x20) {
+    firstVisible++;
+  }
+  const firstChar = trimmed[firstVisible];
+  const safeValue =
+    firstChar === "=" || firstChar === "+" || firstChar === "@" || firstChar === "-"
+      ? `'${value}`
+      : value;
   return `"${safeValue.replace(/"/g, '""')}"`;
 }
 

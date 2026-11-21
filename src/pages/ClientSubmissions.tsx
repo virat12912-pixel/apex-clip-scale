@@ -5,6 +5,7 @@ import { useCampaignSubmissions } from "@/hooks/useSubmissions";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChevronRight, Film, Clock, CheckCircle } from "lucide-react";
 import { useMemo } from "react";
+import type { Database } from "@/integrations/supabase/types";
 
 const ClientSubmissions = () => {
   const { data: campaigns, isLoading: campaignsLoading } = useMyAssignedCampaigns();
@@ -25,7 +26,7 @@ const ClientSubmissions = () => {
           </div>
         ) : (
           <div className="space-y-3 stagger-enter">
-            {campaigns.map((campaign: any) => (
+            {campaigns.map((campaign) => (
               <CampaignRow key={campaign.id} campaign={campaign} />
             ))}
           </div>
@@ -35,13 +36,13 @@ const ClientSubmissions = () => {
   );
 };
 
-function CampaignRow({ campaign }: { campaign: any }) {
+function CampaignRow({ campaign }: { campaign: Database["public"]["Tables"]["campaigns"]["Row"] }) {
   const { data: submissions } = useCampaignSubmissions(campaign.id);
 
   const stats = useMemo(() => {
     if (!submissions) return { pending: 0, approved: 0, total: 0 };
     let pending = 0, approved = 0;
-    submissions.forEach((s: any) => {
+    submissions.forEach((s) => {
       if (s.status === "pending") pending++;
       if (s.status === "approved" || s.status === "paid") approved++;
     });

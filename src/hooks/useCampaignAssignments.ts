@@ -18,7 +18,7 @@ export function useMyAssignedCampaigns() {
       if (assignError) throw assignError;
       if (!assignments?.length) return [];
 
-      const campaignIds = assignments.map((a: any) => a.campaign_id);
+      const campaignIds = assignments.map((a) => a.campaign_id);
 
       const { data: campaigns, error: campError } = await supabase
         .from("campaigns")

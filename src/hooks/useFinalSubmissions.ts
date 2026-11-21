@@ -38,6 +38,7 @@ export interface FinalSubmission {
     rate_value: number;
     rate_unit: number;
     status: string;
+    min_payout_views: number | null;
   };
   creator_profile?: {
     full_name: string | null;
@@ -114,7 +115,7 @@ export function useMyFinalSubmissions() {
         .from("final_submissions")
         .select(`
           *,
-          campaign:campaigns(name, rate_value, rate_unit, status)
+          campaign:campaigns(name, rate_value, rate_unit, status, min_payout_views)
         `)
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
@@ -214,10 +215,17 @@ export function useResubmitFinalSubmission() {
       video_link_1: string; video_link_2: string; video_link_3: string;
       video_screenshot_1: string; video_screenshot_2: string; video_screenshot_3: string;
       account_analytics_screenshot: string;
+      // H-13: resends carry the same real attestations + demographics
+      // screenshot as a first submission — never hardcoded values.
+      demographics_screenshot?: string;
+      followers_count?: number;
+      ran_paid_ads?: boolean;
+      videos_deleted?: boolean;
+      content_is_original?: boolean;
     }) => {
       const { data, error } = await supabase
         .from("final_submissions")
-        .update({ ...updates, attempt_count: attempt_count + 1, status: "submitted", final_earnings: 0, verified_views: null } as any)
+        .update({ ...updates, attempt_count: attempt_count + 1, status: "submitted", final_earnings: 0, verified_views: null })
         .eq("id", id)
         .select()
         .single();
@@ -231,15 +239,18 @@ export function useResubmitFinalSubmission() {
   });
 }
 
-// Admin: update final submission (approve/reject/adjust)
+// Admin: update final submission — restricted to the non-money admin
+// note (H-09). Status, verified_views and final_earnings move only
+// through the review-final-submission Edge Function (C-04); the old
+// approve/reject path that wrote them from AdminFinalReviews is gone.
 export function useUpdateFinalSubmission() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<FinalSubmission> & { id: string }) => {
+    mutationFn: async ({ id, admin_notes }: { id: string; admin_notes?: string | null }) => {
       const { data, error } = await supabase
         .from("final_submissions")
-        .update(updates)
+        .update({ admin_notes })
         .eq("id", id)
         .select()
         .single();

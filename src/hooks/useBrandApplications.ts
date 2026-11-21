@@ -105,14 +105,17 @@ export function useUpdateBrandApplication() {
 
       if (appError) throw appError;
 
-      // If approved, upgrade user role to brand
+      // If approved, upgrade user role to brand. This must go through the
+      // admin-change-role Edge Function: the direct `upgrade_user_role` RPC
+      // grant was revoked (C-01), so calling it from the browser is denied.
+      // The function checks the caller is an admin and calls the RPC with
+      // the service-role client.
       if (status === "approved") {
-        const { error: roleError } = await supabase.rpc("upgrade_user_role", {
-          _user_id: user_id,
-          _new_role: "brand",
+        const { data, error: roleError } = await supabase.functions.invoke("admin-change-role", {
+          body: { user_id, new_role: "brand" },
         });
-
-        if (roleError) throw roleError;
+        if (roleError) throw new Error((data as { error?: string } | null)?.error || roleError.message);
+        if ((data as { error?: string } | null)?.error) throw new Error((data as { error: string }).error);
       }
     },
     onSuccess: () => {

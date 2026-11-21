@@ -1,6 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { authenticateRequest, hasRole, jsonResponse } from "../_shared/security.ts";
+import { authenticateRequest, hasRole, jsonResponse, timingSafeEqualString } from "../_shared/security.ts";
+import { createLogger } from "../_shared/logger.ts";
+
+const log = createLogger("update-all-views");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -307,8 +310,12 @@ serve(async (req) => {
     const auth = await authenticateRequest(req);
     const cronSecret = Deno.env.get("UPDATE_VIEWS_CRON_SECRET");
     const suppliedCronSecret = req.headers.get("x-update-views-token");
-    const trustedCron = Boolean(cronSecret && suppliedCronSecret && suppliedCronSecret === cronSecret);
+    // L-06: timing-safe comparison for the cron secret (never `===`).
+    const trustedCron = Boolean(cronSecret && suppliedCronSecret && timingSafeEqualString(suppliedCronSecret, cronSecret));
     if (!auth && !trustedCron) return jsonResponse({ success: false, error: "Unauthorized" }, 401, corsHeaders);
+    // M-27: a banned admin cannot trigger a manual refresh (the cron path
+    // has no user and is unaffected).
+    if (!trustedCron && auth?.banned) return jsonResponse({ success: false, error: "This account is banned" }, 403, corsHeaders);
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const tiktokApiKey = Deno.env.get("TIKTOK_API_KEY");
@@ -320,7 +327,7 @@ serve(async (req) => {
       return jsonResponse({ success: false, error: "Forbidden" }, 403, corsHeaders);
     }
 
-    console.log("Starting daily view update job...");
+    log.info("starting daily view update job", { trusted_cron: trustedCron });
 
     // Get all pending/approved submissions for TikTok or Instagram with campaign data
     const { data: rawSubmissions, error: fetchError } = await supabase
@@ -332,14 +339,14 @@ serve(async (req) => {
       .in("platform", ["tiktok", "instagram", "youtube"]);
 
     if (fetchError) {
-      console.error("Error fetching submissions:", fetchError);
-      throw fetchError;
+      log.error("error fetching submissions", { detail: fetchError.message });
+      return jsonResponse({ success: false, error: "View update failed" }, 500, corsHeaders);
     }
 
     // Cast to proper type
     const submissions = rawSubmissions as unknown as SubmissionWithCampaign[];
 
-    console.log(`Found ${submissions?.length || 0} submissions to update`);
+    log.info("submissions to update", { total: submissions?.length || 0 });
 
     const results: ViewFetchResult[] = [];
     let successCount = 0;
@@ -362,8 +369,11 @@ serve(async (req) => {
           p_submission: sub.id, p_action: "refresh", p_views: result.views,
           p_likes: result.likes, p_comments: result.comments,
         });
+        // L-06: do not leak RPC internals in the per-submission result —
+        // log the detail server-side, return a generic reason.
         if (updateError) {
-          results.push({submission_id:sub.id,success:false,error:updateError.message}); errorCount++;
+          log.error("accounting_clip refresh failed", { submission_id: sub.id, detail: updateError.message });
+          results.push({submission_id:sub.id,success:false,error:"View refresh failed"}); errorCount++;
         } else {
           results.push({submission_id:sub.id,success:true,...result}); successCount++;
         }
@@ -376,7 +386,7 @@ serve(async (req) => {
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
 
-    console.log(`View update complete: ${successCount} success, ${errorCount} errors`);
+    log.info("view update complete", { success: successCount, errors: errorCount });
 
     // === Campaign-end cleanup ===
     // For ended/completed campaigns, reverse earnings on submissions below min_payout_views
@@ -404,7 +414,7 @@ serve(async (req) => {
             p_actor: trustedCron ? null : auth?.user.id,
             p_submission: sub.id, p_action: "threshold",
           });
-          if (error) { console.error("Threshold reversal failed:", error.message); continue; }
+          if (error) { log.error("threshold reversal failed", { submission_id: sub.id, detail: error.message }); continue; }
           reversedCount++;
         }
       }
@@ -415,30 +425,34 @@ serve(async (req) => {
           .from("campaigns")
           .update({ status: "completed" })
           .eq("id", campaign.id);
-        console.log(`Campaign ${campaign.id} end_date passed, marking as completed`);
+        log.info("campaign end_date passed; marking as completed", { campaign_id: campaign.id });
       }
     }
 
     if (reversedCount > 0) {
-      console.log(`Reversed earnings on ${reversedCount} submissions below threshold on ended campaigns`);
+      log.info("reversed earnings on submissions below threshold", { reversed: reversedCount });
     }
 
-    console.log(`Daily update complete: ${successCount} success, ${errorCount} errors, ${reversedCount} reversals`);
+    log.info("daily update complete", { success: successCount, errors: errorCount, reversals: reversedCount });
 
+    // C-09: any failure makes the run a failure. The cron workflow exits 1
+    // on non-200, so a total (or partial) failure is now visible instead
+    // of being reported as success. Counts stay in the body.
+    const failed = errorCount > 0;
     return new Response(
       JSON.stringify({
-        success: true,
+        success: !failed,
         total: submissions?.length || 0,
         updated: successCount,
         errors: errorCount,
         results,
       }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      { status: failed ? 500 : 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error in update-all-views:", error);
-    return new Response(JSON.stringify({ success: false, error: message }), {
+    // L-06: generic message out, detail in server logs only.
+    log.error("error in update-all-views", { detail: error instanceof Error ? error.message : "unknown" });
+    return new Response(JSON.stringify({ success: false, error: "View update failed" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

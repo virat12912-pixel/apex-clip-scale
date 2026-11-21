@@ -15,6 +15,10 @@ export function useCampaignLeaderboard(campaignId: string) {
   return useQuery({
     queryKey: ["leaderboard", campaignId],
     queryFn: async () => {
+      // M-02 — one consistent rule everywhere views/earnings are summed:
+      // approved|paid submissions ONLY. Pending estimates and rejected
+      // clips never count (the creator's own chart already uses this
+      // rule; the leaderboard, stats and campaign analytics now match).
       // Get all approved/paid submissions for this campaign grouped by creator
       const { data, error } = await supabase
         .from("submissions")
@@ -39,7 +43,12 @@ export function useCampaignLeaderboard(campaignId: string) {
         submission_count: number;
       }>();
 
-      data?.forEach((submission: any) => {
+      data?.forEach((submission: {
+        creator_id: string;
+        views: number | null;
+        earnings: number | null;
+        creator_profile: { full_name: string | null; avatar_url: string | null } | null;
+      }) => {
         const existing = creatorMap.get(submission.creator_id);
         if (existing) {
           existing.total_views += Number(submission.views) || 0;

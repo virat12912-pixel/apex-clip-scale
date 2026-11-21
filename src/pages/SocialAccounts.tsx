@@ -10,8 +10,19 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ErrorState } from "@/components/ui/ErrorState";
 import { useToast } from "@/hooks/use-toast";
-import { useMySocialAccounts, useCreateSocialAccount, useDeleteSocialAccount, useVerifySocialAccount } from "@/hooks/useSocialAccounts";
+import { useMySocialAccounts, useCreateSocialAccount, useDeleteSocialAccount, useVerifySocialAccount, SocialAccount } from "@/hooks/useSocialAccounts";
 import { Database } from "@/integrations/supabase/types";
 
 type PlatformType = Database["public"]["Enums"]["platform_type"];
@@ -27,8 +38,8 @@ const platformLabels: Record<PlatformType, string> = {
 };
 
 const AccountCard = ({ account, onVerify, onDelete, onCopy, copiedCode, verifyingId }: {
-  account: any;
-  onVerify: (account: any) => void;
+  account: SocialAccount;
+  onVerify: (account: SocialAccount) => void;
   onDelete: (id: string) => void;
   onCopy: (code: string) => void;
   copiedCode: string | null;
@@ -76,7 +87,7 @@ const AccountCard = ({ account, onVerify, onDelete, onCopy, copiedCode, verifyin
 );
 
 const SocialAccounts = () => {
-  const { data: accounts, isLoading } = useMySocialAccounts();
+  const { data: accounts, isLoading, isError, refetch } = useMySocialAccounts();
   const createAccount = useCreateSocialAccount();
   const deleteAccount = useDeleteSocialAccount();
   const verifyAccount = useVerifySocialAccount();
@@ -84,6 +95,7 @@ const SocialAccounts = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [accountToDelete, setAccountToDelete] = useState<{ id: string; username: string; verified: boolean } | null>(null);
   const [formData, setFormData] = useState({ platform: "tiktok" as PlatformType, username: "", profile_url: "" });
 
   const verifiedAccounts = accounts?.filter(a => a.verified) || [];
@@ -97,12 +109,27 @@ const SocialAccounts = () => {
       toast({ title: "Account added! Add verification code to your bio, then click Verify." });
       setIsOpen(false);
       setFormData({ platform: "tiktok", username: "", profile_url: "" });
-    } catch (error: any) { toast({ title: "Error", description: error.message, variant: "destructive" }); }
+    } catch (error: unknown) { toast({ title: "Error", description: error instanceof Error ? error.message : "Something went wrong", variant: "destructive" }); }
   };
 
-  const handleDelete = async (id: string) => {
-    try { await deleteAccount.mutateAsync(id); toast({ title: "Account removed" }); }
-    catch (error: any) { toast({ title: "Error", description: error.message, variant: "destructive" }); }
+  // M-14: deleting an account (and its verification, which gates clip
+  // submission) needs confirmation — one click on the trash icon must not
+  // permanently delete it.
+  const handleDelete = (id: string) => {
+    const account = accounts?.find((a) => a.id === id);
+    if (account) setAccountToDelete({ id: account.id, username: account.username, verified: account.verified });
+  };
+
+  const confirmDelete = async () => {
+    if (!accountToDelete) return;
+    try {
+      await deleteAccount.mutateAsync(accountToDelete.id);
+      toast({ title: "Account removed" });
+    } catch (error: unknown) {
+      toast({ title: "Error", description: error instanceof Error ? error.message : "Couldn't delete the account.", variant: "destructive" });
+    } finally {
+      setAccountToDelete(null);
+    }
   };
 
   const handleVerify = async (account: { id: string; platform: PlatformType; username: string; verification_code: string }) => {
@@ -111,7 +138,7 @@ const SocialAccounts = () => {
     try {
       await verifyAccount.mutateAsync({ id: account.id, platform: account.platform, username: account.username, verification_code: account.verification_code });
       toast({ title: "Verified!", description: "Your account has been successfully verified." });
-    } catch (error: any) { toast({ title: "Verification failed", description: error.message, variant: "destructive" }); }
+    } catch (error: unknown) { toast({ title: "Verification failed", description: error instanceof Error ? error.message : "Something went wrong", variant: "destructive" }); }
     finally { setVerifyingId(null); }
   };
 
@@ -187,6 +214,12 @@ const SocialAccounts = () => {
             <div className="space-y-4">{[1, 2].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
             <div className="space-y-4">{[1, 2].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
           </div>
+        ) : isError ? (
+          <ErrorState
+            title="Couldn't load your social accounts"
+            message="Your linked accounts couldn't be loaded. Check your connection and try again."
+            onRetry={() => void refetch()}
+          />
         ) : accounts?.length === 0 ? (
           <div className="text-center py-16 px-4 rounded-2xl bg-card/30 border border-border/20">
             <Smartphone className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
@@ -256,6 +289,27 @@ const SocialAccounts = () => {
           </div>
         )}
       </div>
+
+      <AlertDialog open={!!accountToDelete} onOpenChange={(open) => !open && setAccountToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {accountToDelete?.username} will be unlinked from your profile.
+              {accountToDelete?.verified
+                ? " It is verified — deleting it removes the verification, and you won't be able to submit clips with this account until you link and verify it again."
+                : ""}
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void confirmDelete()} className="bg-destructive hover:bg-destructive/90">
+              Delete Account
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 };

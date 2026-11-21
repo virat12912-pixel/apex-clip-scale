@@ -29,6 +29,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useClientBalance } from "@/hooks/useClientBalance";
 import { AlertTriangle } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { campaignSchema, validateCampaignInput } from "@/lib/validation";
 
 type PlatformType = Database["public"]["Enums"]["platform_type"];
 
@@ -75,10 +76,156 @@ const Launch = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const createCampaign = useCreateCampaign();
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  // H-22: the Zod campaign schema is the validation authority — the form
+  // must not silently replace bad input with defaults (empty rate -> 75,
+  // "abc" budget passing the NaN check) or accept negative numbers.
   const handleInputChange = (field: string, value: string | PlatformType[]) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+    setFieldErrors((prev) => {
+      if (!(field in prev)) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
   };
+
+  const FIELD_LABELS: Record<string, string> = {
+    name: "Campaign name",
+    platforms: "Platforms",
+    rate_value: "RPM",
+    min_views: "Minimum views",
+    max_earnings_per_post: "Max earnings per post",
+    total_budget: "Total budget",
+    description: "Description",
+    requirements: "Requirements",
+    niche: "Category",
+    image_url: "Campaign image",
+  };
+
+  // Strict number parsing: empty -> undefined (schema reports "required"),
+  // non-numeric -> NaN (schema rejects it). No silent `|| default`.
+  const parseNumberField = (value: string): number | undefined => {
+    const trimmed = value.trim();
+    if (trimmed === "") return undefined;
+    return Number(trimmed);
+  };
+
+  interface ValidatedLaunchValues {
+    name: string;
+    description?: string;
+    requirements?: string;
+    niche?: string;
+    platforms: PlatformType[];
+    rate_value: number;
+    rate_unit: number;
+    min_views: number;
+    min_payout_views: number;
+    max_earnings_per_post?: number;
+    total_budget: number;
+    duration_days: number;
+    image_url?: string;
+  }
+
+  const validateForm = (): { errors: Record<string, string>; values: ValidatedLaunchValues | null } => {
+    const errors: Record<string, string> = {};
+    const result = campaignSchema.safeParse({
+      name: formData.name,
+      description: formData.description || undefined,
+      requirements: formData.requirements || undefined,
+      niche: formData.niche || undefined,
+      platforms: formData.platforms,
+      rate_value: parseNumberField(formData.rate_value),
+      rate_unit: 1000,
+      min_views: parseNumberField(formData.min_views),
+      max_earnings_per_post: parseNumberField(formData.max_earnings_per_post),
+      total_budget: parseNumberField(formData.total_budget),
+      image_url: imageUrl || undefined,
+    });
+    if (!result.success) {
+      for (const issue of result.error.errors) {
+        const field = String(issue.path[0] ?? "");
+        if (field && !errors[field]) {
+          errors[field] =
+            issue.code === "invalid_type" && (issue as { received?: string }).received === "undefined"
+              ? `${FIELD_LABELS[field] ?? field} is required`
+              : issue.message;
+        }
+      }
+    }
+
+    // min_payout_views and duration_days are not in the schema — validate
+    // them here with the same strictness (no silent defaults for bad input).
+    let minPayoutViews = 10000;
+    const mpv = formData.min_payout_views.trim();
+    if (mpv !== "") {
+      const n = Number(mpv);
+      if (!Number.isInteger(n) || n <= 0) {
+        errors.min_payout_views = "Minimum payout views must be a whole number greater than 0";
+      } else {
+        minPayoutViews = n;
+      }
+    }
+    let durationDays = 30;
+    const dd = formData.duration_days.trim();
+    if (dd !== "") {
+      const n = Number(dd);
+      if (!Number.isInteger(n) || n <= 0) {
+        errors.duration_days = "Campaign duration must be a whole number of days greater than 0";
+      } else {
+        durationDays = n;
+      }
+    }
+
+    if (Object.keys(errors).length > 0) return { errors, values: null };
+    if (!result.success) return { errors: { _form: "Validation failed" }, values: null };
+
+    return {
+      errors,
+      values: {
+        name: result.data.name,
+        description: result.data.description,
+        requirements: result.data.requirements,
+        niche: result.data.niche,
+        platforms: result.data.platforms,
+        rate_value: result.data.rate_value,
+        rate_unit: result.data.rate_unit,
+        min_views: result.data.min_views,
+        min_payout_views: minPayoutViews,
+        max_earnings_per_post: result.data.max_earnings_per_post,
+        total_budget: result.data.total_budget,
+        duration_days: durationDays,
+        image_url: result.data.image_url,
+      },
+    };
+  };
+
+  const STEP_FIELDS: Record<number, string[]> = {
+    1: ["name", "description", "requirements", "niche", "platforms", "image_url"],
+    2: ["rate_value", "min_views", "min_payout_views", "max_earnings_per_post", "total_budget", "duration_days"],
+  };
+
+  // H-23: advancing validates the current step; creation only happens
+  // from step 3 (see handleSubmit).
+  const advanceStep = () => {
+    const { errors } = validateForm();
+    const stepErrors: Record<string, string> = {};
+    for (const field of STEP_FIELDS[step] ?? []) {
+      if (errors[field]) stepErrors[field] = errors[field];
+    }
+    setFieldErrors(stepErrors);
+    if (Object.keys(stepErrors).length > 0) {
+      const first = Object.values(stepErrors)[0];
+      toast({ title: "Check your campaign details", description: first, variant: "destructive" });
+      return;
+    }
+    setStep(step + 1);
+  };
+
+  // NaN-safe display rate for the "How payouts work" info box.
+  const infoRate = Number(formData.rate_value);
+  const displayRate = Number.isFinite(infoRate) && infoRate > 0 ? infoRate : 75;
 
   const togglePlatform = (platform: PlatformType) => {
     const current = formData.platforms;
@@ -135,39 +282,55 @@ const Launch = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (formData.platforms.length === 0) {
-      toast({
-        title: "Select platforms",
-        description: "Please select at least one platform",
-        variant: "destructive",
-      });
+    // H-23: the campaign is created ONLY from the review step (step 3).
+    // A submit event on steps 1–2 (e.g. pressing Enter) advances the
+    // wizard instead of launching.
+    if (step !== 3) {
+      advanceStep();
       return;
     }
 
-    if (!formData.name.trim()) {
-      toast({
-        title: "Name required",
-        description: "Please enter a campaign name",
-        variant: "destructive",
-      });
+    const { errors, values } = validateForm();
+    setFieldErrors(errors);
+    if (!values) {
+      const first = Object.values(errors)[0];
+      toast({ title: "Check your campaign details", description: first || "Please fix the highlighted fields", variant: "destructive" });
       return;
     }
 
-    if (!formData.total_budget || parseFloat(formData.total_budget) <= 0) {
-      toast({
-        title: "Budget required",
-        description: "Please enter a valid budget",
-        variant: "destructive",
-      });
+    // Final gate through the shared validator — its success yields the
+    // sanitized numbers used for the create call (no `|| default`
+    // fallbacks that mask bad input). The `in` check (not `!success`) is
+    // deliberate: this repo compiles with strictNullChecks off, which
+    // disables discriminated-union narrowing on the `success` flag.
+    const validated = validateCampaignInput({
+      name: values.name,
+      description: values.description,
+      requirements: values.requirements,
+      platforms: values.platforms,
+      niche: values.niche,
+      rate_value: values.rate_value,
+      rate_unit: values.rate_unit,
+      min_views: values.min_views,
+      max_earnings_per_post: values.max_earnings_per_post,
+      total_budget: values.total_budget,
+      image_url: values.image_url,
+    });
+    if ("error" in validated) {
+      toast({ title: "Check your campaign details", description: validated.error, variant: "destructive" });
       return;
     }
 
-    const budgetAmount = parseFloat(formData.total_budget);
-    const availableBalance = Number(clientBalance?.available_balance || 0);
-    if (availableBalance > 0 && budgetAmount > availableBalance) {
+    const budgetAmount = validated.data.total_budget;
+    // C-05: block whenever the budget exceeds the available balance,
+    // INCLUDING a $0 balance (the old `availableBalance > 0` guard let a
+    // $0-balance brand launch any budget). When no balance row exists at
+    // all (clientBalance === null) we do not block here — the server
+    // rejects with 409 and its message is surfaced from the catch below.
+    if (clientBalance && budgetAmount > Number(clientBalance.available_balance || 0)) {
       toast({
         title: "Insufficient balance",
-        description: `Budget ($${budgetAmount}) exceeds your available balance ($${availableBalance.toFixed(2)})`,
+        description: `Budget ($${budgetAmount}) exceeds your available balance ($${Number(clientBalance.available_balance || 0).toFixed(2)})`,
         variant: "destructive",
       });
       return;
@@ -179,30 +342,28 @@ const Launch = () => {
         .split(",")
         .map(h => h.trim())
         .filter(h => h.length > 0);
-      
+
       const links = formData.required_links
         .split(",")
         .map(l => l.trim())
         .filter(l => l.length > 0);
 
       await createCampaign.mutateAsync({
-        name: formData.name.trim(),
-        description: formData.description.trim() || undefined,
-        requirements: formData.requirements.trim() || undefined,
-        platforms: formData.platforms,
-        niche: formData.niche || undefined,
-        rate_value: parseFloat(formData.rate_value) || 75,
-        rate_unit: 1000,
-        min_views: parseInt(formData.min_views) || 1000,
-        min_payout_views: parseInt(formData.min_payout_views) || 10000,
-        max_earnings_per_post: formData.max_earnings_per_post 
-          ? parseFloat(formData.max_earnings_per_post) 
-          : undefined,
-        total_budget: parseFloat(formData.total_budget),
-        duration_days: parseInt(formData.duration_days) || 30,
+        name: validated.data.name,
+        description: validated.data.description,
+        requirements: validated.data.requirements,
+        platforms: validated.data.platforms,
+        niche: validated.data.niche,
+        rate_value: validated.data.rate_value,
+        rate_unit: validated.data.rate_unit,
+        min_views: validated.data.min_views,
+        min_payout_views: values.min_payout_views,
+        max_earnings_per_post: validated.data.max_earnings_per_post,
+        total_budget: validated.data.total_budget,
+        duration_days: values.duration_days,
         required_hashtags: hashtags,
         required_links: links,
-        image_url: imageUrl || undefined,
+        image_url: validated.data.image_url,
       });
 
       toast({
@@ -255,7 +416,17 @@ const Launch = () => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            // H-23: Enter on steps 1–2 advances the wizard instead of
+            // submitting (Enter inside a textarea still inserts a newline).
+            if (e.key === "Enter" && step < 3 && (e.target as HTMLElement).tagName !== "TEXTAREA") {
+              e.preventDefault();
+              advanceStep();
+            }
+          }}
+        >
           {/* Step 1: Basic Info */}
           {step === 1 && (
             <div className="space-y-6 p-6 rounded-2xl bg-card border border-border">
@@ -318,6 +489,7 @@ const Launch = () => {
                     required
                     className="h-12 bg-secondary border-border"
                   />
+                  {fieldErrors.name && <p className="text-xs text-destructive">{fieldErrors.name}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -349,6 +521,7 @@ const Launch = () => {
                       </button>
                     ))}
                   </div>
+                  {fieldErrors.platforms && <p className="text-xs text-destructive">{fieldErrors.platforms}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -386,7 +559,7 @@ const Launch = () => {
               <div className="flex justify-end">
                 <Button
                   type="button"
-                  onClick={() => setStep(2)}
+                  onClick={advanceStep}
                   disabled={!formData.name || formData.platforms.length === 0}
                   className="bg-gradient-primary hover:opacity-90 btn-glow"
                 >
@@ -435,6 +608,7 @@ const Launch = () => {
                       <Input
                         id="total_budget"
                         type="number"
+                        min={1}
                         placeholder="5000"
                         value={formData.total_budget}
                         onChange={(e) => handleInputChange("total_budget", e.target.value)}
@@ -442,6 +616,7 @@ const Launch = () => {
                         className="h-12 pl-10 bg-secondary border-border"
                       />
                     </div>
+                    {fieldErrors.total_budget && <p className="text-xs text-destructive">{fieldErrors.total_budget}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -451,12 +626,14 @@ const Launch = () => {
                       <Input
                         id="duration_days"
                         type="number"
+                        min={1}
                         placeholder="30"
                         value={formData.duration_days}
                         onChange={(e) => handleInputChange("duration_days", e.target.value)}
                         className="h-12 pl-10 bg-secondary border-border"
                       />
                     </div>
+                    {fieldErrors.duration_days && <p className="text-xs text-destructive">{fieldErrors.duration_days}</p>}
                   </div>
                 </div>
 
@@ -468,6 +645,7 @@ const Launch = () => {
                       <Input
                         id="rate_value"
                         type="number"
+                        min={0.01}
                         step="0.01"
                         placeholder="75"
                         value={formData.rate_value}
@@ -475,6 +653,7 @@ const Launch = () => {
                         className="h-12 pl-10 bg-secondary border-border"
                       />
                     </div>
+                    {fieldErrors.rate_value && <p className="text-xs text-destructive">{fieldErrors.rate_value}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -493,12 +672,14 @@ const Launch = () => {
                       <Input
                         id="min_views"
                         type="number"
+                        min={1}
                         placeholder="1000"
                         value={formData.min_views}
                         onChange={(e) => handleInputChange("min_views", e.target.value)}
                         className="h-12 pl-10 bg-secondary border-border"
                       />
                     </div>
+                    {fieldErrors.min_views && <p className="text-xs text-destructive">{fieldErrors.min_views}</p>}
                   </div>
 
                   <div className="space-y-2">
@@ -508,12 +689,14 @@ const Launch = () => {
                       <Input
                         id="min_payout_views"
                         type="number"
+                        min={1}
                         placeholder="10000"
                         value={formData.min_payout_views}
                         onChange={(e) => handleInputChange("min_payout_views", e.target.value)}
                         className="h-12 pl-10 bg-secondary border-border"
                       />
                     </div>
+                    {fieldErrors.min_payout_views && <p className="text-xs text-destructive">{fieldErrors.min_payout_views}</p>}
                     <p className="text-xs text-muted-foreground">
                       Submissions below this won't appear in payout queue
                     </p>
@@ -527,12 +710,15 @@ const Launch = () => {
                     <Input
                       id="max_earnings_per_post"
                       type="number"
+                      min={0.01}
+                      step="0.01"
                       placeholder="Leave empty for no limit"
                       value={formData.max_earnings_per_post}
                       onChange={(e) => handleInputChange("max_earnings_per_post", e.target.value)}
                       className="h-12 pl-10 bg-secondary border-border"
                     />
                   </div>
+                  {fieldErrors.max_earnings_per_post && <p className="text-xs text-destructive">{fieldErrors.max_earnings_per_post}</p>}
                 </div>
 
                  {/* Caption and profile-link requirements */}
@@ -580,8 +766,8 @@ const Launch = () => {
                   <div className="text-sm">
                     <p className="font-medium mb-1">How payouts work</p>
                     <p className="text-muted-foreground">
-                      Clippers earn based on the views their clips generate. At an RPM of ${formData.rate_value || "75"}, 
-                      a clip with 100K views would earn ${((parseFloat(formData.rate_value || "75") / 1000) * 100000).toFixed(2)}.
+                      Clippers earn based on the views their clips generate. At an RPM of ${displayRate},
+                      a clip with 100K views would earn ${((displayRate / 1000) * 100000).toFixed(2)}.
                     </p>
                   </div>
                 </div>
@@ -598,7 +784,7 @@ const Launch = () => {
                 </Button>
                 <Button
                   type="button"
-                  onClick={() => setStep(3)}
+                  onClick={advanceStep}
                   disabled={!formData.total_budget}
                   className="bg-gradient-primary hover:opacity-90 btn-glow"
                 >

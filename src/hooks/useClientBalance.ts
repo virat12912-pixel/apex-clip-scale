@@ -40,18 +40,12 @@ export function useClientBalance() {
 
       if (error) throw error;
 
-      // Auto-create if doesn't exist
-      if (!data) {
-        const { data: newBalance, error: insertError } = await supabase
-          .from("client_balances")
-          .insert({ user_id: user.id })
-          .select()
-          .single();
-        if (insertError) throw insertError;
-        return newBalance as ClientBalance;
-      }
-
-      return data as ClientBalance;
+      // H-06: never auto-create a balance row on read. Rows are created
+      // server-side with zeros only (profiles INSERT trigger /
+      // ensure_user_setup), and a client insert could self-credit
+      // arbitrary funds. A missing row is a zero balance: callers treat
+      // `null` as $0 and show the top-up prompt.
+      return (data as ClientBalance | null) ?? null;
     },
     enabled: !!user,
   });

@@ -30,7 +30,7 @@ CREATE FUNCTION public.accounting_clip(p_actor uuid, p_submission uuid, p_action
  p_views bigint DEFAULT NULL, p_reason text DEFAULT NULL, p_likes bigint DEFAULT NULL, p_comments bigint DEFAULT NULL)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE s public.submissions; c public.campaigns; w public.wallets; f public.final_submissions;
- delta numeric := 0; earned numeric; spent numeric; previous numeric; resulting numeric;
+ delta numeric := 0; earned numeric; spent numeric; creator_campaign_sum numeric; resulting numeric;
 BEGIN
  SELECT * INTO s FROM public.submissions WHERE id=p_submission;
  IF NOT FOUND THEN RAISE EXCEPTION 'Submission not found'; END IF;
@@ -47,7 +47,6 @@ BEGIN
  END IF;
  SELECT * INTO f FROM public.final_submissions WHERE user_id=s.creator_id AND campaign_id=c.id FOR UPDATE;
  SELECT coalesce(sum(earnings),0) INTO spent FROM public.submissions WHERE campaign_id=c.id AND status IN ('approved','paid');
- previous := s.earnings;
  PERFORM set_config('app.accounting_rpc','on',true);
  IF p_action='approve' THEN
   IF s.status<>'pending' THEN RAISE EXCEPTION 'Only pending clips can be approved'; END IF;
@@ -70,11 +69,21 @@ BEGIN
   IF s.status='approved' THEN
    IF EXISTS(SELECT 1 FROM public.payouts WHERE user_id=s.creator_id AND status IN ('pending','approved','paid')
     AND (campaign_id=c.id OR campaign_id IS NULL)) THEN RAISE EXCEPTION 'Cannot reverse clips with a processing or paid payout'; END IF;
+   -- INVARIANT (H-16): the amount actually in the wallet for this clip.
+   -- Approval credited exactly s.earnings to the wallet. If a final review
+   -- ran afterwards, the wallet was re-based from this creator's campaign
+   -- clip sum (the baseline) to f.final_earnings, so the wallet now holds
+   -- final_earnings for the whole creator+campaign, not s.earnings.
+   -- Reversing this clip invalidates the final (back to under_review, $0),
+   -- so the wallet must end up holding only the creator's REMAINING
+   -- approved clips in this campaign (creator_campaign_sum - s.earnings).
+   -- delta is therefore (target wallet amount) - (current wallet amount
+   -- for this creator+campaign). When no final was approved the target is
+   -- 0 for this clip and delta is simply -s.earnings.
    delta:=-s.earnings;
-   -- Verification replaces the campaign's tracked sum. Invalidate it exactly once before reversal.
    IF f.status='approved' THEN
-    SELECT coalesce(sum(earnings),0) INTO previous FROM public.submissions WHERE campaign_id=c.id AND creator_id=s.creator_id AND status IN ('approved','paid');
-    delta:=previous-coalesce(f.final_earnings,0)-s.earnings;
+    SELECT coalesce(sum(earnings),0) INTO creator_campaign_sum FROM public.submissions WHERE campaign_id=c.id AND creator_id=s.creator_id AND status IN ('approved','paid');
+    delta:=(creator_campaign_sum-s.earnings)-coalesce(f.final_earnings,0);
     UPDATE public.final_submissions SET status='under_review', final_earnings=0, approved_at=NULL WHERE id=f.id;
    END IF;
   END IF;
@@ -133,8 +142,16 @@ BEGIN
  ELSE
   amount:=round(p_amount,2);
   SELECT coalesce(sum(final_earnings),0) INTO eligible FROM public.final_submissions fs WHERE user_id=p_user AND status='approved'
-   AND NOT EXISTS(SELECT 1 FROM public.payouts WHERE user_id=p_user AND campaign_id=fs.campaign_id AND status IN ('pending','approved','paid','rejected'));
-  SELECT eligible-coalesce(sum(amount),0) INTO eligible FROM public.payouts WHERE user_id=p_user AND campaign_id IS NULL AND status='paid';
+   -- H-17: 'rejected' is deliberately NOT in this exclusion list. A rejected
+   -- campaign payout must not permanently remove the campaign from global
+   -- eligibility; only payouts still pending/approved/paid block it.
+   AND NOT EXISTS(SELECT 1 FROM public.payouts WHERE user_id=p_user AND campaign_id=fs.campaign_id AND status IN ('pending','approved','paid'));
+  -- H-17: COALESCE-guard the outer subtraction. sum(amount) over zero paid
+  -- global payouts is NULL, and eligible - NULL would be NULL, silently
+  -- skipping the eligibility check below (amount > eligible would be NULL,
+  -- not true). With the guard, no paid global payouts means eligible is
+  -- unchanged.
+  SELECT coalesce(eligible,0)-coalesce(sum(amount),0) INTO eligible FROM public.payouts WHERE user_id=p_user AND campaign_id IS NULL AND status='paid';
   IF amount>eligible THEN RAISE EXCEPTION 'Insufficient approved analytics earnings for global payout'; END IF;
  END IF;
  IF amount IS NULL OR amount::text IN ('NaN','Infinity','-Infinity') OR amount<10 THEN RAISE EXCEPTION 'Minimum payout is $10'; END IF;
@@ -183,9 +200,10 @@ BEGIN
    SELECT coalesce(sum(earnings),0) INTO accepted FROM public.submissions WHERE creator_id=p.user_id AND campaign_id=p.campaign_id AND status IN ('approved','paid');
    entitlement:=CASE WHEN f.status IN ('approved','paid') THEN coalesce(f.final_earnings,0) ELSE accepted END;
    IF entitlement<p.amount OR w.pending_balance<entitlement-p.amount THEN RAISE EXCEPTION 'Campaign wallet accounting needs reconciliation before disqualification'; END IF;
-   INSERT INTO public.campaign_disqualifications(user_id,campaign_id,payout_id) VALUES(p.user_id,p.campaign_id,p.id);
+   INSERT INTO public.campaign_disqualifications(user_id,campaign_id,payout_id) VALUES(p.user_id,p.campaign_id,p.id)
+   ON CONFLICT (user_id, campaign_id) DO NOTHING;
    UPDATE public.wallets SET locked_earnings=locked_earnings-p.amount,pending_balance=pending_balance-(entitlement-p.amount) WHERE id=w.id;
-   UPDATE public.submissions SET status='rejected',earnings=0,rejection_reason=coalesce(p_notes,'Campaign payout rejected: disqualified') WHERE creator_id=p.user_id AND campaign_id=p.campaign_id;
+   UPDATE public.submissions SET status='rejected',earnings=0,rejection_reason=coalesce(p_notes,'Campaign payout rejected: disqualified') WHERE creator_id=p.user_id AND campaign_id=p.campaign_id AND status IN ('approved','pending');
    UPDATE public.final_submissions SET status='rejected',final_earnings=0,verified_views=0,admin_notes=coalesce(p_notes,'Campaign payout rejected: disqualified'),reviewed_at=now(),approved_at=NULL WHERE user_id=p.user_id AND campaign_id=p.campaign_id;
    UPDATE public.campaigns SET spent_budget=(SELECT coalesce(sum(earnings),0) FROM public.submissions WHERE campaign_id=p.campaign_id AND status IN ('approved','paid')) WHERE id=p.campaign_id;
   END IF;
@@ -204,6 +222,7 @@ GRANT EXECUTE ON FUNCTION public.accounting_process_payout(uuid,uuid,text,text) 
 CREATE FUNCTION public.accounting_review_final(p_final uuid,p_action text,p_views bigint DEFAULT NULL,p_notes text DEFAULT NULL)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
 DECLARE f public.final_submissions; c public.campaigns; w public.wallets; baseline numeric; earned numeric:=0; delta numeric:=0;
+ raw_earned numeric:=0; campaign_spent numeric;
 BEGIN
  IF auth.uid() IS NULL OR NOT public.has_role(auth.uid(),'admin') THEN RAISE EXCEPTION 'Forbidden'; END IF;
  SELECT * INTO f FROM public.final_submissions WHERE id=p_final;
@@ -218,17 +237,44 @@ BEGIN
  SELECT coalesce(sum(earnings),0) INTO baseline FROM public.submissions WHERE creator_id=f.user_id AND campaign_id=f.campaign_id AND status IN ('approved','paid');
  IF p_action='approve' THEN
   IF p_views IS NULL OR p_views<=0 THEN RAISE EXCEPTION 'Verified views must be positive'; END IF;
-  -- Verified earnings cannot undo the approval-time budget/per-post caps.
-  earned:=least(baseline,round((p_views::numeric/c.rate_unit)*c.rate_value,2)); delta:=earned-baseline;
+  -- DECISION (H-14): verified views can only LOWER earnings, never raise them
+  -- above the approval-time baseline. The baseline is the sum of this
+  -- creator's approved/paid clip earnings in this campaign, already capped
+  -- at approval time by max_earnings_per_post and by the remaining campaign
+  -- budget, and already credited to the wallet. Verified views above the
+  -- baseline are therefore DISCARDED, not banked or credited: the upside is
+  -- intentionally not paid out, and the caller can see this happened via
+  -- capped_to_baseline=true in the returned JSON (earnings < baseline alone
+  -- cannot distinguish a genuine shortfall from the cap). Keep this cap;
+  -- paying above the baseline would need a fresh budget check.
+  raw_earned:=round((p_views::numeric/c.rate_unit)*c.rate_value,2);
+  earned:=least(baseline,raw_earned);
  ELSIF p_action<>'reject' THEN RAISE EXCEPTION 'Invalid action'; END IF;
+ -- Reject releases the baseline (H-14): earned stays 0, so delta nets the
+ -- baseline out of the wallet. Previously delta was 0 on reject and the
+ -- approved baseline stayed stranded in pending_balance while the final
+ -- record said $0 (and request-payout, which requires an approved final,
+ -- could never release it).
+ delta:=earned-baseline;
  IF w.pending_balance+delta<0 THEN RAISE EXCEPTION 'Insufficient available funds for analytics reconciliation'; END IF;
  PERFORM set_config('app.accounting_rpc','on',true);
  UPDATE public.wallets SET pending_balance=pending_balance+delta WHERE id=w.id;
+ -- Keep campaigns.spent_budget in the same transaction (H-14): replace this
+ -- creator's baseline contribution to campaign spend with the reviewed
+ -- earnings (on reject the baseline is removed entirely). NOTE: this
+ -- intentionally diverges from the submissions-sum formula accounting_clip
+ -- uses to recompute spent_budget; a later accounting_clip call for another
+ -- clip in this campaign will recompute spent from submissions and restore
+ -- the pre-review figure. Reconciling the two formulas (e.g. making
+ -- accounting_clip account for reviewed finals) is a follow-up, not done
+ -- here — do not assume spent_budget stays at the reviewed figure.
+ SELECT coalesce(sum(earnings),0) INTO campaign_spent FROM public.submissions WHERE campaign_id=c.id AND status IN ('approved','paid');
+ UPDATE public.campaigns SET spent_budget=campaign_spent-baseline+earned WHERE id=c.id;
  INSERT INTO public.final_submission_reviews(final_submission_id,reviewer_id,action,previous_verified_views,new_verified_views,previous_earnings,new_earnings,notes)
  VALUES(f.id,auth.uid(),CASE p_action WHEN 'approve' THEN 'approved' ELSE 'rejected' END,f.verified_views,p_views,f.final_earnings,earned,p_notes);
  UPDATE public.final_submissions SET status=CASE p_action WHEN 'approve' THEN 'approved'::public.final_submission_status ELSE 'rejected'::public.final_submission_status END,
  verified_views=CASE WHEN p_action='approve' THEN p_views ELSE verified_views END,final_earnings=earned,admin_notes=p_notes,reviewed_at=now(),approved_at=CASE WHEN p_action='approve' THEN now() ELSE NULL END WHERE id=f.id;
- RETURN jsonb_build_object('success',true,'earnings',earned);
+ RETURN jsonb_build_object('success',true,'earnings',earned,'baseline',baseline,'capped_to_baseline',raw_earned>baseline);
 END $$;
 REVOKE ALL ON FUNCTION public.accounting_review_final(uuid,text,bigint,text) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.accounting_review_final(uuid,text,bigint,text) TO authenticated;

@@ -9,6 +9,7 @@ import {
   downloadCSV 
 } from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
+import { sumApprovedSpend } from "@/hooks/useCampaigns";
 
 interface CampaignExportButtonProps {
   campaignId: string;
@@ -65,12 +66,15 @@ export function CampaignExportButton({
         submittedAt: new Date(sub.created_at).toLocaleDateString()
       }));
 
+      // M-01: spent is the approved-only recompute, not the raw
+      // spent_budget column (which can diverge from it).
+      const spentBudget = sumApprovedSpend(submissions || []);
       const reportData: CampaignReportData = {
         campaignName: campaign.name,
         campaignId: campaign.id,
         totalBudget: Number(campaign.total_budget),
-        spentBudget: Number(campaign.spent_budget),
-        remainingBudget: Number(campaign.total_budget) - Number(campaign.spent_budget),
+        spentBudget,
+        remainingBudget: Number(campaign.total_budget) - spentBudget,
         totalViews: submissionData.reduce((sum, s) => sum + s.views, 0),
         totalSubmissions: submissions?.length || 0,
         approvedSubmissions: submissions?.filter(s => s.status === "approved" || s.status === "paid").length || 0,

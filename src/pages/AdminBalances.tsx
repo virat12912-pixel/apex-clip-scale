@@ -23,6 +23,35 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 
+// Typed row shapes for the admin balance tables (no `any` casts).
+interface BalanceProfileRow {
+  id: string;
+  full_name: string | null;
+  email: string;
+}
+
+interface BalanceRow {
+  id: string;
+  user_id: string;
+  available_balance: number;
+  total_funded: number;
+  total_spent: number;
+  pending_spend: number;
+  updated_at: string;
+  profile?: { full_name: string | null; email: string };
+}
+
+interface BalanceTxRow {
+  id: string;
+  user_id: string;
+  type: string;
+  amount: number;
+  description: string | null;
+  notes: string | null;
+  created_at: string;
+  profile?: { full_name: string | null; email: string };
+}
+
 // Fetch all client balances with profile info
 function useAllClientBalances() {
   return useQuery({
@@ -35,7 +64,7 @@ function useAllClientBalances() {
       if (error) throw error;
 
       // Fetch profiles for these users
-      const userIds = data.map((b: any) => b.user_id);
+      const userIds = data.map((b: BalanceRow) => b.user_id);
       if (userIds.length === 0) return [];
 
       const { data: profiles, error: profError } = await supabase
@@ -44,8 +73,8 @@ function useAllClientBalances() {
         .in("id", userIds);
       if (profError) throw profError;
 
-      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
-      return data.map((b: any) => ({
+      const profileMap = new Map((profiles || []).map((p: BalanceProfileRow) => [p.id, p]));
+      return data.map((b: BalanceRow) => ({
         ...b,
         profile: profileMap.get(b.user_id) || { full_name: "Unknown", email: "" },
       }));
@@ -88,7 +117,7 @@ function usePendingTopUps() {
       if (error) throw error;
 
       // Get profiles
-      const userIds = [...new Set((data || []).map((t: any) => t.user_id))];
+      const userIds = [...new Set((data || []).map((t: BalanceTxRow) => t.user_id))];
       if (userIds.length === 0) return [];
 
       const { data: profiles } = await supabase
@@ -96,8 +125,8 @@ function usePendingTopUps() {
         .select("id, full_name, email")
         .in("id", userIds);
 
-      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
-      return (data || []).map((t: any) => ({
+      const profileMap = new Map((profiles || []).map((p: BalanceProfileRow) => [p.id, p]));
+      return (data || []).map((t: BalanceTxRow) => ({
         ...t,
         profile: profileMap.get(t.user_id) || { full_name: "Unknown", email: "" },
       }));
@@ -136,71 +165,52 @@ const AdminBalances = () => {
   const { data: transactions, isLoading: txLoading } = useAllBalanceTransactions(selectedUserId || undefined);
   const { data: allProfiles } = useAllProfiles();
 
-  const totalAvailable = balances?.reduce((sum: number, b: any) => sum + Number(b.available_balance), 0) || 0;
-  const totalFunded = balances?.reduce((sum: number, b: any) => sum + Number(b.total_funded), 0) || 0;
-  const totalSpent = balances?.reduce((sum: number, b: any) => sum + Number(b.total_spent), 0) || 0;
-  const pendingTopUps = topUps?.filter((t: any) => t.notes?.includes("Pending")) || [];
+  const totalAvailable = balances?.reduce((sum: number, b: BalanceRow) => sum + Number(b.available_balance), 0) || 0;
+  const totalFunded = balances?.reduce((sum: number, b: BalanceRow) => sum + Number(b.total_funded), 0) || 0;
+  const totalSpent = balances?.reduce((sum: number, b: BalanceRow) => sum + Number(b.total_spent), 0) || 0;
+  const pendingTopUps = topUps?.filter((t: BalanceTxRow) => t.notes?.includes("Pending")) || [];
 
-  const filteredBalances = balances?.filter((b: any) => {
+  const filteredBalances = balances?.filter((b: BalanceRow) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return b.profile?.full_name?.toLowerCase().includes(q) || b.profile?.email?.toLowerCase().includes(q);
   }) || [];
 
+  // H-08: every balance change goes through the admin_adjust_balance RPC
+  // — one server-side transaction (row lock, over-debit rejected rather
+  // than clamped, balance + ledger row written together, idempotent per
+  // key). No client-side read-modify-write, no Math.max clamp.
+  // NOTE: admin_adjust_balance is not in the generated types yet (the
+  // migration that defines it is unapplied), so the call is cast with
+  // `as never` — the same pattern useAuth uses for ensure_user_setup.
+  const callAdminAdjustBalance = async (
+    userId: string,
+    amount: number,
+    kind: "credit" | "debit",
+    note: string | null,
+    idempotencyKey: string,
+  ) => {
+    const { data, error } = await supabase.rpc("admin_adjust_balance" as never, {
+      p_user_id: userId,
+      p_amount: amount,
+      p_kind: kind,
+      p_note: note,
+      p_idempotency_key: idempotencyKey,
+    } as never);
+    if (error) throw new Error(error.message);
+    return data as { success: boolean; idempotent_replay?: boolean } | null;
+  };
+
+  // Per-row pending state: a top-up approve button disables while its own
+  // approval is in flight, so a double-click cannot double-credit (the
+  // idempotency key below is a second guard for the same request).
+  const [approvingTxId, setApprovingTxId] = useState<string | null>(null);
+
   // Credit/debit mutation
   const balanceMutation = useMutation({
     mutationFn: async ({ userId, amount, type, notes }: { userId: string; amount: number; type: "credit" | "debit"; notes: string }) => {
-      // Check if balance exists
-      const { data: existing } = await supabase
-        .from("client_balances")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (!existing) {
-        // Create balance record
-        const { error: createError } = await supabase
-          .from("client_balances")
-          .insert({
-            user_id: userId,
-            available_balance: type === "credit" ? amount : 0,
-            total_funded: type === "credit" ? amount : 0,
-          });
-        if (createError) throw createError;
-      } else {
-        // Update existing
-        const newAvailable = type === "credit"
-          ? Number(existing.available_balance) + amount
-          : Math.max(0, Number(existing.available_balance) - amount);
-        const newFunded = type === "credit"
-          ? Number(existing.total_funded) + amount
-          : Number(existing.total_funded);
-        const newSpent = type === "debit"
-          ? Number(existing.total_spent) + amount
-          : Number(existing.total_spent);
-
-        const { error: updateError } = await supabase
-          .from("client_balances")
-          .update({
-            available_balance: newAvailable,
-            total_funded: newFunded,
-            total_spent: newSpent,
-          })
-          .eq("user_id", userId);
-        if (updateError) throw updateError;
-      }
-
-      // Log transaction
-      const { error: txError } = await supabase
-        .from("balance_transactions")
-        .insert({
-          user_id: userId,
-          type: type,
-          amount: amount,
-          description: type === "credit" ? "Admin credit" : "Admin debit",
-          notes: notes || (type === "credit" ? "Manual credit by admin" : "Manual debit by admin"),
-        });
-      if (txError) throw txError;
+      // Fresh idempotency key per manual adjustment.
+      await callAdminAdjustBalance(userId, amount, type, notes || null, crypto.randomUUID());
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-client-balances"] });
@@ -212,53 +222,46 @@ const AdminBalances = () => {
       setCreditNotes("");
       setCreditUserId("");
     },
-    onError: () => {
-      toast({ title: "Failed to update balance", variant: "destructive" });
+    onError: (error: Error) => {
+      toast({ title: "Failed to update balance", description: error.message, variant: "destructive" });
     },
   });
 
   // Approve top-up
   const approveTopUp = useMutation({
     mutationFn: async ({ txId, userId, amount }: { txId: string; userId: string; amount: number }) => {
-      // Credit the balance
-      const { data: existing } = await supabase
-        .from("client_balances")
-        .select("*")
-        .eq("user_id", userId)
-        .maybeSingle();
+      // The idempotency key is derived from the top-up request itself, so
+      // two admins (or a double-click) approving the same request credit
+      // it exactly once — the second call replays without moving money.
+      setApprovingTxId(txId);
+      try {
+        await callAdminAdjustBalance(
+          userId,
+          amount,
+          "credit",
+          "Top-up approved",
+          `topup-approval:${txId}`,
+        );
 
-      if (!existing) {
-        await supabase.from("client_balances").insert({
-          user_id: userId,
-          available_balance: amount,
-          total_funded: amount,
-        });
-      } else {
-        await supabase.from("client_balances").update({
-          available_balance: Number(existing.available_balance) + amount,
-          total_funded: Number(existing.total_funded) + amount,
-        }).eq("user_id", userId);
+        // Mark the original request approved (notes-only update, not a
+        // money write) so it leaves the pending list.
+        const { error: notesError } = await supabase
+          .from("balance_transactions")
+          .update({ notes: "Approved by admin" })
+          .eq("id", txId);
+        if (notesError) throw notesError;
+      } finally {
+        setApprovingTxId(null);
       }
-
-      // Log credit transaction
-      await supabase.from("balance_transactions").insert({
-        user_id: userId,
-        type: "credit",
-        amount,
-        description: "Top-up approved",
-        notes: "Approved by admin",
-      });
-
-      // Update original request notes
-      await supabase.from("balance_transactions").update({
-        notes: "Approved by admin",
-      }).eq("id", txId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-client-balances"] });
       queryClient.invalidateQueries({ queryKey: ["admin-balance-transactions"] });
       queryClient.invalidateQueries({ queryKey: ["admin-pending-topups"] });
       toast({ title: "Top-up approved and credited" });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Failed to approve top-up", description: error.message, variant: "destructive" });
     },
   });
 
@@ -309,7 +312,7 @@ const AdminBalances = () => {
             </ElevatedCardHeader>
             <ElevatedCardContent>
               <div className="space-y-3">
-                {pendingTopUps.map((tx: any) => (
+                {pendingTopUps.map((tx: BalanceTxRow) => (
                   <div key={tx.id} className="flex items-center justify-between p-4 rounded-xl bg-yellow-500/5 border border-yellow-500/15 hover:bg-yellow-500/10 transition-all">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-lg bg-yellow-500/10">
@@ -326,11 +329,11 @@ const AdminBalances = () => {
                       <Button
                         size="sm"
                         onClick={() => approveTopUp.mutate({ txId: tx.id, userId: tx.user_id, amount: Number(tx.amount) })}
-                        disabled={approveTopUp.isPending}
+                        disabled={approvingTxId === tx.id}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg"
                       >
                         <CheckCircle className="h-4 w-4 mr-1" />
-                        Approve
+                        {approvingTxId === tx.id ? "Approving..." : "Approve"}
                       </Button>
                     </div>
                   </div>
@@ -382,7 +385,7 @@ const AdminBalances = () => {
                 </div>
               ) : (
                 <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                  {filteredBalances.map((b: any) => {
+                  {filteredBalances.map((b: BalanceRow) => {
                     const available = Number(b.available_balance);
                     const funded = Number(b.total_funded);
                     const spent = Number(b.total_spent);
@@ -460,7 +463,7 @@ const AdminBalances = () => {
                 </div>
               ) : (
                 <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
-                  {transactions.map((tx: any) => (
+                  {transactions.map((tx: BalanceTxRow) => (
                     <div key={tx.id} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/20 hover:bg-secondary/40 transition-all duration-200">
                       <div className="p-2 rounded-lg bg-secondary/40">
                         {getTransactionIcon(tx.type)}
@@ -505,7 +508,7 @@ const AdminBalances = () => {
                     <SelectValue placeholder="Choose a user..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {allProfiles?.map((p: any) => (
+                    {allProfiles?.map((p: BalanceProfileRow) => (
                       <SelectItem key={p.id} value={p.id}>
                         {p.full_name || p.email} — {p.email}
                       </SelectItem>

@@ -13,6 +13,7 @@ import { useCreatorStats } from "@/hooks/useStats";
 import { mapErrorToUserMessage, logError } from "@/lib/errorMapping";
 import { ElevatedCard, ElevatedCardContent, ElevatedCardHeader, ElevatedCardTitle } from "@/components/ui/elevated-card";
 import { SectionDivider } from "@/components/ui/section-divider";
+import { ErrorState } from "@/components/ui/ErrorState";
 
 const SOLANA_WALLET_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 const validateSolanaWallet = (address: string): boolean => {
@@ -20,17 +21,26 @@ const validateSolanaWallet = (address: string): boolean => {
   return SOLANA_WALLET_REGEX.test(address);
 };
 
+// Same standard as the Solana check above: non-empty, well-formed address.
+const PAYPAL_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const validatePaypalEmail = (email: string): boolean => {
+  if (!email) return true;
+  return PAYPAL_EMAIL_REGEX.test(email);
+};
+
 const Profile = () => {
   const { profile, role, refreshProfile, user } = useAuth();
-  const { data: stats } = useCreatorStats();
+  const { data: stats, isError: statsError, refetch: refetchStats } = useCreatorStats();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     full_name: "", bio: "", payout_method: "paypal", payout_email: "", solana_wallet_address: "",
   });
   const [walletError, setWalletError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   useEffect(() => {
     if (profile) {
@@ -49,19 +59,40 @@ const Profile = () => {
     } else { setWalletError(null); }
   };
 
+  const handleEmailChange = (value: string) => {
+    setFormData({ ...formData, payout_email: value });
+    if (value && !validatePaypalEmail(value)) {
+      setEmailError("Enter a valid email address");
+    } else { setEmailError(null); }
+  };
+
   const handleSave = async () => {
+    if (formData.payout_method === "paypal" && formData.payout_email) {
+      if (!validatePaypalEmail(formData.payout_email)) {
+        toast({ title: "Invalid PayPal email", description: "Please enter a valid PayPal email address", variant: "destructive" });
+        return;
+      }
+    }
     if (formData.payout_method === "usdc_solana" && formData.solana_wallet_address) {
       if (!validateSolanaWallet(formData.solana_wallet_address)) {
         toast({ title: "Invalid wallet address", description: "Please enter a valid Solana wallet address", variant: "destructive" });
         return;
       }
     }
+    setIsSaving(true);
     try {
       const updateData: Record<string, string | null> = {
         full_name: formData.full_name.trim(), bio: formData.bio.trim(), payout_method: formData.payout_method,
       };
-      if (formData.payout_method === "paypal") { updateData.payout_email = formData.payout_email.trim(); }
-      else if (formData.payout_method === "usdc_solana") { updateData.solana_wallet_address = formData.solana_wallet_address.trim(); }
+      // M-15: clear the inactive payout method's stored value so stale
+      // credentials are never left in the DB after switching methods.
+      if (formData.payout_method === "paypal") {
+        updateData.payout_email = formData.payout_email.trim();
+        updateData.solana_wallet_address = null;
+      } else if (formData.payout_method === "usdc_solana") {
+        updateData.solana_wallet_address = formData.solana_wallet_address.trim();
+        updateData.payout_email = null;
+      }
       if (!user?.id) throw new Error("Not authenticated");
       const { error } = await supabase.from("profiles").update(updateData).eq("id", user.id);
       if (error) throw error;
@@ -71,6 +102,8 @@ const Profile = () => {
     } catch (error: unknown) {
       logError("Profile:handleSave", error);
       toast({ title: "Error", description: mapErrorToUserMessage(error), variant: "destructive" });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -116,9 +149,13 @@ const Profile = () => {
             <div className="absolute bottom-4 left-16 w-20 h-20 bg-primary/10 rounded-full blur-[40px] float" />
           </div>
           <div className="absolute -bottom-16 left-6 flex items-end gap-4">
-            <div 
-              className="relative w-28 h-28 rounded-2xl bg-gradient-primary flex items-center justify-center text-3xl font-display font-bold text-primary-foreground border-4 border-background overflow-hidden cursor-pointer group shadow-xl shadow-primary/20 transition-all duration-300 hover:shadow-primary/40"
+            {/* M-15: the avatar is a real button with an accessible name so
+                keyboard users can change it too. */}
+            <button
+              type="button"
+              aria-label="Change avatar"
               onClick={() => fileInputRef.current?.click()}
+              className="relative w-28 h-28 rounded-2xl bg-gradient-primary flex items-center justify-center text-3xl font-display font-bold text-primary-foreground border-4 border-background overflow-hidden cursor-pointer group shadow-xl shadow-primary/20 transition-all duration-300 hover:shadow-primary/40"
             >
               {profile?.avatar_url ? (
                 <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
@@ -133,16 +170,17 @@ const Profile = () => {
                   <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 </div>
               )}
-            </div>
+            </button>
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" />
           </div>
           <div className="absolute bottom-4 right-4">
             <Button 
               variant={isEditing ? "default" : "outline"} 
               onClick={() => isEditing ? handleSave() : setIsEditing(true)}
+              disabled={isSaving}
               className={isEditing ? "bg-gradient-primary hover:opacity-90 glow-primary-sm btn-shimmer rounded-xl" : "rounded-xl border-border/30 hover:border-primary/30"}
             >
-              {isEditing ? <><Save className="h-4 w-4 mr-2" />Save</> : <><Edit className="h-4 w-4 mr-2" />Edit</>}
+              {isEditing ? <><Save className="h-4 w-4 mr-2" />{isSaving ? "Saving..." : "Save"}</> : <><Edit className="h-4 w-4 mr-2" />Edit</>}
             </Button>
           </div>
         </div>
@@ -187,7 +225,8 @@ const Profile = () => {
                     {formData.payout_method === "paypal" && (
                       <div className="space-y-2">
                         <Label className="text-muted-foreground/60">PayPal Email</Label>
-                        <Input value={formData.payout_email} onChange={(e) => setFormData({...formData, payout_email: e.target.value})} disabled={!isEditing} placeholder="your@paypal.email" className="h-12 bg-card/50 border-border/30 rounded-xl" />
+                        <Input value={formData.payout_email} onChange={(e) => handleEmailChange(e.target.value)} disabled={!isEditing} placeholder="your@paypal.email" className={`h-12 bg-card/50 border-border/30 rounded-xl ${emailError ? "border-destructive" : ""}`} />
+                        {emailError && <p className="text-sm text-destructive flex items-center gap-1"><AlertCircle className="h-3 w-3" />{emailError}</p>}
                       </div>
                     )}
                     {formData.payout_method === "usdc_solana" && (
@@ -207,14 +246,22 @@ const Profile = () => {
                 <ElevatedCardTitle className="section-header font-display">Stats</ElevatedCardTitle>
               </ElevatedCardHeader>
               <ElevatedCardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {statItems.map((stat) => (
-                    <div key={stat.label} className="text-center p-4 rounded-xl bg-secondary/20 border border-border/15 transition-all duration-300 hover:border-primary/15 hover:-translate-y-0.5 group">
-                      <div className="text-2xl font-display font-bold text-primary transition-all duration-300 group-hover:scale-105">{stat.value}</div>
-                      <div className="text-sm text-muted-foreground/50">{stat.label}</div>
-                    </div>
-                  ))}
-                </div>
+                {statsError ? (
+                  <ErrorState
+                    title="Couldn't load your stats"
+                    message="Your clip stats couldn't be loaded. Check your connection and try again."
+                    onRetry={() => void refetchStats()}
+                  />
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {statItems.map((stat) => (
+                      <div key={stat.label} className="text-center p-4 rounded-xl bg-secondary/20 border border-border/15 transition-all duration-300 hover:border-primary/15 hover:-translate-y-0.5 group">
+                        <div className="text-2xl font-display font-bold text-primary transition-all duration-300 group-hover:scale-105">{stat.value}</div>
+                        <div className="text-sm text-muted-foreground/50">{stat.label}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </ElevatedCardContent>
             </ElevatedCard>
           </div>

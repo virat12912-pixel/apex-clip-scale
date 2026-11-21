@@ -18,7 +18,7 @@ async function fetchYouTubeDescription(username: string): Promise<string | null>
     
     // If it's a full URL, extract the channel ID or handle
     if (cleanUsername.includes('youtube.com') || cleanUsername.includes('youtu.be')) {
-      const urlMatch = cleanUsername.match(/(?:youtube\.com\/(?:c\/|channel\/|user\/|@))([^\/\s]+)/);
+      const urlMatch = cleanUsername.match(/(?:youtube\.com\/(?:c\/|channel\/|user\/|@))([^/\s]+)/);
       if (urlMatch) {
         channelId = urlMatch[1];
       }
@@ -65,6 +65,8 @@ serve(async (req) => {
   try {
     const auth = await authenticateRequest(req);
     if (!auth) return jsonResponse({ success: false, error: "Unauthorized" }, 401, corsHeaders);
+    // M-27: banned callers cannot verify accounts.
+    if (auth.banned) return jsonResponse({ success: false, error: "This account is banned" }, 403, corsHeaders);
     const { account_id } = await req.json();
     const account = await getOwnedSocialAccount(auth.serviceClient, auth.user.id, account_id, "youtube");
     if (!account) return jsonResponse({ success: false, error: "YouTube account was not found or is already verified" }, 400, corsHeaders);
@@ -87,6 +89,28 @@ serve(async (req) => {
 
     // Check if verification code is in description
     const isVerified = description.includes(account.verification_code);
+
+    // C-02: the verdict is written server-side, only on success, via the
+    // service-role client. The frontend must no longer write `verified`
+    // itself (a DB trigger rejects client writes); this is the only writer.
+    if (isVerified) {
+      const { data: marked, error: markError } = await auth.serviceClient
+        .from("social_accounts")
+        .update({ verified: true, verified_at: new Date().toISOString() })
+        .eq("id", account.id)
+        .eq("user_id", auth.user.id)
+        .eq("platform", "youtube")
+        .eq("verified", false)
+        .select("id")
+        .maybeSingle();
+      if (markError || !marked) {
+        console.error("Failed to mark social account verified:", markError);
+        return new Response(
+          JSON.stringify({ success: false, error: "Verification succeeded but could not be recorded. Please try again." }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
 
     return new Response(
       JSON.stringify({

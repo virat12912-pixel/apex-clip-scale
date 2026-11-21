@@ -1,3 +1,10 @@
+# Env files — never commit secrets (see H-34). .env.example is the only
+# env file that belongs in git, and it must contain names only, no values.
+.env*
+!.env.example
+.env.local
+.env.*.local
+
 # Logs
 logs
 *.log
@@ -22,3 +29,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# TypeScript build info
+*.tsbuildinfo

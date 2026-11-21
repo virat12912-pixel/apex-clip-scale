@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { authenticateRequest, jsonResponse, signMetricsAssertion } from "../_shared/security.ts";
+import { authenticateRequest, jsonResponse, signMetricsAssertion, type AuthContext } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,6 +8,15 @@ const corsHeaders = {
 
 interface TikTokRequest {
   video_url: string;
+  /** Optional: bind the minted assertion to this submission (audit H-04). */
+  submission_id?: string;
+}
+
+// Author handle from a full TikTok URL (/@handle/video/<id>). Free — no
+// API call — so the ownership check can run before any paid fetch.
+function extractAuthorHandle(url: string): string | null {
+  const match = url.match(/\/@([^/?#]+)\/video\//);
+  return match?.[1] ? decodeURIComponent(match[1]) : null;
 }
 
 // Extract video ID from TikTok URL
@@ -125,7 +134,9 @@ serve(async (req) => {
   try {
     const auth = await authenticateRequest(req);
     if (!auth) return jsonResponse({ success: false, error: "Unauthorized" }, 401, corsHeaders);
-    const { video_url } = (await req.json()) as TikTokRequest;
+    // M-27: banned callers cannot fetch metrics.
+    if (auth.banned) return jsonResponse({ success: false, error: "This account is banned" }, 403, corsHeaders);
+    const { video_url, submission_id } = (await req.json()) as TikTokRequest;
 
     if (!video_url) {
       return new Response(JSON.stringify({ error: "video_url is required" }), {
@@ -158,6 +169,16 @@ serve(async (req) => {
       return jsonResponse({ success: false, error: "Could not extract video ID from URL", error_code: "invalid_url" }, 400, corsHeaders);
     }
 
+    // M-25: check ownership BEFORE the paid Scrape Creators call, using
+    // the author handle already in the URL (free). Bare /video/<id> links
+    // carry no handle, so for those the paid call still runs first and
+    // ownership is checked on its returned author below — documented
+    // fallback, unavoidable: TikTok exposes no free video->author lookup.
+    const urlAuthor = extractAuthorHandle(targetUrl);
+    if (urlAuthor && !await isAdminOrOwnVerifiedAccount(auth.serviceClient, auth.user.id, urlAuthor)) {
+      return jsonResponse({ success: false, error: "The video must belong to one of your verified TikTok accounts" }, 403, corsHeaders);
+    }
+
     if (!targetUrl.startsWith("http")) {
       targetUrl = "https://" + targetUrl;
     }
@@ -176,6 +197,9 @@ serve(async (req) => {
         views: result.views,
         likes: result.likes,
         comments: result.comments,
+        // H-04: bind the assertion to the submission when the caller knows
+        // it (insert-first flow); omitted for the legacy fetch-first flow.
+        ...(typeof submission_id === "string" && submission_id ? { submissionId: submission_id } : {}),
       });
       const response = {
         success: true,
@@ -205,15 +229,14 @@ serve(async (req) => {
     );
   } catch (error: unknown) {
     console.error("Error in fetch-tiktok-views:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: message }), {
+    return new Response(JSON.stringify({ error: "Could not fetch video data" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
 
-async function isAdminOrOwnVerifiedAccount(serviceClient: any, userId: string, author: string | null): Promise<boolean> {
+async function isAdminOrOwnVerifiedAccount(serviceClient: AuthContext["serviceClient"], userId: string, author: string | null): Promise<boolean> {
   const { data: isAdmin } = await serviceClient.rpc("has_role", { _user_id: userId, _role: "admin" });
   if (isAdmin) return true;
   if (!author) return false;
