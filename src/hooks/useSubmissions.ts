@@ -25,6 +25,7 @@ export interface Submission {
     rate_value: number;
     rate_unit: number;
     status: string;
+    min_payout_views: number | null;
   };
   creator_profile?: {
     full_name: string | null;
@@ -71,7 +72,7 @@ export function useMySubmissions() {
         .from("submissions")
         .select(`
           id, campaign_id, creator_id, clip_url, platform, views, likes, comments, earnings, status, created_at, updated_at,
-          campaign:campaigns(name, rate_value, rate_unit, status)
+          campaign:campaigns(name, rate_value, rate_unit, status, min_payout_views)
         `)
         .eq("creator_id", user.id)
         .order("created_at", { ascending: false });
@@ -144,7 +145,7 @@ export function useAllSubmissions() {
         .from("submissions")
         .select(`
           *,
-          campaign:campaigns(name, rate_value, rate_unit, status),
+          campaign:campaigns(name, rate_value, rate_unit, status, min_payout_views),
           creator_profile:profiles!submissions_creator_id_fkey(full_name, email)
         `)
         .order("created_at", { ascending: false });
@@ -287,21 +288,53 @@ export function useCreateSubmission() {
       const campaignIds = [...new Set(submissions.map((s) => s.campaign_id))];
       const { data: campaigns, error: campaignError } = await supabase
         .from("campaigns")
-        .select("id, min_views, required_hashtags, required_links")
+        .select("id, status, total_budget, spent_budget, min_views, required_hashtags, required_links")
         .in("id", campaignIds);
 
       if (campaignError) throw campaignError;
 
+      // Campaign row shape for the gate below (typed — no `any` casts).
+      interface CampaignGateRow {
+        id: string;
+        status: string;
+        total_budget: number | null;
+        spent_budget: number | null;
+        min_views: number | null;
+        required_hashtags: string[] | null;
+        required_links: string[] | null;
+      }
+
       const campaignMap = new Map(
-        (campaigns || []).map((c) => [
-          c.id,
-          {
-            min_views: Number((c as any).min_views ?? 0),
-            required_hashtags: ((c as any).required_hashtags as string[] | null) ?? null,
-            required_links: ((c as any).required_links as string[] | null) ?? null,
-          },
-        ]),
+        (campaigns || []).map((c) => {
+          const row = c as unknown as CampaignGateRow;
+          return [
+            row.id,
+            {
+              status: row.status,
+              total_budget: Number(row.total_budget ?? 0),
+              spent_budget: Number(row.spent_budget ?? 0),
+              min_views: Number(row.min_views ?? 0),
+              required_hashtags: row.required_hashtags ?? null,
+              required_links: row.required_links ?? null,
+            },
+          ] as const;
+        }),
       );
+
+      // H-12: gate at insert — only `active` campaigns with budget left
+      // accept submissions. Without this, a clip for a paused/completed
+      // (or fully spent) campaign inserts a zeroed pending row that
+      // process-submission then 409s forever.
+      for (const s of submissions) {
+        const campaign = campaignMap.get(s.campaign_id);
+        if (!campaign) throw new Error("Campaign not found for submission.");
+        if (campaign.status !== "active") {
+          throw new Error("This campaign is not accepting submissions right now.");
+        }
+        if (campaign.total_budget - campaign.spent_budget <= 0) {
+          throw new Error("This campaign's budget is fully spent.");
+        }
+      }
 
       // Pre-validate platforms
       for (const s of submissions) {
@@ -312,7 +345,19 @@ export function useCreateSubmission() {
       }
 
       // Fetch views SEQUENTIALLY to avoid API rate-limiting returning wrong data
-      const toInsert: any[] = [];
+      interface SubmissionInsertRow {
+        campaign_id: string;
+        clip_url: string;
+        platform: "tiktok" | "instagram" | "youtube";
+        creator_id: string;
+        submitted_views: number;
+        views: number;
+        earnings: number;
+        likes: number;
+        comments: number;
+        status: "pending";
+      }
+      const toInsert: SubmissionInsertRow[] = [];
       const fetchedMetrics: Array<{ views: number; likes: number; comments: number; assertion?: string }> = [];
       const profileCache = new Map<string, ProfileLinkData>();
       for (const s of submissions) {
@@ -461,14 +506,63 @@ export function useCreateSubmission() {
   });
 }
 
+// H-09: restricted to non-money fields only. Money fields (status,
+// views, likes, comments, earnings, submitted_views) must NEVER be
+// written from the browser — status/earnings move only through the
+// accounting Edge Functions (calculate-earnings, reject-submission,
+// delete-submission, refresh-views, process-submission).
+// H-12: reprocess a zeroed pending row (views=0, earnings=0) instead of
+// forcing the creator to re-insert the clip (which duplicates it — see
+// H-04). Re-fetches fresh metrics to get a new signed assertion, then
+// runs process-submission again for the SAME row. process-submission
+// itself re-checks campaign status/budget and rejects already-processed
+// rows, so this is safe to offer on any stalled pending row.
+export function useReprocessSubmission() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: {
+      submission_id: string;
+      clip_url: string;
+      platform: "tiktok" | "instagram" | "youtube";
+    }) => {
+      const viewData = await fetchViewsForPlatform(params.clip_url.trim(), params.platform, 3, 2000);
+      if (viewData.views <= 0) {
+        throw new Error("Could not fetch views for this clip. Please double-check the URL is still public and try again.");
+      }
+      if (!viewData.metricsAssertion) {
+        throw new Error("Could not securely verify clip metrics. Please retry.");
+      }
+      const { data, error } = await supabase.functions.invoke("process-submission", {
+        body: {
+          submission_id: params.submission_id,
+          metrics_assertion: viewData.metricsAssertion,
+        },
+      });
+      if (error) throw error;
+      if (data?.success === false) throw new Error(data?.error || "Submission processing failed");
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["submissions"] });
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["campaign"] });
+      queryClient.invalidateQueries({ queryKey: ["wallet"] });
+      queryClient.invalidateQueries({ queryKey: ["stats"] });
+      queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+    },
+  });
+}
+
 export function useUpdateSubmission() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<Submission> & { id: string }) => {
+    mutationFn: async ({ id, admin_notes }: { id: string; admin_notes?: string | null }) => {
       const { data, error } = await supabase
         .from("submissions")
-        .update(updates)
+        .update({ admin_notes })
         .eq("id", id)
         .select()
         .single();

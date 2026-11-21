@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
+import type { Json } from "@/integrations/supabase/types";
 
 export interface AdminLog {
   id: string;
@@ -49,7 +50,7 @@ export function useCreateAdminLog() {
       action: string;
       target_type: string;
       target_id: string;
-      details?: Record<string, unknown>;
+      details?: Json;
     }) => {
       if (!user) {
         console.warn(
@@ -66,7 +67,7 @@ export function useCreateAdminLog() {
           action: log.action,
           target_type: log.target_type,
           target_id: log.target_id,
-          details: log.details as any,
+          details: log.details,
         },
       ]);
 

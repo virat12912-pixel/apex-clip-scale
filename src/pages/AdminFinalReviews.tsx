@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { AppLayout } from "@/components/app/AppLayout";
-import { useAllFinalSubmissions, useUpdateFinalSubmission, useCreateFinalSubmissionReview, getFinalSubmissionFilePath, FinalSubmission } from "@/hooks/useFinalSubmissions";
+import { useAllFinalSubmissions, getFinalSubmissionFilePath, FinalSubmission } from "@/hooks/useFinalSubmissions";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,9 +54,96 @@ function ReviewCard({ submission }: { submission: FinalSubmission }) {
   const [expanded, setExpanded] = useState(false);
   const [verifiedViews, setVerifiedViews] = useState(submission.verified_views?.toString() || "");
   const [notes, setNotes] = useState("");
-  const updateSubmission = useUpdateFinalSubmission();
-  const createReview = useCreateFinalSubmissionReview();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
+  // Single in-flight flag for the WHOLE review flow (Edge Function call +
+  // notification + invalidation). Both buttons disable on it, so a
+  // double-click cannot re-run the review (C-04).
+  const [reviewing, setReviewing] = useState(false);
+
+  // Route the review through the review-final-submission Edge Function
+  // (accounting_review_final RPC): one server-side transaction that sets
+  // status/verified_views/final_earnings, adjusts the wallet and
+  // spent_budget with caps, and writes the review record. No browser-side
+  // wallet math or sequential writes (C-04).
+  const runReview = async (decision: "approve" | "reject", verifiedViewsValue?: number) => {
+    setReviewing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("review-final-submission", {
+        body: {
+          final_submission_id: submission.id,
+          decision,
+          verified_views: verifiedViewsValue,
+          admin_notes: notes || undefined,
+        },
+      });
+      if (error) throw new Error((data as { error?: string } | null)?.error || error.message);
+      if ((data as { error?: string } | null)?.error) throw new Error((data as { error: string }).error);
+      return data as { earnings?: number } | null;
+    } finally {
+      setReviewing(false);
+    }
+  };
+
+  const invalidateReviewQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ["wallet"] });
+    queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+    queryClient.invalidateQueries({ queryKey: ["campaign"] });
+    queryClient.invalidateQueries({ queryKey: ["submissions"] });
+    queryClient.invalidateQueries({ queryKey: ["final-submissions"] });
+  };
+
+  const handleApprove = async () => {
+    if (!verifiedViews || Number(verifiedViews) <= 0) {
+      toast({ title: "Set verified views first", variant: "destructive" });
+      return;
+    }
+    try {
+      const result = await runReview("approve", Number(verifiedViews));
+      const earnings = Number(result?.earnings ?? estimatedEarnings);
+
+      // Send notification to clipper
+      await supabase.functions.invoke("create-notification", {
+        body: {
+          user_id: submission.user_id,
+          type: "final_submission_approved",
+          title: "Final Submission Approved!",
+          message: `Your final submission for "${submission.campaign?.name}" has been approved. You earned $${earnings.toFixed(2)} and are eligible for payouts.`,
+          related_id: submission.id,
+        },
+      });
+      invalidateReviewQueries();
+      toast({ title: "Submission approved" });
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Review failed", variant: "destructive" });
+    }
+  };
+
+  const handleReject = async () => {
+    // A rejection must carry a reason — the admin's notes are the reason
+    // shown to the creator.
+    if (!notes.trim()) {
+      toast({ title: "Rejection reason required", description: "Enter the reason for rejection in the notes field.", variant: "destructive" });
+      return;
+    }
+    try {
+      await runReview("reject");
+      // Send notification to clipper
+      await supabase.functions.invoke("create-notification", {
+        body: {
+          user_id: submission.user_id,
+          type: "final_submission_rejected",
+          title: "Final Submission Rejected",
+          message: `Your final submission for "${submission.campaign?.name}" has been rejected.${notes ? ` Reason: ${notes}` : ""}`,
+          related_id: submission.id,
+        },
+      });
+      invalidateReviewQueries();
+      toast({ title: "Submission rejected" });
+    } catch (err: unknown) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Review failed", variant: "destructive" });
+    }
+  };
   const [recordingUrls, setRecordingUrls] = useState<(string | null)[]>([null, null, null]);
   const [accountRecordingUrl, setAccountRecordingUrl] = useState<string | null>(null);
 
@@ -76,103 +164,6 @@ function ReviewCard({ submission }: { submission: FinalSubmission }) {
   const rate = submission.campaign?.rate_value || 0;
   const rateUnit = submission.campaign?.rate_unit || 1000;
   const estimatedEarnings = verifiedViews ? (Number(verifiedViews) / rateUnit) * rate : 0;
-
-  const handleApprove = async () => {
-    if (!verifiedViews || Number(verifiedViews) <= 0) {
-      toast({ title: "Set verified views first", variant: "destructive" });
-      return;
-    }
-    const earnings = Math.round(estimatedEarnings * 100) / 100;
-    try {
-      await createReview.mutateAsync({
-        final_submission_id: submission.id,
-        action: "approved",
-        previous_verified_views: submission.verified_views,
-        new_verified_views: Number(verifiedViews),
-        previous_earnings: submission.final_earnings,
-        new_earnings: earnings,
-        notes,
-      });
-      await updateSubmission.mutateAsync({
-        id: submission.id,
-        status: "approved",
-        verified_views: Number(verifiedViews),
-        final_earnings: earnings,
-        reviewed_at: new Date().toISOString(),
-        approved_at: new Date().toISOString(),
-        admin_notes: notes || submission.admin_notes,
-      });
-
-      // Adjust wallet: fetch old submission-based earnings for this campaign, replace with verified earnings
-      const { data: campaignSubmissions } = await supabase
-        .from("submissions")
-        .select("earnings")
-        .eq("campaign_id", submission.campaign_id)
-        .eq("creator_id", submission.user_id)
-        .in("status", ["approved", "paid"]);
-
-      const oldEarnings = campaignSubmissions?.reduce((sum, s) => sum + Number(s.earnings || 0), 0) || 0;
-      const earningsDiff = earnings - oldEarnings;
-
-      if (earningsDiff !== 0) {
-        const { data: wallet } = await supabase
-          .from("wallets")
-          .select("pending_balance")
-          .eq("user_id", submission.user_id)
-          .single();
-
-        if (wallet) {
-          await supabase
-            .from("wallets")
-            .update({ pending_balance: Math.max(0, Number(wallet.pending_balance) + earningsDiff) })
-            .eq("user_id", submission.user_id);
-        }
-      }
-
-      // Send notification to clipper
-      await supabase.functions.invoke("create-notification", {
-        body: {
-          user_id: submission.user_id,
-          type: "final_submission_approved",
-          title: "Final Submission Approved!",
-          message: `Your final submission for "${submission.campaign?.name}" has been approved. You earned $${earnings.toFixed(2)} and are eligible for payouts.`,
-          related_id: submission.id,
-        },
-      });
-      toast({ title: "Submission approved" });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    }
-  };
-
-  const handleReject = async () => {
-    try {
-      await createReview.mutateAsync({
-        final_submission_id: submission.id,
-        action: "rejected",
-        notes,
-      });
-      await updateSubmission.mutateAsync({
-        id: submission.id,
-        status: "rejected",
-        reviewed_at: new Date().toISOString(),
-        admin_notes: notes || submission.admin_notes,
-      });
-      // Send notification to clipper
-      await supabase.functions.invoke("create-notification", {
-        body: {
-          user_id: submission.user_id,
-          type: "final_submission_rejected",
-          title: "Final Submission Rejected",
-          message: `Your final submission for "${submission.campaign?.name}" has been rejected.${notes ? ` Reason: ${notes}` : ""}`,
-          related_id: submission.id,
-        },
-      });
-      toast({ title: "Submission rejected" });
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    }
-  };
 
   const statusColors: Record<string, string> = {
     submitted: "bg-yellow-500/10 text-yellow-400",
@@ -270,11 +261,11 @@ function ReviewCard({ submission }: { submission: FinalSubmission }) {
                 </div>
               </div>
               <div>
-                <Label className="text-xs">Internal Notes</Label>
+                <Label className="text-xs">Internal Notes / Rejection Reason *</Label>
                 <Textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Admin notes (optional)"
+                  placeholder="Admin notes (required when rejecting)"
                   className="bg-secondary border-border"
                   rows={2}
                 />
@@ -282,18 +273,18 @@ function ReviewCard({ submission }: { submission: FinalSubmission }) {
               <div className="flex gap-3">
                 <Button
                   onClick={handleApprove}
-                  disabled={updateSubmission.isPending}
+                  disabled={reviewing}
                   className="flex-1 bg-emerald-600 hover:bg-emerald-700"
                 >
-                  <CheckCircle className="h-4 w-4 mr-2" /> Approve
+                  <CheckCircle className="h-4 w-4 mr-2" /> {reviewing ? "Reviewing..." : "Approve"}
                 </Button>
                 <Button
                   onClick={handleReject}
-                  disabled={updateSubmission.isPending}
+                  disabled={reviewing}
                   variant="destructive"
                   className="flex-1"
                 >
-                  <XCircle className="h-4 w-4 mr-2" /> Reject
+                  <XCircle className="h-4 w-4 mr-2" /> {reviewing ? "Reviewing..." : "Reject"}
                 </Button>
               </div>
             </div>

@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { LAUNCH_ROLES, ADMIN_ROLES, CLIENT_ROLES } from "@/lib/roles";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -79,7 +80,7 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/launch" element={
-              <ProtectedRoute allowedRoles={["admin", "brand"]}>
+              <ProtectedRoute allowedRoles={LAUNCH_ROLES}>
                 <Launch />
               </ProtectedRoute>
             } />
@@ -114,87 +115,87 @@ const App = () => (
               </ProtectedRoute>
             } />
             <Route path="/admin" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
                 <AdminDashboard />
               </ProtectedRoute>
             } />
             <Route path="/admin/submissions" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
                 <AdminSubmissions />
               </ProtectedRoute>
             } />
             <Route path="/admin/submissions/:campaignId" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
                 <AdminCampaignSubmissions />
               </ProtectedRoute>
             } />
             <Route path="/admin/submissions/:campaignId/user/:userId" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
                 <AdminUserSubmissions />
               </ProtectedRoute>
             } />
             <Route path="/admin/payouts" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
                 <AdminCampaignPayouts />
               </ProtectedRoute>
             } />
             <Route path="/admin/payouts/campaign/:campaignId" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
                 <AdminCampaignPayouts />
               </ProtectedRoute>
             } />
             <Route path="/admin/payouts/campaign/:campaignId/user/:userId" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
                 <AdminUserDetail />
               </ProtectedRoute>
             } />
             <Route path="/admin/brands" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
                 <AdminBrands />
               </ProtectedRoute>
             } />
             <Route path="/admin/social-accounts" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
                 <AdminSocialAccounts />
               </ProtectedRoute>
             } />
             <Route path="/admin/users" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
                 <AdminUsers />
               </ProtectedRoute>
             } />
             <Route path="/admin/balances" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
                 <AdminBalances />
               </ProtectedRoute>
             } />
             <Route path="/admin/assign-campaigns" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
                 <AdminAssignCampaign />
               </ProtectedRoute>
             } />
             <Route path="/admin/final-reviews" element={
-              <ProtectedRoute allowedRoles={["admin"]}>
+              <ProtectedRoute allowedRoles={ADMIN_ROLES}>
                 <AdminFinalReviews />
               </ProtectedRoute>
             } />
             <Route path="/client" element={
-              <ProtectedRoute allowedRoles={["client_admin", "client_manager", "client_viewer"]}>
+              <ProtectedRoute allowedRoles={CLIENT_ROLES}>
                 <ClientDashboard />
               </ProtectedRoute>
             } />
             <Route path="/client/submissions" element={
-              <ProtectedRoute allowedRoles={["client_admin", "client_manager", "client_viewer"]}>
+              <ProtectedRoute allowedRoles={CLIENT_ROLES}>
                 <ClientSubmissions />
               </ProtectedRoute>
             } />
             <Route path="/client/submissions/:campaignId" element={
-              <ProtectedRoute allowedRoles={["client_admin", "client_manager", "client_viewer"]}>
+              <ProtectedRoute allowedRoles={CLIENT_ROLES}>
                 <ClientCampaignSubmissions />
               </ProtectedRoute>
             } />
             <Route path="/client/submissions/:campaignId/user/:userId" element={
-              <ProtectedRoute allowedRoles={["client_admin", "client_manager", "client_viewer"]}>
+              <ProtectedRoute allowedRoles={CLIENT_ROLES}>
                 <ClientUserSubmissions />
               </ProtectedRoute>
             } />

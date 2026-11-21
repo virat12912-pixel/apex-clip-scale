@@ -1,0 +1,11 @@
+{
+  "$schema": "https://deno.land/x/deno/cli/schemas/config-file.v1.json",
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.98.0",
+    "@supabase/supabase-js/cors": "npm:@supabase/supabase-js@2.98.0/cors",
+    "https://esm.sh/@supabase/supabase-js@2": "https://esm.sh/@supabase/supabase-js@2.98.0",
+    "npm:zod@3": "npm:zod@3.25.76",
+    "std/http/server.ts": "https://deno.land/std@0.168.0/http/server.ts",
+    "zod": "npm:zod@3.25.76"
+  }
+}

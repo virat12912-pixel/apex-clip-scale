@@ -136,8 +136,8 @@ const ClientUserSubmissions = () => {
     }
   };
 
-  const totalViews = submissions?.reduce((sum, s: any) => sum + Number(s.views || 0), 0) || 0;
-  const totalEarnings = submissions?.reduce((sum, s: any) => sum + Number(s.earnings || 0), 0) || 0;
+  const totalViews = submissions?.reduce((sum, s) => sum + Number(s.views || 0), 0) || 0;
+  const totalEarnings = submissions?.reduce((sum, s) => sum + Number(s.earnings || 0), 0) || 0;
 
   return (
     <AppLayout title="Creator Submissions">
@@ -190,7 +190,7 @@ const ClientUserSubmissions = () => {
           </div>
         ) : (
           <div className="space-y-4 stagger-enter">
-            {submissions?.map((sub: any) => {
+            {submissions?.map((sub) => {
               const currentViews = Number(sub.views) || Number(sub.submitted_views) || 0;
 
               return (

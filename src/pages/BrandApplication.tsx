@@ -53,10 +53,10 @@ const BrandApplication = () => {
         title: "Application submitted!",
         description: "Our team will review and reach out within 24-48 hours.",
       });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to submit application",
         variant: "destructive",
       });
     }

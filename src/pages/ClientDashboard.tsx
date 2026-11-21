@@ -44,7 +44,7 @@ const ClientDashboard = () => {
         <>
           {campaigns.length > 1 && (
             <div className="flex gap-2 mb-6 flex-wrap">
-              {campaigns.map((c: any) => (
+              {campaigns.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => setSelectedCampaignId(c.id)}

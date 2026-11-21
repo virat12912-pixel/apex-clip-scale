@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { ClipperTierBadge } from "@/components/dashboard/ClipperTierBadge";
+import { isClipperRole, isClientRole, canLaunchCampaigns, hasAdminAccess } from "@/lib/roles";
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -13,21 +14,21 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const isCollapsed = state === "collapsed";
 
-  const hasAdminAccess = role === "admin" || role === "platform_admin";
-  const canLaunchCampaigns = hasAdminAccess || role === "brand" || role === "client_admin";
-  const isClipperRole = role === "creator" || role === "clipper";
-  const isClientRole = role === "client_admin" || role === "client_manager" || role === "client_viewer";
+  // Role -> nav mapping lives in src/lib/roles.ts (H-30) so the sidebar
+  // cannot drift from the route guards in src/App.tsx again.
+  const isClient = isClientRole(role);
+  const homeUrl = isClient ? "/client" : "/dashboard";
 
-  const mainNavItems = isClientRole ? [
+  const mainNavItems = isClient ? [
     { title: "Client Dashboard", url: "/client", icon: Monitor },
     { title: "Manage Submissions", url: "/client/submissions", icon: FileText },
   ] : [
     { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
     { title: "Browse Campaigns", url: "/campaigns", icon: Search },
-    ...(canLaunchCampaigns ? [{ title: "Launch Campaign", url: "/launch", icon: Rocket }] : []),
+    ...(canLaunchCampaigns(role) ? [{ title: "Launch Campaign", url: "/launch", icon: Rocket }] : []),
   ];
 
-  const accountNavItems = isClientRole ? [
+  const accountNavItems = isClient ? [
     { title: "My Profile", url: "/profile", icon: User },
     { title: "Settings", url: "/settings", icon: Settings },
   ] : [
@@ -38,7 +39,7 @@ export function AppSidebar() {
     { title: "Settings", url: "/settings", icon: Settings },
   ];
 
-  const adminNavItems = hasAdminAccess ? [
+  const adminNavItems = hasAdminAccess(role) ? [
     { title: "Admin Panel", url: "/admin", icon: Shield },
     { title: "Submissions", url: "/admin/submissions", icon: FileText },
     { title: "Final Reviews", url: "/admin/final-reviews", icon: FileText },
@@ -61,7 +62,7 @@ export function AppSidebar() {
       <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-primary opacity-60" />
       
       <SidebarHeader className="p-4 border-b border-border/50">
-        <NavLink to="/dashboard" className="flex items-center gap-2.5 group">
+        <NavLink to={homeUrl} className="flex items-center gap-2.5 group">
           <img src={logo} alt="Amplify" className="w-10 h-10 rounded-xl transition-all duration-300 group-hover:scale-110" />
           {!isCollapsed && (
             <span className="font-display font-bold text-xl tracking-tight">Amplify</span>
@@ -146,7 +147,9 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="p-4 border-t border-border/50">
-        <div className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-primary/5 transition-all duration-200 cursor-pointer group">
+        {/* M-22: the profile block links to /profile instead of looking
+            clickable and doing nothing. */}
+        <NavLink to="/profile" className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-primary/5 transition-all duration-200 cursor-pointer group">
           <div className="w-10 h-10 rounded-xl bg-gradient-primary flex items-center justify-center text-sm font-bold text-primary-foreground shadow-lg shadow-primary/20 transition-all duration-300 group-hover:shadow-primary/40 group-hover:scale-105">
             {profile?.full_name?.charAt(0) || "U"}
           </div>
@@ -154,19 +157,30 @@ export function AppSidebar() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold truncate">{profile?.full_name || "User"}</span>
-                {isClipperRole && (
-                  <ClipperTierBadge tier={(profile as any)?.clipper_tier || "standard"} size="sm" showLabel={false} />
+                {isClipperRole(role) && (
+                  <ClipperTierBadge tier={profile?.clipper_tier || "standard"} size="sm" showLabel={false} />
                 )}
               </div>
               <div className="text-xs text-muted-foreground/60 truncate">{profile?.email}</div>
             </div>
           )}
-        </div>
-        {!isCollapsed && (
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={handleSignOut} 
+        </NavLink>
+        {isCollapsed ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleSignOut}
+            aria-label="Sign out"
+            title="Sign out"
+            className="w-full mt-2 text-muted-foreground/70 hover:text-destructive hover:bg-destructive/10 transition-all duration-200 rounded-lg"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleSignOut}
             className="w-full mt-2 justify-start text-muted-foreground/70 hover:text-destructive hover:bg-destructive/10 transition-all duration-200 rounded-lg group"
           >
             <LogOut className="h-4 w-4 mr-2 transition-transform duration-200 group-hover:scale-110" />Sign Out

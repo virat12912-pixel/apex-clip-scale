@@ -1,5 +1,22 @@
 project_id = "htkcortbngtlkjkmgbca"
 
+# Auth pattern (audit H-33): every function below has an EXPLICIT verify_jwt
+# entry — no function may rely on the deploy default.
+#
+# verify_jwt = false is DELIBERATE for all but request-payout. Supabase's
+# gateway JWT check would reject the cron/internal-token callers and the
+# service-role calls used between functions, so authentication is done
+# IN CODE instead: every function calls authenticateRequest() from
+# supabase/functions/_shared/security.ts, which validates the caller's
+# Bearer token with Auth, loads their profiles.is_banned flag, and then
+# each function enforces its own role check (admin / brand / owner) before
+# doing anything. If you add a function, add its entry here AND an
+# authenticateRequest call as its first step — a missing entry or a
+# missing in-code check is an unauthenticated function.
+#
+# request-payout keeps verify_jwt = true as defence in depth on top of
+# the same in-code check.
+
 [functions.calculate-earnings]
 verify_jwt = false
 
@@ -40,4 +57,22 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.admin-change-role]
+verify_jwt = false
+
+[functions.admin-update-user]
+verify_jwt = false
+
+[functions.delete-submission]
+verify_jwt = false
+
+[functions.fetch-social-profile]
+verify_jwt = false
+
+[functions.review-final-submission]
+verify_jwt = false
+
+[functions.create-campaign]
+verify_jwt = false
+
+[functions.refresh-views]
 verify_jwt = false

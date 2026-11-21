@@ -21,7 +21,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 
 const LOW_BALANCE_THRESHOLD = 100;
@@ -98,21 +97,9 @@ export function ClientBalanceSection() {
             <p className="font-semibold text-sm">Low Balance Warning</p>
             <p className="text-xs text-yellow-300/70">Your balance is below ${LOW_BALANCE_THRESHOLD}. Campaigns will auto-pause when balance reaches $0.</p>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 border border-yellow-500/30">
-                Top Up
-              </Button>
-            </DialogTrigger>
-            <TopUpDialogContent
-              topUpAmount={topUpAmount}
-              setTopUpAmount={setTopUpAmount}
-              topUpNotes={topUpNotes}
-              setTopUpNotes={setTopUpNotes}
-              onSubmit={handleTopUpRequest}
-              isLoading={requestTopUp.isPending}
-            />
-          </Dialog>
+          <Button size="sm" onClick={() => setDialogOpen(true)} className="bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 border border-yellow-500/30">
+            Top Up
+          </Button>
         </div>
       )}
 
@@ -179,22 +166,10 @@ export function ClientBalanceSection() {
               <ElevatedCardTitle className="text-lg font-display">Quick Actions</ElevatedCardTitle>
             </ElevatedCardHeader>
             <ElevatedCardContent>
-              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="w-full bg-gradient-primary hover:opacity-90 glow-primary-sm h-12 rounded-xl gap-2">
-                    <PlusCircle className="h-5 w-5" />
-                    Request Balance Top-Up
-                  </Button>
-                </DialogTrigger>
-                <TopUpDialogContent
-                  topUpAmount={topUpAmount}
-                  setTopUpAmount={setTopUpAmount}
-                  topUpNotes={topUpNotes}
-                  setTopUpNotes={setTopUpNotes}
-                  onSubmit={handleTopUpRequest}
-                  isLoading={requestTopUp.isPending}
-                />
-              </Dialog>
+              <Button onClick={() => setDialogOpen(true)} className="w-full bg-gradient-primary hover:opacity-90 glow-primary-sm h-12 rounded-xl gap-2">
+                <PlusCircle className="h-5 w-5" />
+                Request Balance Top-Up
+              </Button>
             </ElevatedCardContent>
           </ElevatedCard>
         </div>
@@ -245,6 +220,20 @@ export function ClientBalanceSection() {
           </ElevatedCardContent>
         </ElevatedCard>
       </div>
+
+      {/* H-28: a SINGLE Top-Up dialog instance shared by both triggers.
+          Two Dialogs sharing one `open` state mounted two overlapping
+          copies of the form. */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <TopUpDialogContent
+          topUpAmount={topUpAmount}
+          setTopUpAmount={setTopUpAmount}
+          topUpNotes={topUpNotes}
+          setTopUpNotes={setTopUpNotes}
+          onSubmit={handleTopUpRequest}
+          isLoading={requestTopUp.isPending}
+        />
+      </Dialog>
     </div>
   );
 }

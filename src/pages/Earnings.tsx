@@ -6,7 +6,7 @@ import { AppLayout } from "@/components/app/AppLayout";
 import { DollarSign, TrendingUp, Clock, Eye, AlertCircle, ChevronRight, CheckCircle, XCircle, Film, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useWallet, usePayouts, useRequestPayout } from "@/hooks/useWallet";
-import { useMySubmissions } from "@/hooks/useSubmissions";
+import { useMySubmissions, type Submission } from "@/hooks/useSubmissions";
 import { useMyFinalSubmissions, MAX_FINAL_ATTEMPTS } from "@/hooks/useFinalSubmissions";
 import { FinalSubmissionTimeline } from "@/components/campaigns/FinalSubmissionTimeline";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,6 +26,10 @@ interface CampaignEarnings {
   pending_count: number;
   total_views: number;
   total_earnings: number;
+  // Pending-clip estimates, kept SEPARATE from approved/paid money (H-10):
+  // total_views / total_earnings above count approved|paid only.
+  pending_views: number;
+  pending_earnings: number;
   min_payout_views: number;
   is_eligible: boolean;
 }
@@ -46,13 +50,16 @@ const Earnings = () => {
     if (!submissions && !finalSubmissions) return [];
     const grouped = new Map<string, CampaignEarnings>();
 
-    // Build from regular submissions
-    (submissions || []).forEach((sub: any) => {
+    // Build from regular submissions. Only approved|paid clips contribute
+    // to total_views/total_earnings; pending clips are estimates and are
+    // tracked separately (H-10) so "Total Earnings" never includes money
+    // that has not been approved.
+    (submissions || []).forEach((sub: Omit<Submission, "admin_notes">) => {
       const campaignId = sub.campaign_id;
       const campaignName = sub.campaign?.name || "Unknown Campaign";
       const campaignStatus = sub.campaign?.status || "active";
       if (!grouped.has(campaignId)) {
-        grouped.set(campaignId, { campaign_id: campaignId, campaign_name: campaignName, campaign_status: campaignStatus, approved_count: 0, rejected_count: 0, pending_count: 0, total_views: 0, total_earnings: 0, min_payout_views: 1000, is_eligible: false });
+        grouped.set(campaignId, { campaign_id: campaignId, campaign_name: campaignName, campaign_status: campaignStatus, approved_count: 0, rejected_count: 0, pending_count: 0, total_views: 0, total_earnings: 0, pending_views: 0, pending_earnings: 0, min_payout_views: Number(sub.campaign?.min_payout_views ?? 1000), is_eligible: false });
       }
       const entry = grouped.get(campaignId)!;
       if (sub.status === "approved" || sub.status === "paid") {
@@ -62,8 +69,8 @@ const Earnings = () => {
       } else if (sub.status === "rejected") { entry.rejected_count += 1; }
       else if (sub.status === "pending") {
         entry.pending_count += 1;
-        entry.total_views += Number(sub.views || 0);
-        entry.total_earnings += Number(sub.earnings || 0);
+        entry.pending_views += Number(sub.views || 0);
+        entry.pending_earnings += Number(sub.earnings || 0);
       }
     });
 
@@ -74,12 +81,14 @@ const Earnings = () => {
           campaign_id: fs.campaign_id,
           campaign_name: fs.campaign?.name || "Unknown Campaign",
           campaign_status: fs.campaign?.status || "completed",
-          approved_count: 1, // They must have had approved clips to reach final submission
+          approved_count: 0,
           rejected_count: 0,
           pending_count: 0,
           total_views: Number(fs.tracked_views || 0),
           total_earnings: Number(fs.final_earnings || 0),
-          min_payout_views: 1000,
+          pending_views: 0,
+          pending_earnings: 0,
+          min_payout_views: Number(fs.campaign?.min_payout_views ?? 1000),
           is_eligible: false,
         });
       }
@@ -92,7 +101,14 @@ const Earnings = () => {
         entry.total_views = Number(fs.verified_views);
         entry.total_earnings = Number(fs.final_earnings || 0);
       }
-      entry.is_eligible = entry.total_earnings >= 10 && entry.approved_count > 0;
+      // Enforce the campaign's real min_payout_views (fetched in the
+      // campaign join), not a hardcoded value (H-10). An approved final
+      // submission counts as eligible even when the clip-level approved
+      // count is unknown (final-only campaigns).
+      const hasApprovedFinal = !!fs && (fs.status === "approved" || fs.status === "paid");
+      entry.is_eligible = entry.total_earnings >= 10
+        && entry.total_views >= entry.min_payout_views
+        && (entry.approved_count > 0 || hasApprovedFinal);
     });
 
     return Array.from(grouped.values()).sort((a, b) => b.total_earnings - a.total_earnings);
@@ -104,7 +120,7 @@ const Earnings = () => {
   const availableBalance = useMemo(() => {
     if (!finalSubmissions || !payouts) return 0;
     return finalSubmissions
-      .filter(fs => fs.status === "approved" && !payouts.some(p => (p as any).campaign_id === fs.campaign_id && ["pending", "approved", "paid"].includes(p.status)))
+      .filter(fs => fs.status === "approved" && !payouts.some(p => p.campaign_id === fs.campaign_id && ["pending", "approved", "paid"].includes(p.status)))
       .reduce((sum, fs) => sum + Number(fs.final_earnings || 0), 0);
   }, [finalSubmissions, payouts]);
 
@@ -116,7 +132,7 @@ const Earnings = () => {
   };
 
   const hasPendingOrPaidPayoutForCampaign = (campaignId: string) => {
-    return payouts?.some(p => (p.status === "pending" || p.status === "approved" || p.status === "paid") && (p as any).campaign_id === campaignId);
+    return payouts?.some(p => (p.status === "pending" || p.status === "approved" || p.status === "paid") && p.campaign_id === campaignId);
   };
 
   const openPayoutForm = (campaignId: string, amount: number, name: string) => {
@@ -133,7 +149,7 @@ const Earnings = () => {
       await requestPayout.mutateAsync({ amount: payoutTarget.amount, campaign_id: payoutTarget.campaignId, payout_email: payoutEmail, discord_username: discordUsername });
       toast({ title: "Payout requested" });
       setPayoutTarget(null);
-    } catch (error: any) { toast({ title: "Error", description: error.message, variant: "destructive" }); }
+    } catch (error: unknown) { toast({ title: "Error", description: error instanceof Error ? error.message : "Payout request failed", variant: "destructive" }); }
   };
 
   const formatNumber = (num: number) => {
@@ -142,13 +158,13 @@ const Earnings = () => {
     return num.toString();
   };
 
-  const paidTotal = (payouts || []).filter(p => p.status === "paid").reduce((s, p) => s + Number(p.amount || 0), 0);
-  const processingTotal = Number(wallet?.locked_earnings || 0);
-  const pendingTotal = Math.max(0, totalEarnings - paidTotal - processingTotal);
+  // Pending estimates (unapproved clips) — shown on their own card, never
+  // mixed into Total Earnings (H-10).
+  const pendingEstimates = campaignEarnings.reduce((sum, c) => sum + c.pending_earnings, 0);
 
   const statCards = [
-    { icon: DollarSign, label: "Total Earnings", value: `$${paidTotal.toFixed(2)}`, bg: "bg-emerald-500/10", text: "text-emerald-400" },
-    { icon: Clock, label: "Pending", value: `$${pendingTotal.toFixed(2)}`, bg: "bg-blue-500/10", text: "text-blue-400" },
+    { icon: DollarSign, label: "Total Earnings", value: `$${totalEarnings.toFixed(2)}`, bg: "bg-emerald-500/10", text: "text-emerald-400" },
+    { icon: Clock, label: "Pending", value: `$${pendingEstimates.toFixed(2)}`, bg: "bg-blue-500/10", text: "text-blue-400" },
     { icon: Clock, label: "Available", value: `$${availableBalance.toFixed(2)}`, bg: "bg-yellow-500/10", text: "text-yellow-400" },
     { icon: Clock, label: "Processing", value: `$${(wallet?.locked_earnings || 0).toFixed(2)}`, bg: "bg-orange-500/10", text: "text-orange-400" },
   ];
@@ -231,7 +247,7 @@ const Earnings = () => {
                       let payoutTooltip = "";
 
                       if (hasPending) {
-                        const existingPayout = payouts?.find(p => (p as any).campaign_id === campaign.campaign_id);
+                        const existingPayout = payouts?.find(p => p.campaign_id === campaign.campaign_id);
                         const isPaid = existingPayout?.status === "paid";
                         const isPending = existingPayout?.status === "pending" || existingPayout?.status === "approved";
                         payoutButtonLabel = isPaid ? "Paid" : isPending ? "Payout Pending" : "Payout Exists";
@@ -259,7 +275,10 @@ const Earnings = () => {
                       const handlePayoutClick = () => {
                         if (hasPending || isFinalPaid) return;
                         if (canRequestPayout) {
-                          openPayoutForm(campaign.campaign_id, Number(fs?.final_earnings || campaign.total_earnings), campaign.campaign_name);
+                          // H-10: the payout amount is final_earnings —
+                          // the server charges final_earnings for campaign
+                          // payouts, so never send the submission sum.
+                          openPayoutForm(campaign.campaign_id, Number(fs?.final_earnings || 0), campaign.campaign_name);
                           return;
                         }
                         if (isFinalRejected) {

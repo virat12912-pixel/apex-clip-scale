@@ -48,6 +48,17 @@ import {
   Wallet,
 } from "lucide-react";
 
+// Best-effort message for a caught failure: Error message first, then a
+// Supabase-style `.error` payload, then a JSON dump — same precedence as
+// the inline expressions this replaces.
+function errorDescription(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error !== null && "error" in error) {
+    return String((error as { error: unknown }).error);
+  }
+  return JSON.stringify(error) || "Unknown error";
+}
+
 const AdminUserDetail = () => {
   const { campaignId, userId } = useParams<{
     campaignId: string;
@@ -70,8 +81,8 @@ const AdminUserDetail = () => {
   const changeRole = useChangeUserRole();
 
   const userPayouts =
-    allPayouts?.filter((p: any) => p.user_id === userId) || [];
-  const pendingPayouts = userPayouts.filter((p: any) => p.status === "pending");
+    allPayouts?.filter((p) => p.user_id === userId) || [];
+  const pendingPayouts = userPayouts.filter((p) => p.status === "pending");
 
   const formatNumber = (num: number) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
@@ -100,8 +111,8 @@ const AdminUserDetail = () => {
     try {
       await changeRole.mutateAsync({ userId, newRole: pendingRole });
       toast({ title: "Role updated", description: `User role changed to ${pendingRole.replace(/_/g, " ")}` });
-    } catch (error: any) {
-      toast({ title: "Error", description: error?.message || "Failed to change role", variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to change role", variant: "destructive" });
     } finally {
       setPendingRole(null);
       setRoleDialogOpen(false);
@@ -117,13 +128,9 @@ const AdminUserDetail = () => {
         action: "ban_user",
       });
       toast({ title: "User banned" });
-    } catch (error: any) {
+    } catch (error) {
       console.error("handleBan error:", error);
-      const desc =
-        error?.message ||
-        error?.error ||
-        JSON.stringify(error) ||
-        "Unknown error";
+      const desc = errorDescription(error);
       toast({
         title: "Error",
         description: String(desc),
@@ -141,13 +148,9 @@ const AdminUserDetail = () => {
         action: "unban_user",
       });
       toast({ title: "User unbanned" });
-    } catch (error: any) {
+    } catch (error) {
       console.error("handleUnban error:", error);
-      const desc =
-        error?.message ||
-        error?.error ||
-        JSON.stringify(error) ||
-        "Unknown error";
+      const desc = errorDescription(error);
       toast({
         title: "Error",
         description: String(desc),
@@ -165,13 +168,9 @@ const AdminUserDetail = () => {
         action: "verify_payment",
       });
       toast({ title: "Payment method verified" });
-    } catch (error: any) {
+    } catch (error) {
       console.error("handleVerifyPayment error:", error);
-      const desc =
-        error?.message ||
-        error?.error ||
-        JSON.stringify(error) ||
-        "Unknown error";
+      const desc = errorDescription(error);
       toast({
         title: "Error",
         description: String(desc),
@@ -201,10 +200,10 @@ const AdminUserDetail = () => {
       queryClient.invalidateQueries({ queryKey: ["payouts"] });
       queryClient.invalidateQueries({ queryKey: ["wallet"] });
       toast({ title: `Payout ${action === "paid" ? "paid" : action + "d"}` });
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Failed to process payout",
         variant: "destructive",
       });
     }
@@ -391,7 +390,7 @@ const AdminUserDetail = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {submissions?.map((sub: any) => (
+              {submissions?.map((sub) => (
                 <div
                   key={sub.id}
                   className="p-4 rounded-xl bg-card border border-border"
@@ -530,7 +529,7 @@ const AdminUserDetail = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              {userPayouts.map((payout: any) => (
+              {userPayouts.map((payout) => (
                 <div
                   key={payout.id}
                   className="p-5 rounded-xl bg-card border border-border"

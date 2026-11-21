@@ -8,6 +8,23 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { mapErrorToUserMessage, logError } from "@/lib/errorMapping";
 
+// Row returned by useAllPayouts, whose embedded profile also carries the
+// optional Solana wallet address the payout cards read below.
+// NOTE: the useAllPayouts query only selects full_name/email for the
+// profile, so solana_wallet_address is always undefined at runtime and the
+// card shows "No Solana wallet address on file". Widening that select is a
+// separate data fix, not a lint fix.
+type AdminPayoutRow = NonNullable<
+  ReturnType<typeof useAllPayouts>["data"]
+>[number];
+type AdminPayout = Omit<AdminPayoutRow, "user_profile"> & {
+  user_profile:
+    | (NonNullable<AdminPayoutRow["user_profile"]> & {
+        solana_wallet_address?: string | null;
+      })
+    | null;
+};
+
 const AdminPayouts = () => {
   const { data: payouts, isLoading } = useAllPayouts();
   const queryClient = useQueryClient();
@@ -53,7 +70,7 @@ const AdminPayouts = () => {
           </div>
         ) : (
           <div className="space-y-4 stagger-enter">
-            {payouts?.map((payout: any) => (
+            {payouts?.map((payout: AdminPayout) => (
               <div key={payout.id} className="p-4 sm:p-5 rounded-2xl bg-card/50 border border-border/30 hover:border-primary/15 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-300">
                 {/* Top: Name + Amount */}
                 <div className="flex items-start justify-between gap-3 mb-3">

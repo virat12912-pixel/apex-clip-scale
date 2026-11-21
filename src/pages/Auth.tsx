@@ -67,8 +67,8 @@ const Auth = () => {
       });
       if (error) throw error;
       toast({ title: "Check your email", description: "We've sent you a password reset link." });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error", description: error instanceof Error ? error.message : "Something went wrong", variant: "destructive" });
     }
   };
 
@@ -246,13 +246,13 @@ const Auth = () => {
               setIsLoading(true);
               try {
                 const { error } = await lovable.auth.signInWithOAuth("google", {
-                  redirect_uri: window.location.origin,
+                  redirect_uri: `${window.location.origin}/dashboard`,
                 });
                 if (error) {
                   toast({ title: "Error", description: error.message, variant: "destructive" });
                 }
-              } catch (err: any) {
-                toast({ title: "Error", description: err.message, variant: "destructive" });
+              } catch (err: unknown) {
+                toast({ title: "Error", description: err instanceof Error ? err.message : "Something went wrong", variant: "destructive" });
               } finally {
                 setIsLoading(false);
               }

@@ -31,6 +31,7 @@ import { CampaignHealthBadge } from "@/components/dashboard/CampaignHealthBadge"
 import { downloadCSV, generatePlatformAnalyticsCSV } from "@/lib/exportUtils";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { ErrorState } from "@/components/ui/ErrorState";
 
 const useAllPayouts = () => {
   return useQuery({
@@ -75,15 +76,16 @@ const AdminDashboard = () => {
   const { toast } = useToast();
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  const { data: stats, isLoading: statsLoading } = useAdminStats();
-  const { data: submissions, isLoading: submissionsLoading } = useAllSubmissions();
-  const { data: brandApps, isLoading: brandsLoading } = useAllBrandApplications();
-  const { data: payouts, isLoading: payoutsLoading } = useAllPayouts();
-  const { data: wallets, isLoading: walletsLoading } = useAllWallets();
-  const { data: campaigns, isLoading: campaignsLoading } = useAllCampaigns();
+  const { data: stats, isLoading: statsLoading, isError: statsError, refetch: refetchStats } = useAdminStats();
+  const { data: submissions, isLoading: submissionsLoading, isError: submissionsError, refetch: refetchSubmissions } = useAllSubmissions();
+  const { data: brandApps, isLoading: brandsLoading, isError: brandsError, refetch: refetchBrands } = useAllBrandApplications();
+  const { data: payouts, isLoading: payoutsLoading, isError: payoutsError, refetch: refetchPayouts } = useAllPayouts();
+  const { data: wallets, isLoading: walletsLoading, isError: walletsError, refetch: refetchWallets } = useAllWallets();
+  const { data: campaigns, isLoading: campaignsLoading, isError: campaignsError, refetch: refetchCampaigns } = useAllCampaigns();
   const { data: analyticsData } = usePlatformAnalytics(30);
 
   const isLoading = statsLoading || submissionsLoading || brandsLoading || payoutsLoading || walletsLoading;
+  const hasLoadError = statsError || submissionsError || brandsError || payoutsError || walletsError || campaignsError;
 
   const pendingPayouts = payouts?.filter(p => p.status === "pending") || [];
   const totalPendingPayoutAmount = pendingPayouts.reduce((sum, p) => sum + Number(p.amount), 0);
@@ -97,9 +99,9 @@ const AdminDashboard = () => {
 
   const pendingBrandApps = brandApps?.filter(a => a.status === "pending") || [];
 
-  const healthyCampaigns = campaigns?.filter(c => (c as any).health_status === "healthy" && c.status === "active").length || 0;
-  const needsAttentionCampaigns = campaigns?.filter(c => (c as any).health_status === "needs_attention" && c.status === "active").length || 0;
-  const underperformingCampaigns = campaigns?.filter(c => (c as any).health_status === "underperforming" && c.status === "active").length || 0;
+  const healthyCampaigns = campaigns?.filter(c => c.health_status === "healthy" && c.status === "active").length || 0;
+  const needsAttentionCampaigns = campaigns?.filter(c => c.health_status === "needs_attention" && c.status === "active").length || 0;
+  const underperformingCampaigns = campaigns?.filter(c => c.health_status === "underperforming" && c.status === "active").length || 0;
 
   const handleRefreshViews = async () => {
     setIsRefreshing(true);
@@ -139,6 +141,23 @@ const AdminDashboard = () => {
   return (
     <AppLayout title="Platform Admin">
       <div className="page-enter">
+        {/* H-29: a failed fetch renders an error state with retry — never
+            the empty state ("All caught up!") as if there were no data. */}
+        {hasLoadError ? (
+          <ErrorState
+            title="Couldn't load the admin dashboard"
+            message="Platform stats, submissions, payouts or campaigns couldn't be loaded. Check your connection and try again."
+            onRetry={() => {
+              void refetchStats();
+              void refetchSubmissions();
+              void refetchBrands();
+              void refetchPayouts();
+              void refetchWallets();
+              void refetchCampaigns();
+            }}
+          />
+        ) : (
+        <>
         {/* Header Actions */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
           <div>
@@ -186,7 +205,6 @@ const AdminDashboard = () => {
                 icon={Eye}
                 label="Total Views Generated"
                 value={formatNumber(totalViews)}
-                trend={{ value: "12.3%", positive: true }}
                 variant="primary"
               />
               <ExecutiveKPICard 
@@ -327,6 +345,8 @@ const AdminDashboard = () => {
             </div>
           </div>
         </div>
+        </>
+        )}
       </div>
     </AppLayout>
   );

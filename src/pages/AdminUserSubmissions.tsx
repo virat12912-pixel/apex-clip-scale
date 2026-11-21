@@ -3,7 +3,6 @@ import { useParams, Link } from "react-router-dom";
 import { AppLayout } from "@/components/app/AppLayout";
 import { useUserProfile, useUserSubmissions } from "@/hooks/useAdminUsers";
 import { useCampaign } from "@/hooks/useCampaigns";
-import { useUpdateSubmission } from "@/hooks/useSubmissions";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -27,7 +26,6 @@ const AdminUserSubmissions = () => {
   const { data: user, isLoading: userLoading } = useUserProfile(userId || "");
   const { data: submissions, isLoading: submissionsLoading, refetch } = useUserSubmissions(userId || "", campaignId);
   const { data: campaign } = useCampaign(campaignId || "");
-  const updateSubmission = useUpdateSubmission();
   
   const [processing, setProcessing] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState<string | null>(null);
@@ -38,33 +36,32 @@ const AdminUserSubmissions = () => {
     return num.toString();
   };
 
-  const handleRefreshViews = async (id: string, clipUrl: string, platform: string) => {
-    if (platform !== "tiktok" && platform !== "instagram") {
-      toast({ title: "Not supported", description: "Auto-fetch is only available for TikTok and Instagram", variant: "destructive" });
-      return;
-    }
+  // H-11: refresh through the refresh-views Edge Function
+  // (accounting_clip "refresh"), which re-fetches metrics, recomputes
+  // earnings (capped for approved clips), and never leaves a pending row
+  // half-processed (views set, earnings untouched). Works for TikTok,
+  // Instagram AND YouTube — the old "only TikTok and Instagram" rejection
+  // is gone. Errors are surfaced, not swallowed.
+  const handleRefreshViews = async (id: string) => {
     setRefreshing(id);
-    const functionName = platform === "instagram" ? "fetch-instagram-views" : "fetch-tiktok-views";
     try {
-      const { data, error } = await supabase.functions.invoke(functionName, { body: { video_url: clipUrl } });
-      if (error) throw error;
-      if (data?.success === false) {
-        toast({ title: "Could not fetch views", description: data?.error || "API unavailable", variant: "destructive" });
-        return;
-      }
-      const playCount = Number(data?.play_count ?? 0);
-      const likeCount = Number(data?.like_count ?? 0);
-      const commentCount = Number(data?.comment_count ?? 0);
-      if (playCount > 0) {
-        await updateSubmission.mutateAsync({ id, views: playCount, likes: likeCount, comments: commentCount });
-        toast({ title: "Stats updated", description: `${playCount.toLocaleString()} views, ${likeCount.toLocaleString()} likes` });
-        refetch();
-      } else {
-        toast({ title: "Could not fetch views", description: "No view data returned", variant: "destructive" });
-      }
+      const { data, error } = await supabase.functions.invoke("refresh-views", {
+        body: { submission_id: id },
+      });
+      if (error) throw new Error((data as { error?: string } | null)?.error || error.message);
+      if ((data as { error?: string } | null)?.error) throw new Error((data as { error: string }).error);
+      const views = Number((data as { verified_views?: number } | null)?.verified_views ?? 0);
+      const earnings = Number((data as { earnings?: number } | null)?.earnings ?? 0);
+      toast({
+        title: "Stats updated",
+        description: views > 0
+          ? `${views.toLocaleString()} views${earnings > 0 ? `, $${earnings.toFixed(2)} earnings` : ""}`
+          : "Views refreshed",
+      });
+      refetch();
     } catch (error: unknown) {
       logError("AdminUserSubmissions:handleRefreshViews", error);
-      toast({ title: "API unavailable", description: "Could not refresh views", variant: "destructive" });
+      toast({ title: "Could not refresh views", description: mapErrorToUserMessage(error), variant: "destructive" });
     } finally {
       setRefreshing(null);
     }
@@ -206,7 +203,18 @@ const AdminUserSubmissions = () => {
           </div>
         ) : (
           <div className="space-y-4 stagger-enter">
-            {submissions?.map((sub: any) => {
+            {submissions?.map((sub: {
+              id: string;
+              clip_url: string;
+              platform: string;
+              views: number | null;
+              likes: number | null;
+              comments: number | null;
+              earnings: number | null;
+              submitted_views: number | null;
+              status: string;
+              created_at: string;
+            }) => {
               const currentViews = Number(sub.views) || Number(sub.submitted_views) || 0;
               
               return (
@@ -311,12 +319,12 @@ const AdminUserSubmissions = () => {
                       </Button>
                     )}
                     
-                    {(sub.platform === "tiktok" || sub.platform === "instagram") && sub.status !== "rejected" && (
+                    {(sub.platform === "tiktok" || sub.platform === "instagram" || sub.platform === "youtube") && sub.status !== "rejected" && (
                       <Button
                         size="sm"
                         variant="outline"
                         className="rounded-xl border-border/30 text-xs sm:text-sm"
-                        onClick={() => handleRefreshViews(sub.id, sub.clip_url, sub.platform)}
+                        onClick={() => handleRefreshViews(sub.id)}
                         disabled={refreshing === sub.id}
                       >
                         <RefreshCw className={`h-3.5 w-3.5 mr-1 ${refreshing === sub.id ? "animate-spin" : ""}`} />

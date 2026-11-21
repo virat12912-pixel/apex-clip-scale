@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { AppLayout } from "@/components/app/AppLayout";
 import { CampaignLeaderboard } from "@/components/campaigns/CampaignLeaderboard";
@@ -77,6 +77,22 @@ const CampaignDetail = () => {
   const [urlErrors, setUrlErrors] = useState<(string | null)[]>([null]);
   const [selectedPlatform, setSelectedPlatform] = useState<PlatformType>("tiktok");
   const [agreeToTerms, setAgreeToTerms] = useState(false);
+
+  // H-24: default the platform to the campaign's first platform once it
+  // loads — hardcoding TikTok validated YouTube-only campaigns against
+  // TikTok rules. Only set on first load per campaign so a user's own
+  // platform choice isn't reset by refetches.
+  const platformInitForRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (campaign && platformInitForRef.current !== campaign.id) {
+      platformInitForRef.current = campaign.id;
+      if (campaign.platforms?.length) {
+        setSelectedPlatform(campaign.platforms[0]);
+      }
+    }
+  }, [campaign]);
+
+  const hasPlatforms = (campaign?.platforms?.length ?? 0) > 0;
 
   const isVerificationRequired = selectedPlatform === "tiktok" || selectedPlatform === "instagram";
   const hasVerifiedSocialAccount = !isVerificationRequired
@@ -177,10 +193,10 @@ const CampaignDetail = () => {
       setClipUrls([""]);
       setAgreeToTerms(false);
       refetch();
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Submission failed",
-        description: error.message,
+        description: error instanceof Error ? error.message : "Something went wrong",
         variant: "destructive",
       });
     }
@@ -191,8 +207,8 @@ const CampaignDetail = () => {
       await updateCampaign.mutateAsync({ id: id!, status });
       toast({ title: `Campaign ${status}` });
       refetch();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error", description: error instanceof Error ? error.message : "Something went wrong", variant: "destructive" });
     }
   };
 
@@ -201,8 +217,8 @@ const CampaignDetail = () => {
       await deleteCampaign.mutateAsync(id!);
       toast({ title: "Campaign deleted" });
       navigate("/campaigns");
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error: unknown) {
+      toast({ title: "Error", description: error instanceof Error ? error.message : "Something went wrong", variant: "destructive" });
     }
   };
 
@@ -455,6 +471,37 @@ const CampaignDetail = () => {
             )}
           </div>
 
+          {/* H-25: paused / budget-exhausted notices live ABOVE the tabs.
+              They used to sit inside the submit tab, which isn't rendered
+              for paused campaigns — so the notice could never be seen. */}
+          {isCreatorOrClipper && campaign.status === "paused" && (
+            <div className="p-6 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+              <div className="flex items-center gap-3">
+                <Pause className="h-6 w-6 text-yellow-500" />
+                <div>
+                  <h3 className="font-semibold text-yellow-500">Campaign Paused</h3>
+                  <p className="text-sm text-muted-foreground">
+                    This campaign is currently paused and not accepting new submissions.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isCreatorOrClipper && isBudgetExhausted && campaign.status !== "completed" && (
+            <div className="p-6 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-6 w-6 text-yellow-500" />
+                <div>
+                  <h3 className="font-semibold text-yellow-500">Budget Exhausted</h3>
+                  <p className="text-sm text-muted-foreground">
+                    This campaign has reached its budget limit and is no longer accepting submissions.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Tabs for Submit / Leaderboard / Analytics */}
           <Tabs defaultValue={isActive ? "submit" : "leaderboard"} className="w-full">
             <TabsList className={`w-full grid ${isActive && !canManage ? 'grid-cols-2' : isActive && canManage ? 'grid-cols-3' : canManage ? 'grid-cols-2' : 'grid-cols-1'} mb-4`}>
@@ -477,8 +524,24 @@ const CampaignDetail = () => {
             </TabsList>
 
             <TabsContent value="submit" className="space-y-6">
+              {/* H-24: a campaign with no platforms configured can't accept
+                  clips — explain instead of validating against TikTok. */}
+              {isCreatorOrClipper && isActive && !isBudgetExhausted && !hasPlatforms && (
+                <div className="p-6 rounded-xl bg-secondary/30 border border-border/30">
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className="h-6 w-6 text-muted-foreground" />
+                    <div>
+                      <h3 className="font-semibold">Submissions unavailable</h3>
+                      <p className="text-sm text-muted-foreground">
+                        This campaign has no platforms configured, so clips can't be submitted yet. Please check back later or contact the campaign owner.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Submit clips (for creators) */}
-              {isCreatorOrClipper && isActive && !isBudgetExhausted && (
+              {isCreatorOrClipper && isActive && !isBudgetExhausted && hasPlatforms && (
             <div className="p-6 rounded-2xl bg-card/50 border border-border/30">
                   <h3 className="text-lg font-display font-bold mb-4">Submit Your Clips</h3>
 
@@ -579,37 +642,6 @@ const CampaignDetail = () => {
                   </div>
                 </div>
               )}
-
-              {/* Budget Exhausted Notice */}
-              {isCreatorOrClipper && isBudgetExhausted && (
-                <div className="p-6 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
-                  <div className="flex items-center gap-3">
-                    <AlertCircle className="h-6 w-6 text-yellow-500" />
-                    <div>
-                      <h3 className="font-semibold text-yellow-500">Budget Exhausted</h3>
-                      <p className="text-sm text-muted-foreground">
-                        This campaign has reached its budget limit and is no longer accepting submissions.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Campaign Paused Notice */}
-              {isCreatorOrClipper && campaign.status === "paused" && (
-                <div className="p-6 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
-                  <div className="flex items-center gap-3">
-                    <Pause className="h-6 w-6 text-yellow-500" />
-                    <div>
-                      <h3 className="font-semibold text-yellow-500">Campaign Paused</h3>
-                      <p className="text-sm text-muted-foreground">
-                        This campaign is currently paused and not accepting new submissions.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
 
               {/* Submissions list (for brand/admin) */}
               {(role === "brand" || role === "admin") && submissions && submissions.length > 0 && (

@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { authenticateRequest, jsonResponse, signMetricsAssertion } from "../_shared/security.ts";
+import { authenticateRequest, jsonResponse, signMetricsAssertion, type AuthContext } from "../_shared/security.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,6 +8,8 @@ const corsHeaders = {
 
 interface YouTubeRequest {
   video_url: string;
+  /** Optional: bind the minted assertion to this submission (audit H-04). */
+  submission_id?: string;
 }
 
 // Extract video ID from various YouTube URL formats
@@ -86,6 +88,35 @@ async function fetchViaScrapeCreators(videoUrl: string, videoId: string): Promis
   }
 }
 
+// Fetch YouTube video stats via the free YouTube Data API (quota-based,
+// not billed per call). Returns the channel ids needed for the ownership
+// check, so this is the cheapest way to resolve the author.
+async function fetchViaYouTubeApi(videoId: string): Promise<{ views: number; likes: number; comments: number; author: string | null; ownerIds: string[]; description: string | null } | null> {
+  try {
+    const apiKey = Deno.env.get("YOUTUBE_API_KEY");
+    if (!apiKey) return null;
+    const apiUrl = `https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id=${videoId}&key=${apiKey}`;
+    const response = await fetch(apiUrl, { method: "GET" });
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (!data.items || data.items.length === 0) return null;
+    const video = data.items[0];
+    const stats = video.statistics || {};
+    const snippet = video.snippet || {};
+    return {
+      views: parseInt(stats.viewCount || "0", 10),
+      likes: parseInt(stats.likeCount || "0", 10),
+      comments: parseInt(stats.commentCount || "0", 10),
+      author: snippet.channelTitle || null,
+      ownerIds: [snippet.channelId, snippet.customUrl].filter((v): v is string => typeof v === "string"),
+      description: snippet.title || null,
+    };
+  } catch (error) {
+    console.error("YouTube Data API error:", error);
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -94,7 +125,9 @@ serve(async (req) => {
   try {
     const auth = await authenticateRequest(req);
     if (!auth) return jsonResponse({ success: false, error: "Unauthorized" }, 401, corsHeaders);
-    const { video_url } = (await req.json()) as YouTubeRequest;
+    // M-27: banned callers cannot fetch metrics.
+    if (auth.banned) return jsonResponse({ success: false, error: "This account is banned" }, 403, corsHeaders);
+    const { video_url, submission_id } = (await req.json()) as YouTubeRequest;
 
     if (!video_url) {
       return new Response(JSON.stringify({ error: "video_url is required" }), {
@@ -123,36 +156,20 @@ serve(async (req) => {
 
     console.log("Fetching YouTube data for video ID:", videoId);
 
-    // Method 1: Try Scrape Creators API (primary)
-    let result = await fetchViaScrapeCreators(video_url, videoId);
+    // M-25: the YouTube Data API is the cheapest way to resolve the
+    // author (free quota, and it returns stats too), so it runs FIRST and
+    // the ownership check happens on its channel ids BEFORE any paid call.
+    // A YouTube watch URL carries no channel id, so no free pre-check is
+    // possible without this call. Only if it is unavailable or returns
+    // nothing do we fall back to the paid Scrape Creators API — and then
+    // ownership is checked on that result before anything is returned
+    // (documented fallback: the paid call is the only way to learn the
+    // author when the free API is down).
+    let result = await fetchViaYouTubeApi(videoId);
 
-    // Method 2: If Scrape Creators failed, try YouTube API as fallback
+    // Method 2: If the free API failed, try Scrape Creators API (paid)
     if (!result || result.views <= 0) {
-      const YOUTUBE_API_KEY = Deno.env.get("YOUTUBE_API_KEY");
-
-      if (YOUTUBE_API_KEY) {
-        const apiUrl = `https://www.googleapis.com/youtube/v3/videos?part=statistics,snippet&id=${videoId}&key=${YOUTUBE_API_KEY}`;
-        const response = await fetch(apiUrl, { method: "GET" });
-
-        if (response.ok) {
-          const data = await response.json();
-
-          if (data.items && data.items.length > 0) {
-            const video = data.items[0];
-            const stats = video.statistics || {};
-            const snippet = video.snippet || {};
-
-            result = {
-              views: parseInt(stats.viewCount || "0", 10),
-              likes: parseInt(stats.likeCount || "0", 10),
-              comments: parseInt(stats.commentCount || "0", 10),
-              author: snippet.channelTitle || null,
-              ownerIds: [snippet.channelId, snippet.customUrl].filter((v): v is string => typeof v === "string"),
-              description: snippet.title || null,
-            };
-          }
-        }
-      }
+      result = await fetchViaScrapeCreators(video_url, videoId);
     }
 
     if (result && result.views > 0) {
@@ -165,6 +182,9 @@ serve(async (req) => {
         views: result.views,
         likes: result.likes,
         comments: result.comments,
+        // H-04: bind the assertion to the submission when the caller knows
+        // it (insert-first flow); omitted for the legacy fetch-first flow.
+        ...(typeof submission_id === "string" && submission_id ? { submissionId: submission_id } : {}),
       });
       const response = {
         success: true,
@@ -193,15 +213,14 @@ serve(async (req) => {
     );
   } catch (error: unknown) {
     console.error("Error in fetch-youtube-views:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: message }), {
+    return new Response(JSON.stringify({ error: "Could not fetch video data" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
 
-async function isAdminOrOwnVerifiedChannel(serviceClient: any, userId: string, ownerIds: string[]): Promise<boolean> {
+async function isAdminOrOwnVerifiedChannel(serviceClient: AuthContext["serviceClient"], userId: string, ownerIds: string[]): Promise<boolean> {
   const { data: isAdmin } = await serviceClient.rpc("has_role", { _user_id: userId, _role: "admin" });
   if (isAdmin === true) return true;
   if (!ownerIds.length) return false;

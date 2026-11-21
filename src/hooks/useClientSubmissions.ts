@@ -39,7 +39,7 @@ export function useClientCampaignParticipants(campaignId: string) {
 
       const participantMap = new Map<string, ClientCampaignParticipant>();
 
-      submissions?.forEach((sub: any) => {
+      submissions?.forEach((sub) => {
         const profile = sub.creator_profile;
         const existing = participantMap.get(sub.creator_id);
         const isApproved = sub.status === "approved" || sub.status === "paid";

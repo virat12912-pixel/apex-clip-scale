@@ -15,6 +15,7 @@ import { useCampaigns, CampaignStatus } from "@/hooks/useCampaigns";
 import { useAuth } from "@/hooks/useAuth";
 import { CampaignFiltersModal, FilterValues } from "@/components/campaigns/CampaignFiltersModal";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ErrorState } from "@/components/ui/ErrorState";
 
 const categories = [
   { id: "all", label: "All", icon: Sparkles },
@@ -48,7 +49,7 @@ const Campaigns = () => {
 
   const effectiveStatus = isAdmin ? statusFilter : statusFilter;
 
-  const { data: campaigns, isLoading } = useCampaigns({
+  const { data: campaigns, isLoading, isError, refetch } = useCampaigns({
     status: effectiveStatus,
     niche: selectedCategory === "all" ? undefined : selectedCategory,
     search: searchQuery || undefined,
@@ -155,6 +156,12 @@ const Campaigns = () => {
             <Skeleton key={i} className="h-[360px] rounded-2xl" />
           ))}
         </div>
+      ) : isError ? (
+        <ErrorState
+          title="Couldn't load campaigns"
+          message="The campaign list couldn't be loaded. Check your connection and try again."
+          onRetry={() => void refetch()}
+        />
       ) : filteredCampaigns?.length === 0 ? (
         <EmptyState
           icon={AlertCircle}

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { mapErrorToUserMessage, logError } from "@/lib/errorMapping";
+import { sumApprovedSpend } from "@/hooks/useCampaigns";
 
 export function useCreatorStats() {
   const { user } = useAuth();
@@ -34,9 +35,13 @@ export function useCreatorStats() {
         throw new Error(mapErrorToUserMessage(walletError));
       }
 
-      const totalViews = submissions?.reduce((sum, s) => sum + (s.views || 0), 0) || 0;
-      const totalEarnings = submissions?.reduce((sum, s) => sum + Number(s.earnings || 0), 0) || 0;
-      const approvedClips = submissions?.filter(s => s.status === "approved" || s.status === "paid").length || 0;
+      // M-02: views and earnings count approved|paid submissions only —
+      // pending estimates and rejected clips are excluded, matching the
+      // leaderboard, campaign analytics and creator chart.
+      const approved = submissions?.filter(s => s.status === "approved" || s.status === "paid") || [];
+      const totalViews = approved.reduce((sum, s) => sum + (s.views || 0), 0);
+      const totalEarnings = approved.reduce((sum, s) => sum + Number(s.earnings || 0), 0);
+      const approvedClips = approved.length;
       const pendingClips = submissions?.filter(s => s.status === "pending").length || 0;
 
       return {
@@ -64,7 +69,7 @@ export function useBrandStats() {
       // Get campaigns
       const { data: campaigns, error: campaignsError } = await supabase
         .from("campaigns")
-        .select("id, total_budget, spent_budget, status")
+        .select("id, total_budget, status")
         .eq("created_by", user.id);
 
       if (campaignsError) {
@@ -75,11 +80,11 @@ export function useBrandStats() {
       const campaignIds = campaigns?.map(c => c.id) || [];
 
       // Get submissions for these campaigns (skip if no campaigns)
-      let submissions: { views: number; status: string }[] = [];
+      let submissions: { views: number; earnings: number | null; status: string }[] = [];
       if (campaignIds.length > 0) {
         const { data: submissionsData, error: submissionsError } = await supabase
           .from("submissions")
-          .select("views, status")
+          .select("views, earnings, status")
           .in("campaign_id", campaignIds);
 
         if (submissionsError) {
@@ -91,8 +96,12 @@ export function useBrandStats() {
 
       const activeCampaigns = campaigns?.filter(c => c.status === "active").length || 0;
       const totalBudget = campaigns?.reduce((sum, c) => sum + Number(c.total_budget || 0), 0) || 0;
-      const spentBudget = campaigns?.reduce((sum, c) => sum + Number(c.spent_budget || 0), 0) || 0;
-      const totalViews = submissions?.reduce((sum, s) => sum + (s.views || 0), 0) || 0;
+      // M-01: spent is the approved-only recompute (same helper as the
+      // campaign cards), not the raw spent_budget column — the two can
+      // diverge, and the UI must not show two different "spent" figures.
+      const spentBudget = sumApprovedSpend(submissions);
+      // M-02: brand total views count approved|paid submissions only.
+      const totalViews = submissions?.filter(s => s.status === "approved" || s.status === "paid").reduce((sum, s) => sum + (s.views || 0), 0) || 0;
       const totalSubmissions = submissions?.length || 0;
 
       return {
@@ -123,7 +132,7 @@ export function useAdminStats() {
       // Get all campaigns
       const { data: campaigns, error: campaignsError } = await supabase
         .from("campaigns")
-        .select("total_budget, spent_budget, status");
+        .select("total_budget, status");
 
       if (campaignsError) {
         logError("useAdminStats:campaigns", campaignsError);
@@ -152,8 +161,13 @@ export function useAdminStats() {
       }
 
       const activeCampaigns = campaigns?.filter(c => c.status === "active").length || 0;
-      const totalPlatformSpend = campaigns?.reduce((sum, c) => sum + Number(c.spent_budget || 0), 0) || 0;
-      const totalViews = submissions?.reduce((sum, s) => sum + (s.views || 0), 0) || 0;
+      // M-01: platform spend is the approved-only recompute, not the raw
+      // spent_budget column (see useBrandStats).
+      const totalPlatformSpend = sumApprovedSpend(submissions);
+      // M-02: admin total views/earnings count approved|paid submissions
+      // only — pending estimates and rejected clips are excluded.
+      const approvedSubmissions = submissions?.filter(s => s.status === "approved" || s.status === "paid") || [];
+      const totalViews = approvedSubmissions.reduce((sum, s) => sum + (s.views || 0), 0);
       const pendingPayouts = payouts?.reduce((sum, p) => sum + Number(p.amount || 0), 0) || 0;
       const pendingSubmissions = submissions?.filter(s => s.status === "pending").length || 0;
 

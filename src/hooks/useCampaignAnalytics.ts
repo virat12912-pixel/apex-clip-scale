@@ -38,13 +38,18 @@ export function useCampaignAnalytics(campaignId?: string, days: number = 30) {
         dailyData.set(date, { date, views: 0, earnings: 0, submissions: 0 });
       }
 
-      // Aggregate submissions
+      // Aggregate submissions. M-02: views and earnings count
+      // approved|paid submissions only (pending estimates and rejected
+      // clips excluded), matching the creator's own chart and the
+      // leaderboard; the submissions count itself covers every clip.
       for (const sub of submissions || []) {
         const date = format(new Date(sub.created_at), "yyyy-MM-dd");
         const existing = dailyData.get(date);
         if (existing) {
-          existing.views += sub.views || 0;
-          existing.earnings += Number(sub.earnings) || 0;
+          if (sub.status === "approved" || sub.status === "paid") {
+            existing.views += sub.views || 0;
+            existing.earnings += Number(sub.earnings) || 0;
+          }
           existing.submissions += 1;
         }
       }
@@ -82,7 +87,8 @@ export function useCreatorAnalytics(days: number = 30) {
         dailyData.set(date, { date, views: 0, earnings: 0, submissions: 0 });
       }
 
-      // Aggregate submissions
+      // Aggregate submissions (M-02: views/earnings count approved|paid
+      // only — this was already the rule here; kept as the reference).
       for (const sub of submissions || []) {
         const date = format(new Date(sub.created_at), "yyyy-MM-dd");
         const existing = dailyData.get(date);

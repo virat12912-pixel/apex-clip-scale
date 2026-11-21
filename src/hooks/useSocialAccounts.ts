@@ -156,18 +156,17 @@ export function useVerifySocialAccount() {
         throw new Error(data?.message || 'Verification code not found in bio');
       }
 
-      // If verified, update the database
-      const { data: updated, error: updateError } = await supabase
+      // C-02: the verify-*-bio Edge Function sets verified=true /
+      // verified_at server-side after the bio-code check. The browser
+      // must NEVER write the verified flag itself — any owner could flip
+      // it. Re-read the row to pick up the server-set verdict.
+      const { data: updated, error: readError } = await supabase
         .from("social_accounts")
-        .update({
-          verified: true,
-          verified_at: new Date().toISOString(),
-        })
-        .eq("id", id)
         .select()
+        .eq("id", id)
         .single();
 
-      if (updateError) throw updateError;
+      if (readError) throw readError;
       return updated;
     },
     onSuccess: () => {

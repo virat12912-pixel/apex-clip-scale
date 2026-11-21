@@ -72,7 +72,7 @@ export function useCampaignParticipants(campaignId: string) {
       // Build participant map
       const participantMap = new Map<string, CampaignParticipant>();
 
-      submissions?.forEach((sub: any) => {
+      submissions?.forEach((sub) => {
         const profile = sub.creator_profile;
         const existing = participantMap.get(sub.creator_id);
         const isApproved = sub.status === "approved" || sub.status === "paid";
@@ -253,9 +253,12 @@ export function useUpdateUserStatus(campaignId?: string) {
         const fnBody = { user_id: userId, updates, action };
         console.debug("Invoking admin-update-user function", fnBody);
         const { data: fnData, error: fnError } =
-          await supabase.functions.invoke("admin-update-user", {
-            body: fnBody,
-          });
+          await supabase.functions.invoke<{ error?: string }>(
+            "admin-update-user",
+            {
+              body: fnBody,
+            }
+          );
 
         console.debug("admin-update-user response", { fnData, fnError });
 
@@ -268,9 +271,11 @@ export function useUpdateUserStatus(campaignId?: string) {
         }
 
         // If function returns a JSON error payload, detect it
-        if (fnData && (fnData as any).error) {
-          const e = new Error((fnData as any).error || "Function error");
-          (e as any).details = fnData;
+        if (fnData?.error) {
+          const e = new Error(fnData.error) as Error & {
+            details?: unknown;
+          };
+          e.details = fnData;
           throw e;
         }
 
@@ -319,8 +324,10 @@ export function useUpdateUserStatus(campaignId?: string) {
       const previousUserProfile = queryClient.getQueryData(userProfileKey);
 
       if (updates && Object.keys(updates).length > 0) {
-        queryClient.setQueryData(userProfileKey, (old: any) => ({
-          ...(old || {}),
+        queryClient.setQueryData<UserProfile>(userProfileKey, (old) => ({
+          // Preserve the previous merge behaviour when no profile is cached
+          // yet (a partial object is planted and completed by the refetch).
+          ...((old ?? {}) as UserProfile),
           ...updates,
         }));
       }

@@ -591,15 +591,18 @@ export type Database = {
           clipper_tier: string | null
           created_at: string
           email: string
+          email_notifications: boolean
           full_name: string | null
           id: string
           is_banned: boolean
           payment_verified: boolean
           payout_email: string | null
           payout_method: string | null
+          payout_notifications: boolean
           referral_code: string | null
           referred_by: string | null
           solana_wallet_address: string | null
+          submission_notifications: boolean
           total_views_generated: number | null
           updated_at: string
         }
@@ -610,15 +613,18 @@ export type Database = {
           clipper_tier?: string | null
           created_at?: string
           email: string
+          email_notifications?: boolean
           full_name?: string | null
           id: string
           is_banned?: boolean
           payment_verified?: boolean
           payout_email?: string | null
           payout_method?: string | null
+          payout_notifications?: boolean
           referral_code?: string | null
           referred_by?: string | null
           solana_wallet_address?: string | null
+          submission_notifications?: boolean
           total_views_generated?: number | null
           updated_at?: string
         }
@@ -629,15 +635,18 @@ export type Database = {
           clipper_tier?: string | null
           created_at?: string
           email?: string
+          email_notifications?: boolean
           full_name?: string | null
           id?: string
           is_banned?: boolean
           payment_verified?: boolean
           payout_email?: string | null
           payout_method?: string | null
+          payout_notifications?: boolean
           referral_code?: string | null
           referred_by?: string | null
           solana_wallet_address?: string | null
+          submission_notifications?: boolean
           total_views_generated?: number | null
           updated_at?: string
         }

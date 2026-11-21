@@ -40,8 +40,8 @@ const AdminCampaignPayouts = () => {
         action: "verify_payment",
       });
       toast({ title: "Payment method verified" });
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } catch (error) {
+      toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to verify payment", variant: "destructive" });
     }
   };
 
