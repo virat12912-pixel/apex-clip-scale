@@ -18,11 +18,18 @@ import { ElevatedCard, ElevatedCardContent, ElevatedCardHeader, ElevatedCardTitl
 import { ErrorState } from "@/components/ui/ErrorState";
 
 type PrefKey = "email" | "submissions" | "payouts";
+type PrefColumn = "email_notifications" | "submission_notifications" | "payout_notifications";
 
-const PREF_COLUMNS: Record<PrefKey, "email_notifications" | "submission_notifications" | "payout_notifications"> = {
+const PREF_COLUMNS: Record<PrefKey, PrefColumn> = {
   email: "email_notifications",
   submissions: "submission_notifications",
   payouts: "payout_notifications",
+};
+
+const readPreference = (profile: unknown, column: PrefColumn): boolean | undefined => {
+  if (typeof profile !== "object" || profile === null) return undefined;
+  const value = Reflect.get(profile, column);
+  return typeof value === "boolean" ? value : undefined;
 };
 
 const Settings = () => {
@@ -48,22 +55,22 @@ const Settings = () => {
       if (!user) return null;
       const { data, error } = await supabase
         .from("profiles")
-        .select("email_notifications, submission_notifications, payout_notifications")
+        .select("*")
         .eq("id", user.id)
         .maybeSingle();
       if (error) throw error;
-      return data;
+      return {
+        email: readPreference(data, PREF_COLUMNS.email) ?? true,
+        submissions: readPreference(data, PREF_COLUMNS.submissions) ?? true,
+        payouts: readPreference(data, PREF_COLUMNS.payouts) ?? true,
+      };
     },
     enabled: !!user,
   });
 
   useEffect(() => {
     if (savedPrefs) {
-      setNotifications({
-        email: savedPrefs.email_notifications ?? true,
-        submissions: savedPrefs.submission_notifications ?? true,
-        payouts: savedPrefs.payout_notifications ?? true,
-      });
+      setNotifications(savedPrefs);
     }
   }, [savedPrefs]);
 
